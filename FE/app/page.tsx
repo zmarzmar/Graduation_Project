@@ -75,7 +75,7 @@ export default function HomePage() {
     <div className="mx-auto max-w-3xl space-y-6">
       {/* 타이틀 */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">AI-arXiv Analyst</h1>
+        <h1 className="text-2xl font-bold text-gray-900">AI Research Analyst</h1>
         <p className="mt-1 text-sm text-gray-500">
           최신 AI 논문을 분석하고 PyTorch 코드 스켈레톤을 자동으로 재현합니다.
         </p>
