@@ -9,7 +9,7 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 # ChromaDB 클라이언트 (싱글톤)
-_chroma_client: chromadb.HttpClient | None = None
+_chroma_client = None  # chromadb.HttpClient 인스턴스
 _collection = None
 
 # OpenAI 임베딩 클라이언트
