@@ -15,4 +15,9 @@ dependencies = [
     "python-multipart>=0.0.20",
     "python-dotenv>=1.2.1",
     "uvicorn[standard]>=0.41.0",
+    "sqlalchemy[asyncio]>=2.0.48",
+    "asyncpg>=0.31.0",
+    "alembic>=1.18.4",
+    "chromadb>=1.5.5",
+    "openai>=2.29.0",
 ]
