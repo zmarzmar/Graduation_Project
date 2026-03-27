@@ -7,7 +7,7 @@ import feedparser
 import httpx
 from fastapi import HTTPException
 
-from models.paper import PaperResult
+from schemas.paper import PaperResult
 
 logger = logging.getLogger(__name__)
 

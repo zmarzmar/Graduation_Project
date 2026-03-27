@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 
-from models.paper import SearchResponse
+from schemas.paper import SearchResponse
 from services import arxiv_service, semantic_scholar_service
 
 router = APIRouter(tags=["papers"])
