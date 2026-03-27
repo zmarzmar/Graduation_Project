@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FlaskConical, Home, Settings } from 'lucide-react';
+import { BookOpen, Search, User } from 'lucide-react';
 
 export function Header() {
   const pathname = usePathname();
@@ -17,7 +17,7 @@ export function Header() {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <FlaskConical className="h-6 w-6 text-blue-600" />
+            <BookOpen className="h-6 w-6 text-blue-600" />
             <div>
               <h1 className="text-xl font-bold">AI Research Analyst</h1>
               <p className="text-xs text-gray-500">AI 논문 자동 분석 및 코드 재현 Deep Research Agent</p>
@@ -28,24 +28,24 @@ export function Header() {
             <Link
               href="/"
               className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                isActive('/') && !isActive('/admin')
+                isActive('/') && !isActive('/mypage')
                   ? 'bg-blue-50 text-blue-700 font-medium'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <Home className="h-4 w-4" />
-              <span>대시보드</span>
+              <Search className="h-4 w-4" />
+              <span>논문 분석</span>
             </Link>
             <Link
-              href="/admin"
+              href="/mypage"
               className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                isActive('/admin')
-                  ? 'bg-purple-50 text-purple-700 font-medium'
+                isActive('/mypage')
+                  ? 'bg-blue-50 text-blue-700 font-medium'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <Settings className="h-4 w-4" />
-              <span>관리자</span>
+              <User className="h-4 w-4" />
+              <span>마이페이지</span>
             </Link>
           </nav>
         </div>
