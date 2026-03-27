@@ -8,6 +8,7 @@
 *.pdf
 *.pkl
 *.md
+!CLAUDE.md
 *.gguf
 *.faiss
 *.index
@@ -217,3 +218,6 @@ pyrightconfig.json
 
 
 # End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks,python
+
+# 개인 설정
+.claude/settings.local.json
