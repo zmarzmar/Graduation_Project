@@ -53,7 +53,7 @@ export default function PapersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dbStats.totalPapers}</div>
-            <p className="text-xs text-gray-600 mt-1">PubMed 수집</p>
+            <p className="text-xs text-gray-600 mt-1">arXiv / Semantic Scholar 수집</p>
           </CardContent>
         </Card>
 
