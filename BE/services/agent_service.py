@@ -8,6 +8,11 @@ from pypdf import PdfReader
 
 from agents.graph import agent_graph
 from agents.log_stream import set_log_queue
+from core.dependencies import AsyncSessionLocal
+from crud import analysis as crud_analysis
+from crud import paper as crud_paper
+from crud import search_history as crud_search_history
+from schemas.paper import PaperResult
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +151,48 @@ async def stream_agent(
         "papers": accumulated.get("papers", []),
         "mode": mode,
     }
+
+    # DB 저장 (비동기, 실패해도 스트리밍 결과에 영향 없음)
+    try:
+        await _save_to_db(mode, user_query, accumulated)
+    except Exception as e:
+        logger.error(f"DB 저장 실패 (무시): {e}")
+
     yield _sse({"event": "complete", "result": final_result})
+
+
+async def _save_to_db(mode: str, user_query: str, accumulated: dict) -> None:
+    """에이전트 실행 결과를 DB에 저장한다."""
+    papers: list[dict] = accumulated.get("papers", [])
+
+    async with AsyncSessionLocal() as db:
+        # 검색 기록 저장
+        await crud_search_history.create_search_history(
+            db, query=user_query, mode=mode, result_count=len(papers)
+        )
+
+        # 논문 저장 및 분석 결과 저장 (search/pdf 모드)
+        paper_id: int | None = None
+        if papers and mode in ("search", "pdf"):
+            first_paper_dict = papers[0] if isinstance(papers[0], dict) else papers[0].__dict__
+            try:
+                paper_schema = PaperResult(**first_paper_dict)
+                paper_obj = await crud_paper.upsert_paper(db, paper_schema)
+                paper_id = paper_obj.id
+            except Exception as e:
+                logger.warning(f"논문 저장 실패 (무시): {e}")
+
+        await crud_analysis.create_analysis_result(
+            db,
+            mode=mode,
+            query=user_query,
+            generated_code=accumulated.get("generated_code", ""),
+            review_feedback=accumulated.get("review_feedback", ""),
+            review_passed=accumulated.get("review_passed", False),
+            iteration_count=accumulated.get("iteration_count", 0),
+            paper_id=paper_id,
+        )
+        await db.commit()
 
 
 def _extract_plan_summary(plan_str: str) -> str:
