@@ -9,6 +9,7 @@
 *.pkl
 *.md
 !CLAUDE.md
+!README.md
 *.gguf
 *.faiss
 *.index

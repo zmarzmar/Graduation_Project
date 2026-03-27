@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ## Project Overview
 
-**AI-arXiv Analyst** is a graduation project that builds a Deep Research Agent for analyzing the latest AI papers and trends.
+**AI Research Analyst** is a graduation project that builds a Deep Research Agent for analyzing the latest AI research papers and trends.
 
 The system goes beyond simple summarization — it retrieves papers from multiple sources (arXiv, Semantic Scholar, Hugging Face), generates PyTorch/TensorFlow code skeletons based on the paper's Methods section, and runs a **self-correction loop** powered by LangGraph to verify and fix the generated code against the paper's theory.
 
@@ -210,8 +210,8 @@ git push origin feature/기능명
 ### Git Rules
 
 - **Commit messages must be written in English**
-- Always commit after completing one feature
-- Always push after committing
+- 기능 완료 후 커밋까지는 자동으로 진행
+- push는 항상 사용자 확인 후 진행
 - Never commit directly to `main`
 - Never hardcode API keys
 
