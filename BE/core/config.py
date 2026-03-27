@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     # OpenAlex (선택) — 이메일 등록 시 polite pool(100 req/sec) 적용
     openalex_email: str = ""
 
-    # 데이터베이스
-    database_url: str = ""
+    # 데이터베이스 — postgresql+asyncpg:// 형식 사용
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_research"
 
     # ChromaDB
     chroma_host: str = "localhost"
