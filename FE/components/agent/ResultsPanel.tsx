@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -145,10 +145,15 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
     analysis: '논문 분석',
     trend: '트렌드 분석',
     code: '생성 코드',
-    review: '리뷰',
+    review: '코드 리뷰',
   }
 
   const [activeTab, setActiveTab] = useState<TabId>('papers')
+
+  // 분석 완료 시 논문 분석 탭으로 자동 전환
+  useEffect(() => {
+    if (hasAnalysis) setActiveTab('analysis')
+  }, [hasAnalysis])
 
   // 수집 논문 탭에 표시할 논문 목록 — 분석 후에도 검색 결과 5편 유지
   const displayPapers = searchedPapers && searchedPapers.length > 0 ? searchedPapers : result.papers
