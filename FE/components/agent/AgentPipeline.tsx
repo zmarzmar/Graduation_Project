@@ -19,6 +19,7 @@ const ALL_NODES: NodeConfig[] = [
   { name: 'planner',        label: 'Planner',        description: '계획 수립' },
   { name: 'researcher',     label: 'Researcher',     description: '논문 수집' },
   { name: 'trend_analyzer', label: 'TrendAnalyzer',  description: '트렌드 분석' },
+  { name: 'analyzer',       label: 'Analyzer',       description: '논문 분석' },
   { name: 'coder',          label: 'Coder',          description: '코드 생성' },
   { name: 'reviewer',       label: 'Reviewer',       description: '코드 검증' },
 ]

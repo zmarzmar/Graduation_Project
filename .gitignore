@@ -62,8 +62,10 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# lib/ — Python virtualenv 디렉토리이지만 FE/lib은 제외해야 함
+/lib/
+/lib64/
+!FE/lib/
 parts/
 sdist/
 var/
