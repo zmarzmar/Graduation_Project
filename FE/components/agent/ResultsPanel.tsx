@@ -127,7 +127,11 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
   const isTrend = result.mode === 'trend'
   const hasCoding = !!result.generated_code
   const hasTrendAnalysis = isTrend && !!result.trend_analysis
-  const hasAnalysis = !isTrend && !!(result.paper_summary || result.paper_review || result.key_formulas?.length)
+  const hasAnalysis = !isTrend && !!(
+    result.paper_summary ||
+    (result.paper_review && Object.keys(result.paper_review).length > 0) ||
+    result.key_formulas?.length
+  )
 
   type TabId = 'papers' | 'analysis' | 'trend' | 'code' | 'review'
   const tabs: TabId[] = [
@@ -199,6 +203,18 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
 
         {activeTab === 'analysis' && (
           <div className="space-y-5">
+            {/* 분석 대상 논문 */}
+            {result.papers[0] && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+                <p className="text-xs font-medium text-blue-500 mb-0.5">분석 논문</p>
+                <p className="text-sm font-semibold text-blue-900 leading-snug">{result.papers[0].title}</p>
+                <p className="mt-1 text-xs text-blue-600">
+                  {result.papers[0].authors.slice(0, 3).join(', ')}
+                  {result.papers[0].authors.length > 3 && ' 외'}
+                </p>
+              </div>
+            )}
+
             {/* 논문 요약 */}
             {result.paper_summary && (
               <div>
