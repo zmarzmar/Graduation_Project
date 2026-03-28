@@ -51,10 +51,23 @@ async def coder_node(state: AgentState) -> dict:
     label = "최초 생성" if iteration == 0 else f"피드백 반영 ({iteration}회차 → {iteration + 1}회차)"
     logger.info(f"[Coder] 시작 — {label}")
 
+    # Analyzer 결과 컨텍스트 추가
+    summary = state.get("paper_summary", "")
+    key_formulas = state.get("key_formulas", [])
+    formula_context = ""
+    if key_formulas:
+        formula_lines = ["### 핵심 수식:"]
+        for f in key_formulas:
+            formula_lines.append(f"- {f.get('name', '')}: ${f.get('latex', '')}$")
+            formula_lines.append(f"  ({f.get('description', '')})")
+        formula_context = "\n".join(formula_lines)
+
     if iteration == 0:
         user_content = (
             "다음 논문을 바탕으로 PyTorch 코드 스켈레톤을 작성하세요.\n\n"
-            f"{paper_context}"
+            + (f"### 논문 요약:\n{summary}\n\n" if summary else "")
+            + (f"{formula_context}\n\n" if formula_context else "")
+            + f"{paper_context}"
         )
     else:
         user_content = (
