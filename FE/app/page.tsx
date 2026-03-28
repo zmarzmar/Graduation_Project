@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { AgentPipeline } from '@/components/agent/AgentPipeline'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
-import { runSearchAgent, runPdfAgent, runTrendAgent } from '@/lib/api'
+import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent } from '@/lib/api'
+import type { ArxivPaper } from '@/lib/types/agent-run'
 import type { AgentMode } from '@/lib/types/agent-run'
 
 const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description: string }[] = [
@@ -62,6 +63,11 @@ export default function HomePage() {
     } else if (mode === 'trend') {
       startStream((signal) => runTrendAgent(topic.trim(), signal))
     }
+  }
+
+  function handleAnalyze(paper: ArxivPaper) {
+    setPipelineMode('analyze')
+    startStream((signal) => runAnalyzeAgent(paper, query.trim(), signal))
   }
 
   function handleReset() {
@@ -234,7 +240,7 @@ export default function HomePage() {
       )}
 
       {/* 결과 패널 */}
-      {result && <ResultsPanel result={result} />}
+      {result && <ResultsPanel result={result} onAnalyze={handleAnalyze} />}
     </div>
   )
 }

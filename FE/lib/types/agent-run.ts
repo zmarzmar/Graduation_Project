@@ -1,6 +1,6 @@
 // BE의 AgentState / SSE 이벤트와 1:1 대응하는 타입 정의
 
-export type AgentMode = 'pdf' | 'search' | 'trend'
+export type AgentMode = 'pdf' | 'search' | 'trend' | 'analyze'
 export type NodeName = 'planner' | 'researcher' | 'trend_analyzer' | 'analyzer' | 'coder' | 'reviewer'
 export type NodeStatus = 'pending' | 'running' | 'done' | 'error'
 

@@ -8,9 +8,10 @@ import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-r
 
 interface ResultsPanelProps {
   result: AgentResult
+  onAnalyze?: (paper: ArxivPaper) => void
 }
 
-function PaperCard({ paper, summary }: { paper: ArxivPaper; summary?: string }) {
+function PaperCard({ paper, summary, onAnalyze }: { paper: ArxivPaper; summary?: string; onAnalyze?: (paper: ArxivPaper) => void }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -57,14 +58,24 @@ function PaperCard({ paper, summary }: { paper: ArxivPaper; summary?: string }) 
         <p className="mt-2 text-xs text-gray-600 italic">"{paper.tldr}"</p>
       )}
 
-      {/* 초록 토글 */}
-      <button
-        className="mt-2 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
-        onClick={() => setExpanded((v) => !v)}
-      >
-        {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        초록 {expanded ? '접기' : '보기'}
-      </button>
+      {/* 초록 토글 + 분석 버튼 */}
+      <div className="mt-2 flex items-center justify-between">
+        <button
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          초록 {expanded ? '접기' : '보기'}
+        </button>
+        {onAnalyze && (
+          <button
+            onClick={() => onAnalyze(paper)}
+            className="rounded-md bg-blue-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600"
+          >
+            이 논문 분석하기
+          </button>
+        )}
+      </div>
       {expanded && (
         <p className="mt-2 text-xs leading-relaxed text-gray-600">{paper.abstract}</p>
       )}
@@ -111,7 +122,7 @@ function TrendAnalysisPanel({ analysis }: { analysis: TrendAnalysis }) {
   )
 }
 
-export function ResultsPanel({ result }: ResultsPanelProps) {
+export function ResultsPanel({ result, onAnalyze }: ResultsPanelProps) {
   const isTrend = result.mode === 'trend'
   const hasCoding = !!result.generated_code
   const hasTrendAnalysis = isTrend && !!result.trend_analysis
@@ -175,6 +186,7 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
                   key={paper.arxiv_id || paper.title}
                   paper={paper}
                   summary={summaryMap.get(paper.title)}
+                  onAnalyze={result.mode === 'search' ? onAnalyze : undefined}
                 />
               ))
             )}

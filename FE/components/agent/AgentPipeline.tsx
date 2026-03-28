@@ -26,6 +26,8 @@ const ALL_NODES: NodeConfig[] = [
 
 // trend 모드는 TrendAnalyzer 사용, Coder/Reviewer 없음
 const TREND_NODES: NodeName[] = ['planner', 'researcher', 'trend_analyzer']
+// analyze 모드는 Planner/Researcher 없이 바로 분석 시작
+const ANALYZE_NODES: NodeName[] = ['analyzer', 'coder', 'reviewer']
 
 function NodeIcon({ status }: { status: string }) {
   switch (status) {
@@ -55,10 +57,12 @@ function nodeHeaderBg(status: string): string {
 }
 
 export function AgentPipeline({ nodeStatuses, nodeLogs, mode }: AgentPipelineProps) {
-  // trend 모드는 Coder/Reviewer 숨김
+  // 모드별 노드 필터링
   const visibleNodes = mode === 'trend'
     ? ALL_NODES.filter((n) => TREND_NODES.includes(n.name))
-    : ALL_NODES
+    : mode === 'analyze'
+      ? ALL_NODES.filter((n) => ANALYZE_NODES.includes(n.name))
+      : ALL_NODES
 
   const hasAnyActivity = visibleNodes.some((n) => nodeStatuses[n.name] !== 'pending')
 
