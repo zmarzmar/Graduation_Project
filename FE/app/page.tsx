@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Search, Upload, TrendingUp, Play, RotateCcw, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,12 +31,43 @@ const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description:
   },
 ]
 
+const SEARCH_PLACEHOLDERS = [
+  '예: LoRA fine-tuning',
+  '예: diffusion model',
+  '예: attention mechanism',
+  '예: vision transformer',
+  '예: reinforcement learning from human feedback',
+  '예: graph neural network',
+  '예: multimodal learning',
+  '예: retrieval augmented generation',
+]
+
+const TREND_PLACEHOLDERS = [
+  '예: large language model',
+  '예: vision transformer',
+  '예: reinforcement learning',
+  '예: multimodal',
+  '예: diffusion model',
+  '예: agent',
+]
+
 export default function HomePage() {
   const [mode, setMode] = useState<AgentMode>('search')
   const [query, setQuery] = useState('')
-  const [topic, setTopic] = useState('large language model')
+  const [topic, setTopic] = useState('')
+  const [searchPlaceholderIdx, setSearchPlaceholderIdx] = useState(0)
+  const [trendPlaceholderIdx, setTrendPlaceholderIdx] = useState(0)
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // placeholder 3초마다 순환
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSearchPlaceholderIdx((i) => (i + 1) % SEARCH_PLACEHOLDERS.length)
+      setTrendPlaceholderIdx((i) => (i + 1) % TREND_PLACEHOLDERS.length)
+    }, 3000)
+    return () => clearInterval(id)
+  }, [])
 
   // 파이프라인에 실제로 사용된 모드 — 탭 전환과 무관하게 유지
   const [pipelineMode, setPipelineMode] = useState<AgentMode>('search')
@@ -64,7 +95,7 @@ export default function HomePage() {
   function handleReset() {
     reset()
     setQuery('')
-    setTopic('large language model')
+    setTopic('')
     setFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -104,7 +135,7 @@ export default function HomePage() {
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         {mode === 'search' && (
           <Input
-            placeholder="예: attention mechanism, LoRA fine-tuning, diffusion model"
+            placeholder={SEARCH_PLACEHOLDERS[searchPlaceholderIdx]}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
@@ -132,7 +163,7 @@ export default function HomePage() {
 
         {mode === 'trend' && (
           <Input
-            placeholder="예: vision transformer, reinforcement learning, multimodal"
+            placeholder={TREND_PLACEHOLDERS[trendPlaceholderIdx]}
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
