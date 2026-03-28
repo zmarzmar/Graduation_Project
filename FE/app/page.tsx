@@ -31,9 +31,12 @@ const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description:
   },
 ]
 
+const SEARCH_EXAMPLES = ['LoRA fine-tuning', 'diffusion model', 'attention mechanism', 'graph neural network', 'retrieval augmented generation']
+const TREND_EXAMPLES = ['large language model', 'vision transformer', 'reinforcement learning', 'multimodal', 'agent']
+
 export default function HomePage() {
   const [mode, setMode] = useState<AgentMode>('search')
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState('LoRA fine-tuning')
   const [topic, setTopic] = useState('large language model')
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -63,7 +66,7 @@ export default function HomePage() {
 
   function handleReset() {
     reset()
-    setQuery('')
+    setQuery('LoRA fine-tuning')
     setTopic('large language model')
     setFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -103,13 +106,31 @@ export default function HomePage() {
       {/* 입력 영역 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         {mode === 'search' && (
-          <Input
-            placeholder="예: attention mechanism, LoRA fine-tuning, diffusion model"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
-            disabled={isRunning}
-          />
+          <div className="space-y-2">
+            <Input
+              placeholder="키워드를 입력하세요"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
+              disabled={isRunning}
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {SEARCH_EXAMPLES.map((ex) => (
+                <button
+                  key={ex}
+                  onClick={() => setQuery(ex)}
+                  disabled={isRunning}
+                  className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                    query === ex
+                      ? 'border-blue-400 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  }`}
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {mode === 'pdf' && (
@@ -131,13 +152,31 @@ export default function HomePage() {
         )}
 
         {mode === 'trend' && (
-          <Input
-            placeholder="예: vision transformer, reinforcement learning, multimodal"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
-            disabled={isRunning}
-          />
+          <div className="space-y-2">
+            <Input
+              placeholder="트렌드 주제를 입력하세요"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
+              disabled={isRunning}
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {TREND_EXAMPLES.map((ex) => (
+                <button
+                  key={ex}
+                  onClick={() => setTopic(ex)}
+                  disabled={isRunning}
+                  className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                    topic === ex
+                      ? 'border-blue-400 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  }`}
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* 버튼 영역 */}
