@@ -17,7 +17,7 @@ from schemas.paper import PaperResult
 logger = logging.getLogger(__name__)
 
 # SSE 이벤트를 전송할 노드 목록 (LangGraph 내부 노드 제외)
-_AGENT_NODES = {"planner", "researcher", "trend_analyzer", "coder", "reviewer"}
+_AGENT_NODES = {"planner", "researcher", "trend_analyzer", "analyzer", "coder", "reviewer"}
 
 
 def extract_pdf_text(file_bytes: bytes) -> str:
@@ -39,6 +39,9 @@ def _make_initial_state(
         "pdf_text": pdf_text,
         "plan": "",
         "papers": [],
+        "paper_summary": "",
+        "paper_review": {},
+        "key_formulas": [],
         "generated_code": "",
         "review_feedback": "",
         "review_passed": False,
@@ -67,6 +70,9 @@ def _build_node_done_event(node_name: str, updates: dict) -> dict:
         analysis = updates.get("trend_analysis", {})
         event["summaries_count"] = len(analysis.get("paper_summaries", []))
         event["keywords_count"] = len(analysis.get("trending_keywords", []))
+    elif node_name == "analyzer":
+        event["paper_summary"] = updates.get("paper_summary", "")
+        event["key_formulas_count"] = len(updates.get("key_formulas", []))
     elif node_name == "coder":
         event["iteration"] = updates.get("iteration_count", 1)
     elif node_name == "reviewer":
@@ -147,10 +153,16 @@ async def stream_agent(
         task.cancel()
 
     # 최종 결과 전송
-    final_result = accumulated.get("final_result") or {
+    final_result = accumulated.get("final_result") or {}
+    final_result.update({
         "papers": accumulated.get("papers", []),
+        "paper_summary": accumulated.get("paper_summary", ""),
+        "paper_review": accumulated.get("paper_review", {}),
+        "key_formulas": accumulated.get("key_formulas", []),
+        "generated_code": accumulated.get("generated_code", ""),
+        "review_feedback": accumulated.get("review_feedback", ""),
         "mode": mode,
-    }
+    })
 
     # DB 저장 (비동기, 실패해도 스트리밍 결과에 영향 없음)
     try:
