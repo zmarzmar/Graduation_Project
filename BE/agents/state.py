@@ -12,6 +12,9 @@ class AgentState(TypedDict):
     # ── 노드별 산출물 ──────────────────────────────────────────────────────
     plan: str           # Planner 실행 계획 (JSON 문자열)
     papers: list[dict]  # Researcher 수집 논문 목록
+    paper_summary: str  # Analyzer 논문 요약
+    paper_review: dict  # Analyzer 논문 리뷰 {"strengths": [...], "limitations": [...], "significance": "..."}
+    key_formulas: list[dict]  # Analyzer 핵심 수식 [{"name": "...", "latex": "...", "description": "..."}]
     generated_code: str # Coder 생성 코드
     review_feedback: str# Reviewer 피드백
     review_passed: bool # Reviewer 검증 통과 여부
