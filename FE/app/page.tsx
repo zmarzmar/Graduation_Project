@@ -44,6 +44,8 @@ export default function HomePage() {
 
   // 파이프라인에 실제로 사용된 모드 — 탭 전환과 무관하게 유지
   const [pipelineMode, setPipelineMode] = useState<AgentMode>('search')
+  // 검색으로 수집된 논문 목록 — 분석 시작 후에도 유지
+  const [searchedPapers, setSearchedPapers] = useState<ArxivPaper[]>([])
 
   const { nodeStatuses, nodeLogs, result, isRunning, cancelled, error, startStream, cancel, reset } =
     useAgentStream()
@@ -55,6 +57,7 @@ export default function HomePage() {
       (mode === 'trend' && topic.trim().length > 0))
 
   function handleRun() {
+    setSearchedPapers([])
     setPipelineMode(mode)
     if (mode === 'search') {
       startStream((signal) => runSearchAgent(query.trim(), signal))
@@ -66,12 +69,17 @@ export default function HomePage() {
   }
 
   function handleAnalyze(paper: ArxivPaper) {
+    // 검색 결과 논문 목록을 보존하고 분석만 새로 시작
+    if (pipelineMode === 'search' && result?.papers.length) {
+      setSearchedPapers(result.papers)
+    }
     setPipelineMode('analyze')
     startStream((signal) => runAnalyzeAgent(paper, query.trim(), signal))
   }
 
   function handleReset() {
     reset()
+    setSearchedPapers([])
     setQuery('LoRA fine-tuning')
     setTopic('large language model')
     setFile(null)
@@ -240,7 +248,13 @@ export default function HomePage() {
       )}
 
       {/* 결과 패널 */}
-      {result && <ResultsPanel result={result} onAnalyze={handleAnalyze} />}
+      {result && (
+        <ResultsPanel
+          result={result}
+          searchedPapers={searchedPapers}
+          onAnalyze={handleAnalyze}
+        />
+      )}
     </div>
   )
 }

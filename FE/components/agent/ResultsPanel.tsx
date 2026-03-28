@@ -8,6 +8,7 @@ import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-r
 
 interface ResultsPanelProps {
   result: AgentResult
+  searchedPapers?: ArxivPaper[]  // 검색 모드에서 수집된 전체 논문 목록 (분석 후에도 유지)
   onAnalyze?: (paper: ArxivPaper) => void
 }
 
@@ -122,7 +123,7 @@ function TrendAnalysisPanel({ analysis }: { analysis: TrendAnalysis }) {
   )
 }
 
-export function ResultsPanel({ result, onAnalyze }: ResultsPanelProps) {
+export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanelProps) {
   const isTrend = result.mode === 'trend'
   const hasCoding = !!result.generated_code
   const hasTrendAnalysis = isTrend && !!result.trend_analysis
@@ -144,6 +145,9 @@ export function ResultsPanel({ result, onAnalyze }: ResultsPanelProps) {
   }
 
   const [activeTab, setActiveTab] = useState<TabId>('papers')
+
+  // 수집 논문 탭에 표시할 논문 목록 — 분석 후에도 검색 결과 5편 유지
+  const displayPapers = searchedPapers && searchedPapers.length > 0 ? searchedPapers : result.papers
 
   // 트렌드 분석 결과에서 제목으로 한 줄 요약 매핑
   const summaryMap = new Map(
@@ -167,7 +171,7 @@ export function ResultsPanel({ result, onAnalyze }: ResultsPanelProps) {
             {labels[tab]}
             {tab === 'papers' && (
               <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
-                {result.papers.length}
+                {displayPapers.length}
               </span>
             )}
           </button>
@@ -178,15 +182,15 @@ export function ResultsPanel({ result, onAnalyze }: ResultsPanelProps) {
       <div className="p-4">
         {activeTab === 'papers' && (
           <div className="space-y-3">
-            {result.papers.length === 0 ? (
+            {displayPapers.length === 0 ? (
               <p className="text-sm text-gray-400">수집된 논문이 없습니다.</p>
             ) : (
-              result.papers.map((paper) => (
+              displayPapers.map((paper) => (
                 <PaperCard
                   key={paper.arxiv_id || paper.title}
                   paper={paper}
                   summary={summaryMap.get(paper.title)}
-                  onAnalyze={result.mode === 'search' ? onAnalyze : undefined}
+                  onAnalyze={onAnalyze}
                 />
               ))
             )}
