@@ -115,15 +115,18 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
   const isTrend = result.mode === 'trend'
   const hasCoding = !!result.generated_code
   const hasTrendAnalysis = isTrend && !!result.trend_analysis
+  const hasAnalysis = !isTrend && !!(result.paper_summary || result.paper_review || result.key_formulas?.length)
 
-  type TabId = 'papers' | 'trend' | 'code' | 'review'
+  type TabId = 'papers' | 'analysis' | 'trend' | 'code' | 'review'
   const tabs: TabId[] = [
     'papers',
+    ...(hasAnalysis ? ['analysis' as TabId] : []),
     ...(hasTrendAnalysis ? ['trend' as TabId] : []),
     ...(hasCoding ? ['code' as TabId, 'review' as TabId] : []),
   ]
   const labels: Record<TabId, string> = {
     papers: '수집 논문',
+    analysis: '논문 분석',
     trend: '트렌드 분석',
     code: '생성 코드',
     review: '리뷰',
@@ -174,6 +177,74 @@ export function ResultsPanel({ result }: ResultsPanelProps) {
                   summary={summaryMap.get(paper.title)}
                 />
               ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'analysis' && (
+          <div className="space-y-5">
+            {/* 논문 요약 */}
+            {result.paper_summary && (
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-gray-700">📄 논문 요약</h4>
+                <p className="rounded-lg bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">
+                  {result.paper_summary}
+                </p>
+              </div>
+            )}
+
+            {/* 강점 / 한계 / 의의 */}
+            {result.paper_review && (
+              <div className="space-y-3">
+                {result.paper_review.strengths?.length > 0 && (
+                  <div>
+                    <h4 className="mb-1.5 text-sm font-semibold text-gray-700">✅ 강점</h4>
+                    <ul className="space-y-1">
+                      {result.paper_review.strengths.map((s, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                          <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-400" />
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {result.paper_review.limitations?.length > 0 && (
+                  <div>
+                    <h4 className="mb-1.5 text-sm font-semibold text-gray-700">⚠️ 한계점</h4>
+                    <ul className="space-y-1">
+                      {result.paper_review.limitations.map((l, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                          <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-400" />
+                          {l}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {result.paper_review.significance && (
+                  <div>
+                    <h4 className="mb-1.5 text-sm font-semibold text-gray-700">🎯 의의</h4>
+                    <p className="text-sm leading-relaxed text-gray-600">{result.paper_review.significance}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 핵심 수식 */}
+            {result.key_formulas && result.key_formulas.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-gray-700">🔢 핵심 수식</h4>
+                <div className="space-y-2">
+                  {result.key_formulas.map((f, i) => (
+                    <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                      <p className="text-xs font-semibold text-gray-700">{f.name}</p>
+                      <p className="mt-1 rounded bg-gray-900 px-2 py-1 font-mono text-xs text-green-300">{f.latex}</p>
+                      <p className="mt-1 text-xs text-gray-500">{f.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
