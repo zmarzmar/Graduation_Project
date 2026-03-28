@@ -20,6 +20,11 @@ class TrendRequest(BaseModel):
     )
 
 
+class AnalyzeRequest(BaseModel):
+    paper: dict = Field(..., description="사용자가 선택한 논문 데이터")
+    query: str = Field(..., description="원래 검색 키워드 (컨텍스트용)")
+
+
 # ── 엔드포인트 ────────────────────────────────────────────────────────────────
 
 @router.post("/agent/pdf")
@@ -54,6 +59,19 @@ async def run_search_agent(request: SearchRequest) -> StreamingResponse:
     return StreamingResponse(
         agent_service.stream_agent(
             mode="search",
+            user_query=request.query,
+        ),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/agent/analyze")
+async def run_analyze_agent(request: AnalyzeRequest) -> StreamingResponse:
+    """사용자가 선택한 논문 1편을 분석하고 코드를 재현한다. (SSE 스트리밍)"""
+    return StreamingResponse(
+        agent_service.stream_analyze(
+            paper=request.paper,
             user_query=request.query,
         ),
         media_type="text/event-stream",

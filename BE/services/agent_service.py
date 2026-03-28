@@ -6,7 +6,7 @@ from typing import AsyncGenerator
 
 from pypdf import PdfReader
 
-from agents.graph import agent_graph
+from agents.graph import agent_graph, analyze_graph
 from agents.log_stream import set_log_queue
 from core.dependencies import AsyncSessionLocal
 from crud import analysis as crud_analysis
@@ -205,6 +205,76 @@ async def _save_to_db(mode: str, user_query: str, accumulated: dict) -> None:
             paper_id=paper_id,
         )
         await db.commit()
+
+
+async def stream_analyze(
+    paper: dict,
+    user_query: str,
+) -> AsyncGenerator[str, None]:
+    """사용자가 선택한 논문 1편을 Analyzer → Coder → Reviewer로 분석한다."""
+    initial_state = _make_initial_state("pdf", user_query)
+    initial_state["papers"] = [paper]
+    accumulated: dict = dict(initial_state)
+
+    queue: asyncio.Queue = asyncio.Queue()
+    set_log_queue(queue)
+
+    async def _run_graph() -> None:
+        try:
+            async for chunk in analyze_graph.astream(initial_state, stream_mode="updates"):
+                for node_name, updates in chunk.items():
+                    if node_name in _AGENT_NODES:
+                        await queue.put(("node", node_name, updates))
+        except Exception as e:
+            await queue.put(("error", None, str(e)))
+        finally:
+            await queue.put(("done", None, None))
+
+    task = asyncio.create_task(_run_graph())
+    started_nodes: set[str] = set()
+
+    try:
+        while True:
+            item = await queue.get()
+            kind, name, data = item
+
+            if kind == "log":
+                if name not in started_nodes:
+                    started_nodes.add(name)
+                    yield _sse({"event": "node_start", "node": name})
+                yield _sse({"event": "log", "node": name, "message": data})
+
+            elif kind == "node":
+                if name not in started_nodes:
+                    started_nodes.add(name)
+                    yield _sse({"event": "node_start", "node": name})
+                accumulated.update(data)
+                yield _sse(_build_node_done_event(name, data))
+
+            elif kind == "error":
+                logger.error(f"분석 스트리밍 중 오류: {data}")
+                yield _sse({"event": "error", "message": data})
+                return
+
+            elif kind == "done":
+                break
+
+    finally:
+        task.cancel()
+
+    final_result = {
+        "papers": [paper],
+        "paper_summary": accumulated.get("paper_summary", ""),
+        "paper_review": accumulated.get("paper_review", {}),
+        "key_formulas": accumulated.get("key_formulas", []),
+        "generated_code": accumulated.get("generated_code", ""),
+        "review_feedback": accumulated.get("review_feedback", ""),
+        "review_passed": accumulated.get("review_passed", False),
+        "iteration_count": accumulated.get("iteration_count", 0),
+        "mode": "search",
+    }
+
+    yield _sse({"event": "complete", "result": final_result})
 
 
 def _extract_plan_summary(plan_str: str) -> str:
