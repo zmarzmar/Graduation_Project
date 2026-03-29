@@ -68,28 +68,30 @@ async def researcher_node(state: AgentState) -> dict:
             emit_log("researcher", f"HuggingFace 논문 {len(hf_papers)}편 수집 완료")
             logger.info(f"[Researcher] HF 논문 {len(hf_papers)}편 수집")
 
-            # S2로 보완 — 실패 시 arXiv fallback, 둘 다 실패해도 HF 논문 유지
-            extra_papers = []
+            # S2 보완 (5편) — 실패해도 HF 논문 유지
+            s2_papers = []
             try:
                 emit_log("researcher", f"Semantic Scholar 트렌드 검색 중... ({search_query})")
-                extra_papers = await semantic_scholar_service.search_papers(search_query, max_results=5)
-                emit_log("researcher", f"Semantic Scholar {len(extra_papers)}편 수집 완료")
-                logger.info(f"[Researcher] S2 트렌드 {len(extra_papers)}편 수집")
-            except Exception:
-                try:
-                    emit_log("researcher", "Semantic Scholar 실패 — arXiv로 재시도...")
-                    arxiv_results = await arxiv_service.search_papers(search_query, max_results=5)
-                    extra_papers = [p.model_dump(mode="json") for p in arxiv_results]
-                    emit_log("researcher", f"arXiv {len(extra_papers)}편 수집 완료")
-                    logger.info(f"[Researcher] arXiv 트렌드 {len(extra_papers)}편 수집")
-                except Exception as e:
-                    logger.warning(f"[Researcher] S2/arXiv 모두 실패 (HF 논문으로 계속): {e}")
-                    emit_log("researcher", "추가 수집 실패 — HuggingFace 논문으로 계속 진행")
+                s2_papers = await semantic_scholar_service.search_papers(search_query, max_results=5)
+                emit_log("researcher", f"Semantic Scholar {len(s2_papers)}편 수집 완료")
+                logger.info(f"[Researcher] S2 트렌드 {len(s2_papers)}편 수집")
+            except Exception as e:
+                logger.warning(f"[Researcher] S2 수집 실패 (무시): {e}")
+                emit_log("researcher", "Semantic Scholar 수집 실패 — 계속 진행")
 
-            # S2는 dict 반환, arXiv는 PaperResult 반환 → 통일
-            if extra_papers and not isinstance(extra_papers[0], dict):
-                extra_papers = [p.model_dump(mode="json") for p in extra_papers]
-            papers = hf_papers + extra_papers
+            # arXiv 보너스 (5편) — 성공하면 최대 15편, 실패해도 10편 보장
+            arxiv_papers = []
+            try:
+                emit_log("researcher", f"arXiv 트렌드 검색 중... ({search_query})")
+                arxiv_results = await arxiv_service.search_papers(search_query, max_results=5)
+                arxiv_papers = [p.model_dump(mode="json") for p in arxiv_results]
+                emit_log("researcher", f"arXiv {len(arxiv_papers)}편 수집 완료")
+                logger.info(f"[Researcher] arXiv 트렌드 {len(arxiv_papers)}편 수집")
+            except Exception as e:
+                logger.warning(f"[Researcher] arXiv 수집 실패 (무시): {e}")
+                emit_log("researcher", "arXiv 수집 실패 — HF+S2 논문으로 계속 진행")
+
+            papers = hf_papers + s2_papers + arxiv_papers
             emit_log("researcher", f"총 {len(papers)}편 수집 완료")
             logger.info(f"[Researcher] 완료 — 총 {len(papers)}편")
 
