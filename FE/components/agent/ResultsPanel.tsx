@@ -141,7 +141,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
     ...(hasCoding ? ['code' as TabId, 'review' as TabId] : []),
   ]
   const labels: Record<TabId, string> = {
-    papers: '수집 논문',
+    papers: result.mode === 'pdf' ? '참고 논문' : '수집 논문',
     analysis: '논문 분석',
     trend: '트렌드 분석',
     code: '생성 코드',
