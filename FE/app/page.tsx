@@ -8,8 +8,7 @@ import { AgentPipeline } from '@/components/agent/AgentPipeline'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
 import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent } from '@/lib/api'
-import type { ArxivPaper } from '@/lib/types/agent-run'
-import type { AgentMode } from '@/lib/types/agent-run'
+import type { ArxivPaper, AgentMode } from '@/lib/types/agent-run'
 
 const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description: string }[] = [
   {
@@ -42,51 +41,66 @@ export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 파이프라인에 실제로 사용된 모드 — 탭 전환과 무관하게 유지
-  const [pipelineMode, setPipelineMode] = useState<AgentMode>('search')
-  // 검색으로 수집된 논문 목록 — 분석 시작 후에도 유지
+  // 모드별 독립 스트림 — 탭 전환 시 각자의 상태 유지
+  const searchStream = useAgentStream()
+  const pdfStream = useAgentStream()
+  const trendStream = useAgentStream()
+
+  // 현재 탭에 해당하는 스트림
+  const activeStream = mode === 'search' ? searchStream : mode === 'pdf' ? pdfStream : trendStream
+
+  // 검색 탭 파이프라인 모드 — 검색 후 분석 시작하면 'analyze'로 전환
+  const [searchPipelineMode, setSearchPipelineMode] = useState<AgentMode>('search')
+  const pipelineMode: AgentMode = mode === 'search' ? searchPipelineMode : mode === 'pdf' ? 'pdf' : 'trend'
+
+  // 검색 결과 논문 목록 — 분석 시작 후에도 유지
   const [searchedPapers, setSearchedPapers] = useState<ArxivPaper[]>([])
 
-  const { nodeStatuses, nodeLogs, result, isRunning, cancelled, error, startStream, cancel, reset } =
-    useAgentStream()
-
   const canRun =
-    !isRunning &&
+    !activeStream.isRunning &&
     ((mode === 'search' && query.trim().length > 0) ||
       (mode === 'pdf' && file !== null) ||
       (mode === 'trend' && topic.trim().length > 0))
 
   function handleRun() {
-    setSearchedPapers([])
-    setPipelineMode(mode)
     if (mode === 'search') {
-      startStream((signal) => runSearchAgent(query.trim(), signal))
+      setSearchedPapers([])
+      setSearchPipelineMode('search')
+      searchStream.startStream((signal) => runSearchAgent(query.trim(), signal))
     } else if (mode === 'pdf' && file) {
-      startStream((signal) => runPdfAgent(file, signal))
+      pdfStream.startStream((signal) => runPdfAgent(file, signal))
     } else if (mode === 'trend') {
-      startStream((signal) => runTrendAgent(topic.trim(), signal))
+      trendStream.startStream((signal) => runTrendAgent(topic.trim(), signal))
     }
   }
 
   function handleAnalyze(paper: ArxivPaper) {
-    // 검색 결과 논문 목록을 보존하고 분석만 새로 시작
-    if (pipelineMode === 'search' && result?.papers.length) {
-      setSearchedPapers(result.papers)
+    if (searchStream.result?.papers.length) {
+      setSearchedPapers(searchStream.result.papers)
     }
-    setPipelineMode('analyze')
-    startStream((signal) => runAnalyzeAgent(paper, query.trim(), signal))
+    setSearchPipelineMode('analyze')
+    searchStream.startStream((signal) => runAnalyzeAgent(paper, query.trim(), signal))
   }
 
   function handleReset() {
-    reset()
-    setSearchedPapers([])
-    setQuery('LoRA fine-tuning')
-    setTopic('large language model')
-    setFile(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    activeStream.reset()
+    if (mode === 'search') {
+      setSearchedPapers([])
+      setSearchPipelineMode('search')
+      setQuery('LoRA fine-tuning')
+    } else if (mode === 'pdf') {
+      setFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } else if (mode === 'trend') {
+      setTopic('large language model')
+    }
   }
 
-  const showPipeline = isRunning || cancelled || result !== null || error !== null
+  const showPipeline =
+    activeStream.isRunning ||
+    activeStream.cancelled ||
+    activeStream.result !== null ||
+    activeStream.error !== null
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -98,12 +112,12 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* 모드 선택 — 탭 전환 시 파이프라인 유지 */}
+      {/* 모드 선택 */}
       <div className="flex gap-2">
         {MODES.map((m) => (
           <button
             key={m.id}
-            onClick={() => setMode(m.id)}
+            onClick={() => setMode(m.id as AgentMode)}
             className={`flex flex-1 flex-col items-center gap-1 rounded-lg border-2 p-3 text-sm transition-all ${
               mode === m.id
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
@@ -126,14 +140,14 @@ export default function HomePage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
-              disabled={isRunning}
+              disabled={activeStream.isRunning}
             />
             <div className="flex flex-wrap gap-1.5">
               {SEARCH_EXAMPLES.map((ex) => (
                 <button
                   key={ex}
                   onClick={() => setQuery(ex)}
-                  disabled={isRunning}
+                  disabled={activeStream.isRunning}
                   className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
                     query === ex
                       ? 'border-blue-400 bg-blue-50 text-blue-700'
@@ -153,7 +167,7 @@ export default function HomePage() {
               ref={fileInputRef}
               type="file"
               accept=".pdf"
-              disabled={isRunning}
+              disabled={activeStream.isRunning}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-600 hover:file:bg-blue-100"
             />
@@ -172,14 +186,14 @@ export default function HomePage() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
-              disabled={isRunning}
+              disabled={activeStream.isRunning}
             />
             <div className="flex flex-wrap gap-1.5">
               {TREND_EXAMPLES.map((ex) => (
                 <button
                   key={ex}
                   onClick={() => setTopic(ex)}
-                  disabled={isRunning}
+                  disabled={activeStream.isRunning}
                   className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
                     topic === ex
                       ? 'border-blue-400 bg-blue-50 text-blue-700'
@@ -195,9 +209,8 @@ export default function HomePage() {
 
         {/* 버튼 영역 */}
         <div className="mt-3 flex gap-2">
-          {/* 분석 시작 버튼 */}
           <Button onClick={handleRun} disabled={!canRun} className="gap-2">
-            {isRunning ? (
+            {activeStream.isRunning ? (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 분석 중...
@@ -210,16 +223,14 @@ export default function HomePage() {
             )}
           </Button>
 
-          {/* 취소 버튼 — 분석 중일 때만 표시 */}
-          {isRunning && (
-            <Button variant="destructive" onClick={cancel} className="gap-2">
+          {activeStream.isRunning && (
+            <Button variant="destructive" onClick={activeStream.cancel} className="gap-2">
               <Square className="h-4 w-4" />
               취소
             </Button>
           )}
 
-          {/* 초기화 버튼 — 결과/오류/취소 상태일 때 표시 */}
-          {!isRunning && (result || error || cancelled) && (
+          {!activeStream.isRunning && (activeStream.result || activeStream.error || activeStream.cancelled) && (
             <Button variant="outline" onClick={handleReset} className="gap-2">
               <RotateCcw className="h-4 w-4" />
               초기화
@@ -229,30 +240,34 @@ export default function HomePage() {
       </div>
 
       {/* 취소 메시지 */}
-      {cancelled && !isRunning && (
+      {activeStream.cancelled && !activeStream.isRunning && (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
           분석이 취소됐습니다. 완료된 노드까지의 결과는 아래에서 확인할 수 있습니다.
         </div>
       )}
 
       {/* 오류 메시지 */}
-      {error && (
+      {activeStream.error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
+          {activeStream.error}
         </div>
       )}
 
-      {/* 파이프라인 진행 상황 — pipelineMode 기준으로 표시 */}
+      {/* 파이프라인 진행 상황 */}
       {showPipeline && (
-        <AgentPipeline nodeStatuses={nodeStatuses} nodeLogs={nodeLogs} mode={pipelineMode} />
+        <AgentPipeline
+          nodeStatuses={activeStream.nodeStatuses}
+          nodeLogs={activeStream.nodeLogs}
+          mode={pipelineMode}
+        />
       )}
 
       {/* 결과 패널 */}
-      {result && (
+      {activeStream.result && (
         <ResultsPanel
-          result={result}
-          searchedPapers={searchedPapers}
-          onAnalyze={handleAnalyze}
+          result={activeStream.result}
+          searchedPapers={mode === 'search' ? searchedPapers : undefined}
+          onAnalyze={mode === 'search' && !searchStream.isRunning ? handleAnalyze : undefined}
         />
       )}
     </div>
