@@ -68,11 +68,17 @@ async def researcher_node(state: AgentState) -> dict:
             emit_log("researcher", f"HuggingFace 논문 {len(hf_papers)}편 수집 완료")
             logger.info(f"[Researcher] HF 논문 {len(hf_papers)}편 수집")
 
-            emit_log("researcher", f"arXiv 트렌드 검색 중... ({search_query})")
-            arxiv_results = await arxiv_service.search_papers(search_query, max_results=5)
-            arxiv_papers = [p.model_dump(mode="json") for p in arxiv_results]
-            emit_log("researcher", f"arXiv 논문 {len(arxiv_papers)}편 수집 완료")
-            logger.info(f"[Researcher] arXiv 논문 {len(arxiv_papers)}편 수집")
+            # arXiv 실패해도 HF 논문은 유지
+            arxiv_papers = []
+            try:
+                emit_log("researcher", f"arXiv 트렌드 검색 중... ({search_query})")
+                arxiv_results = await arxiv_service.search_papers(search_query, max_results=5)
+                arxiv_papers = [p.model_dump(mode="json") for p in arxiv_results]
+                emit_log("researcher", f"arXiv 논문 {len(arxiv_papers)}편 수집 완료")
+                logger.info(f"[Researcher] arXiv 논문 {len(arxiv_papers)}편 수집")
+            except Exception as e:
+                logger.warning(f"[Researcher] arXiv 수집 실패 (HF 논문으로 계속): {e}")
+                emit_log("researcher", "arXiv 수집 실패 — HuggingFace 논문으로 계속 진행")
 
             papers = hf_papers + arxiv_papers
             emit_log("researcher", f"총 {len(papers)}편 수집 완료")
