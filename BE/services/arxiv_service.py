@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import time
 from datetime import datetime
@@ -63,38 +62,21 @@ async def search_papers(query: str, max_results: int = 10) -> list[PaperResult]:
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        for attempt in range(_MAX_RETRIES):
-            try:
-                response = await client.get(_ARXIV_API_URL, params=params, headers=_HEADERS)
-                response.raise_for_status()
-                break  # 성공 시 루프 탈출
-
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
-                    if attempt < _MAX_RETRIES - 1:
-                        delay = _RETRY_DELAYS[attempt]
-                        logger.warning(
-                            f"[arXiv] 429 rate limit — {delay:.0f}초 후 재시도 "
-                            f"({attempt + 1}/{_MAX_RETRIES})"
-                        )
-                        await asyncio.sleep(delay)
-                        continue
-                    raise HTTPException(
-                        status_code=429,
-                        detail="arXiv API 요청 한도 초과. 잠시 후 다시 시도해주세요.",
-                    )
+        try:
+            response = await client.get(_ARXIV_API_URL, params=params, headers=_HEADERS)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
                 raise HTTPException(
-                    status_code=502,
-                    detail=f"arXiv API 오류: {e.response.status_code}",
+                    status_code=429,
+                    detail="arXiv API 요청 한도 초과. 잠시 후 다시 시도해주세요.",
                 )
-
-            except httpx.TimeoutException:
-                if attempt < _MAX_RETRIES - 1:
-                    delay = _RETRY_DELAYS[attempt]
-                    logger.warning(f"[arXiv] 타임아웃 — {delay:.0f}초 후 재시도 ({attempt + 1}/{_MAX_RETRIES})")
-                    await asyncio.sleep(delay)
-                    continue
-                raise HTTPException(status_code=504, detail="arXiv API 응답 시간 초과.")
+            raise HTTPException(
+                status_code=502,
+                detail=f"arXiv API 오류: {e.response.status_code}",
+            )
+        except httpx.TimeoutException:
+            raise HTTPException(status_code=504, detail="arXiv API 응답 시간 초과.")
 
     feed = feedparser.parse(response.text)
     results = [_parse_entry(entry) for entry in feed.entries]
