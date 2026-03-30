@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings  # noqa: F401
-from routers import agent, paper
+from routers import agent, paper, mypage
 
 # 터미널 로그 포맷 설정
 logging.basicConfig(
@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(paper.router, prefix="/api/v1")
 app.include_router(agent.router, prefix="/api/v1")
+app.include_router(mypage.router, prefix="/api/v1")
 
 
 @app.get("/health")

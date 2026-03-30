@@ -63,6 +63,39 @@ export function runAnalyzeAgent(paper: ArxivPaper, query: string, signal?: Abort
   })
 }
 
+export interface SearchHistoryItem {
+  id: number
+  query: string
+  mode: string
+  result_count: number
+  created_at: string
+}
+
+export interface AnalysisHistoryItem {
+  id: number
+  query: string
+  mode: string
+  paper_title: string | null
+  paper_authors: string[] | null
+  review_passed: boolean
+  has_code: boolean
+  created_at: string
+}
+
+/** 최근 검색 기록 조회 */
+export async function getSearchHistory(): Promise<SearchHistoryItem[]> {
+  const res = await fetch(`${API_BASE}/mypage/search-history`)
+  if (!res.ok) throw new Error('검색 기록 조회 실패')
+  return res.json()
+}
+
+/** 분석 히스토리 조회 */
+export async function getAnalysisHistory(): Promise<AnalysisHistoryItem[]> {
+  const res = await fetch(`${API_BASE}/mypage/analysis-history`)
+  if (!res.ok) throw new Error('분석 히스토리 조회 실패')
+  return res.json()
+}
+
 /** 서버 헬스 체크 */
 export async function healthCheck(): Promise<{ status: string; version: string }> {
   const base = API_BASE.replace('/api/v1', '')
