@@ -217,6 +217,9 @@ async def _save_to_db(
             review_passed=accumulated.get("review_passed", False),
             iteration_count=accumulated.get("iteration_count", 0),
             paper_id=paper_id,
+            paper_summary=accumulated.get("paper_summary", ""),
+            paper_review=accumulated.get("paper_review", {}),
+            key_formulas=accumulated.get("key_formulas", []),
         )
         await db.commit()
 
@@ -325,6 +328,9 @@ async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict) -
             review_passed=accumulated.get("review_passed", False),
             iteration_count=accumulated.get("iteration_count", 0),
             paper_id=paper_id,
+            paper_summary=accumulated.get("paper_summary", ""),
+            paper_review=accumulated.get("paper_review", {}),
+            key_formulas=accumulated.get("key_formulas", []),
         )
         await db.commit()
 

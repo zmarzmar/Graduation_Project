@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from models.base import Base
@@ -22,6 +22,9 @@ class AnalysisResult(Base):
     review_feedback: Mapped[str] = mapped_column(Text, nullable=False, default="")
     review_passed: Mapped[bool] = mapped_column(nullable=False, default=False)
     iteration_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    paper_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    paper_review: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    key_formulas: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
