@@ -301,6 +301,11 @@ async def stream_analyze(
 async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict) -> None:
     """사용자가 선택한 논문 분석 결과를 DB에 저장한다."""
     async with AsyncSessionLocal() as db:
+        # 분석 요청 기록 저장
+        await crud_search_history.create_search_history(
+            db, query=user_query, mode="search", result_count=1
+        )
+
         # 선택한 논문 저장
         paper_id: int | None = None
         try:
