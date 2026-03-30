@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
@@ -33,6 +33,52 @@ class AnalysisHistoryItem(BaseModel):
     review_passed: bool
     has_code: bool
     created_at: datetime
+
+
+class AnalysisDetail(BaseModel):
+    id: int
+    query: str
+    mode: str
+    paper_title: str | None
+    paper_authors: list[str] | None
+    paper_summary: str
+    paper_review: dict
+    key_formulas: list
+    generated_code: str
+    review_feedback: str
+    review_passed: bool
+    iteration_count: int
+    created_at: datetime
+
+
+@router.get("/mypage/analysis-history/{analysis_id}", response_model=AnalysisDetail)
+async def get_analysis_detail(analysis_id: int, db: AsyncSession = Depends(get_db)):
+    """특정 분석 결과 상세 조회"""
+    result = await db.execute(
+        select(AnalysisResult, Paper)
+        .outerjoin(Paper, AnalysisResult.paper_id == Paper.id)
+        .where(AnalysisResult.id == analysis_id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없습니다.")
+
+    analysis, paper = row
+    return AnalysisDetail(
+        id=analysis.id,
+        query=analysis.query,
+        mode=analysis.mode,
+        paper_title=paper.title if paper else None,
+        paper_authors=paper.authors if paper else None,
+        paper_summary=analysis.paper_summary,
+        paper_review=analysis.paper_review,
+        key_formulas=analysis.key_formulas,
+        generated_code=analysis.generated_code,
+        review_feedback=analysis.review_feedback,
+        review_passed=analysis.review_passed,
+        iteration_count=analysis.iteration_count,
+        created_at=analysis.created_at,
+    )
 
 
 @router.get("/mypage/search-history", response_model=list[SearchHistoryItem])

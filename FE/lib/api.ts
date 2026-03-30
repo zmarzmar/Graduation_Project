@@ -96,6 +96,22 @@ export async function getAnalysisHistory(): Promise<AnalysisHistoryItem[]> {
   return res.json()
 }
 
+export interface AnalysisDetail extends AnalysisHistoryItem {
+  paper_summary: string
+  paper_review: { strengths?: string[]; limitations?: string[]; significance?: string }
+  key_formulas: { name: string; latex: string; description: string }[]
+  generated_code: string
+  review_feedback: string
+  iteration_count: number
+}
+
+/** 분석 결과 상세 조회 */
+export async function getAnalysisDetail(id: number): Promise<AnalysisDetail> {
+  const res = await fetch(`${API_BASE}/mypage/analysis-history/${id}`)
+  if (!res.ok) throw new Error('분석 상세 조회 실패')
+  return res.json()
+}
+
 /** 서버 헬스 체크 */
 export async function healthCheck(): Promise<{ status: string; version: string }> {
   const base = API_BASE.replace('/api/v1', '')

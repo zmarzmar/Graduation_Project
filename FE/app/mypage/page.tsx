@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BookOpen, Clock, Code2, User, CheckCircle, XCircle } from 'lucide-react'
+import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getSearchHistory, getAnalysisHistory } from '@/lib/api'
-import type { SearchHistoryItem, AnalysisHistoryItem } from '@/lib/api'
+import { getSearchHistory, getAnalysisHistory, getAnalysisDetail } from '@/lib/api'
+import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail } from '@/lib/api'
 
 const MODE_LABEL: Record<string, string> = {
   search: '키워드 검색',
@@ -22,6 +22,117 @@ function EmptyState({ message, sub }: { message: string; sub: string }) {
     <div className="flex flex-col items-center justify-center py-8 text-center">
       <p className="text-sm font-medium text-gray-500">{message}</p>
       <p className="mt-1 text-xs text-gray-400">{sub}</p>
+    </div>
+  )
+}
+
+function AnalysisAccordion({ item }: { item: AnalysisHistoryItem }) {
+  const [open, setOpen] = useState(false)
+  const [detail, setDetail] = useState<AnalysisDetail | null>(null)
+  const [fetching, setFetching] = useState(false)
+
+  async function handleToggle() {
+    if (!open && !detail) {
+      setFetching(true)
+      try {
+        const data = await getAnalysisDetail(item.id)
+        setDetail(data)
+      } catch { /* 무시 */ }
+      finally { setFetching(false) }
+    }
+    setOpen((v) => !v)
+  }
+
+  return (
+    <div className="border-b border-gray-100 last:border-0">
+      <button className="w-full py-3 text-left" onClick={handleToggle}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            {item.paper_title ? (
+              <p className="truncate text-sm font-medium text-gray-800">{item.paper_title}</p>
+            ) : (
+              <p className="text-sm font-medium text-gray-800">{item.query}</p>
+            )}
+            <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
+              <span>{MODE_LABEL[item.mode] ?? item.mode}</span>
+              {item.has_code && (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" />코드 생성됨</span>
+                </>
+              )}
+              {item.has_code && (
+                <>
+                  <span>·</span>
+                  {item.review_passed ? (
+                    <span className="flex items-center gap-1 text-green-500"><CheckCircle className="h-3 w-3" />검증 통과</span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-red-400"><XCircle className="h-3 w-3" />검증 미통과</span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
+            {open ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+          </div>
+        </div>
+      </button>
+
+      {open && (
+        <div className="pb-4 space-y-4">
+          {fetching && <p className="text-xs text-gray-400">불러오는 중...</p>}
+          {detail && (
+            <>
+              {detail.paper_summary && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-gray-600">📄 논문 요약</p>
+                  <p className="rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-700">{detail.paper_summary}</p>
+                </div>
+              )}
+              {detail.paper_review?.strengths?.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-gray-600">✅ 강점</p>
+                  <ul className="space-y-1">
+                    {detail.paper_review.strengths.map((s, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
+                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-400" />{s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {detail.paper_review?.limitations?.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-gray-600">⚠️ 한계점</p>
+                  <ul className="space-y-1">
+                    {detail.paper_review.limitations.map((l, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
+                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-400" />{l}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {detail.generated_code && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-gray-600">💻 생성 코드</p>
+                  <pre className="overflow-x-auto rounded-lg bg-gray-900 p-3 text-xs leading-relaxed text-gray-100 max-h-60">
+                    <code>{detail.generated_code}</code>
+                  </pre>
+                </div>
+              )}
+              {detail.review_feedback && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-gray-600">🔍 코드 리뷰</p>
+                  <p className="rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-700 whitespace-pre-wrap">{detail.review_feedback}</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -124,44 +235,9 @@ export default function MyPage() {
           ) : analysisHistory.length === 0 ? (
             <EmptyState message="분석 기록이 없습니다." sub="분석이 완료되면 생성된 코드와 결과가 여기에 저장됩니다." />
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div>
               {analysisHistory.map((item) => (
-                <div key={item.id} className="py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      {item.paper_title ? (
-                        <p className="truncate text-sm font-medium text-gray-800">{item.paper_title}</p>
-                      ) : (
-                        <p className="text-sm font-medium text-gray-800">{item.query}</p>
-                      )}
-                      <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
-                        <span>{MODE_LABEL[item.mode] ?? item.mode}</span>
-                        {item.has_code && (
-                          <>
-                            <span>·</span>
-                            <span className="flex items-center gap-1">
-                              <BookOpen className="h-3 w-3" />
-                              코드 생성됨
-                            </span>
-                          </>
-                        )}
-                        <span>·</span>
-                        {item.review_passed ? (
-                          <span className="flex items-center gap-1 text-green-500">
-                            <CheckCircle className="h-3 w-3" />
-                            검증 통과
-                          </span>
-                        ) : item.has_code ? (
-                          <span className="flex items-center gap-1 text-red-400">
-                            <XCircle className="h-3 w-3" />
-                            검증 미통과
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <span className="flex-shrink-0 text-xs text-gray-400">{formatDate(item.created_at)}</span>
-                  </div>
-                </div>
+                <AnalysisAccordion key={item.id} item={item} />
               ))}
             </div>
           )}
