@@ -164,28 +164,41 @@ async def stream_agent(
         "mode": mode,
     })
 
-    # DB 저장 (비동기, 실패해도 스트리밍 결과에 영향 없음)
+    # DB 저장 — search 모드는 검색 기록만, pdf/trend는 전체 저장
     try:
-        await _save_to_db(mode, user_query, accumulated)
+        await _save_to_db(mode, user_query, accumulated, search_only=(mode == "search"))
     except Exception as e:
         logger.error(f"DB 저장 실패 (무시): {e}")
 
     yield _sse({"event": "complete", "result": final_result})
 
 
-async def _save_to_db(mode: str, user_query: str, accumulated: dict) -> None:
-    """에이전트 실행 결과를 DB에 저장한다."""
+async def _save_to_db(
+    mode: str,
+    user_query: str,
+    accumulated: dict,
+    search_only: bool = False,
+) -> None:
+    """에이전트 실행 결과를 DB에 저장한다.
+
+    search_only=True 이면 검색 기록만 저장하고 분석 결과는 저장하지 않는다.
+    (search 모드는 Researcher에서 끝나므로 실제 분석 결과가 없음)
+    """
     papers: list[dict] = accumulated.get("papers", [])
 
     async with AsyncSessionLocal() as db:
-        # 검색 기록 저장
+        # 검색 기록 저장 (항상)
         await crud_search_history.create_search_history(
             db, query=user_query, mode=mode, result_count=len(papers)
         )
 
-        # 논문 저장 및 분석 결과 저장 (search/pdf 모드)
+        if search_only:
+            await db.commit()
+            return
+
+        # 논문 저장 (pdf 모드만 — 분석 대상 논문이 명확할 때)
         paper_id: int | None = None
-        if papers and mode in ("search", "pdf"):
+        if papers and mode == "pdf":
             first_paper_dict = papers[0] if isinstance(papers[0], dict) else papers[0].__dict__
             try:
                 paper_schema = PaperResult(**first_paper_dict)
@@ -194,6 +207,7 @@ async def _save_to_db(mode: str, user_query: str, accumulated: dict) -> None:
             except Exception as e:
                 logger.warning(f"논문 저장 실패 (무시): {e}")
 
+        # 분석 결과 저장 (pdf/trend 모드)
         await crud_analysis.create_analysis_result(
             db,
             mode=mode,
@@ -274,7 +288,40 @@ async def stream_analyze(
         "mode": "search",
     }
 
+    # DB 저장 — 선택한 논문 + 분석 결과
+    try:
+        accumulated["papers"] = [paper]
+        await _save_analyze_to_db(user_query, paper, accumulated)
+    except Exception as e:
+        logger.error(f"분석 DB 저장 실패 (무시): {e}")
+
     yield _sse({"event": "complete", "result": final_result})
+
+
+async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict) -> None:
+    """사용자가 선택한 논문 분석 결과를 DB에 저장한다."""
+    async with AsyncSessionLocal() as db:
+        # 선택한 논문 저장
+        paper_id: int | None = None
+        try:
+            paper_schema = PaperResult(**paper)
+            paper_obj = await crud_paper.upsert_paper(db, paper_schema)
+            paper_id = paper_obj.id
+        except Exception as e:
+            logger.warning(f"논문 저장 실패 (무시): {e}")
+
+        # 분석 결과 저장
+        await crud_analysis.create_analysis_result(
+            db,
+            mode="search",
+            query=user_query,
+            generated_code=accumulated.get("generated_code", ""),
+            review_feedback=accumulated.get("review_feedback", ""),
+            review_passed=accumulated.get("review_passed", False),
+            iteration_count=accumulated.get("iteration_count", 0),
+            paper_id=paper_id,
+        )
+        await db.commit()
 
 
 def _extract_plan_summary(plan_str: str) -> str:
