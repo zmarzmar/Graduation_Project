@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { AgentPipeline } from '@/components/agent/AgentPipeline'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
+import { useAnalysisStore } from '@/store/analysis-store'
 import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent } from '@/lib/api'
 import type { ArxivPaper, AgentMode } from '@/lib/types/agent-run'
 
@@ -35,26 +36,28 @@ const SEARCH_EXAMPLES = ['LoRA fine-tuning', 'diffusion model', 'attention mecha
 const TREND_EXAMPLES = ['large language model', 'vision transformer', 'reinforcement learning', 'multimodal', 'agent']
 
 export default function HomePage() {
-  const [mode, setMode] = useState<AgentMode>('search')
-  const [query, setQuery] = useState('LoRA fine-tuning')
-  const [topic, setTopic] = useState('large language model')
+  // 페이지 이탈 후 복귀 시 상태를 유지하기 위해 Zustand 스토어 사용
+  const {
+    mode, setMode,
+    query, setQuery,
+    topic, setTopic,
+    searchPipelineMode, setSearchPipelineMode,
+    searchedPapers, setSearchedPapers,
+  } = useAnalysisStore()
+
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 모드별 독립 스트림 — 탭 전환 시 각자의 상태 유지
-  const searchStream = useAgentStream()
-  const pdfStream = useAgentStream()
-  const trendStream = useAgentStream()
+  // 모드별 독립 스트림 — 탭 전환 및 페이지 이탈 후에도 각자의 상태 유지
+  const searchStream = useAgentStream('search')
+  const pdfStream = useAgentStream('pdf')
+  const trendStream = useAgentStream('trend')
 
   // 현재 탭에 해당하는 스트림
   const activeStream = mode === 'search' ? searchStream : mode === 'pdf' ? pdfStream : trendStream
 
   // 검색 탭 파이프라인 모드 — 검색 후 분석 시작하면 'analyze'로 전환
-  const [searchPipelineMode, setSearchPipelineMode] = useState<AgentMode>('search')
   const pipelineMode: AgentMode = mode === 'search' ? searchPipelineMode : mode === 'pdf' ? 'pdf' : 'trend'
-
-  // 검색 결과 논문 목록 — 분석 시작 후에도 유지
-  const [searchedPapers, setSearchedPapers] = useState<ArxivPaper[]>([])
 
   const canRun =
     !activeStream.isRunning &&

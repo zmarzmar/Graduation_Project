@@ -91,11 +91,11 @@ function AnalysisAccordion({ item }: { item: AnalysisHistoryItem }) {
                   <p className="rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-700">{detail.paper_summary}</p>
                 </div>
               )}
-              {detail.paper_review?.strengths?.length > 0 && (
+              {(detail.paper_review?.strengths?.length ?? 0) > 0 && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-gray-600">✅ 강점</p>
                   <ul className="space-y-1">
-                    {detail.paper_review.strengths.map((s, i) => (
+                    {detail.paper_review!.strengths!.map((s, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
                         <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-400" />{s}
                       </li>
@@ -103,11 +103,11 @@ function AnalysisAccordion({ item }: { item: AnalysisHistoryItem }) {
                   </ul>
                 </div>
               )}
-              {detail.paper_review?.limitations?.length > 0 && (
+              {(detail.paper_review?.limitations?.length ?? 0) > 0 && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-gray-600">⚠️ 한계점</p>
                   <ul className="space-y-1">
-                    {detail.paper_review.limitations.map((l, i) => (
+                    {detail.paper_review!.limitations!.map((l, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
                         <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-400" />{l}
                       </li>
