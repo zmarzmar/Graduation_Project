@@ -27,6 +27,7 @@ export interface StreamSnapshot {
   nodeStatuses: NodeStatuses
   nodeLogs: NodeLogs
   result: AgentResult | null
+  isRunning: boolean
   cancelled: boolean
   error: string | null
 }
@@ -35,6 +36,7 @@ const INITIAL_STREAM: StreamSnapshot = {
   nodeStatuses: { ...INITIAL_NODE_STATUSES },
   nodeLogs: { ...INITIAL_NODE_LOGS },
   result: null,
+  isRunning: false,
   cancelled: false,
   error: null,
 }
@@ -66,9 +68,9 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
   searchPipelineMode: 'search',
   searchedPapers: [],
   streams: {
-    search: { ...INITIAL_STREAM, nodeStatuses: { ...INITIAL_NODE_STATUSES }, nodeLogs: { ...INITIAL_NODE_LOGS } },
-    pdf: { ...INITIAL_STREAM, nodeStatuses: { ...INITIAL_NODE_STATUSES }, nodeLogs: { ...INITIAL_NODE_LOGS } },
-    trend: { ...INITIAL_STREAM, nodeStatuses: { ...INITIAL_NODE_STATUSES }, nodeLogs: { ...INITIAL_NODE_LOGS } },
+    search: { ...INITIAL_STREAM },
+    pdf: { ...INITIAL_STREAM },
+    trend: { ...INITIAL_STREAM },
   },
 
   setMode: (mode) => set({ mode }),

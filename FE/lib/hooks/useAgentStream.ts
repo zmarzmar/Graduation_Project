@@ -1,16 +1,15 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import type { AgentEvent, NodeName } from '../types/agent-run'
 import type { StreamMode } from '@/store/analysis-store'
 import { useAnalysisStore } from '@/store/analysis-store'
 
 export function useAgentStream(mode: StreamMode) {
   const { streams, setStreamState, resetStream } = useAnalysisStore()
-  const { nodeStatuses, nodeLogs, result, cancelled, error } = streams[mode]
+  const { nodeStatuses, nodeLogs, result, isRunning, cancelled, error } = streams[mode]
 
-  // isRunning은 스토어에 저장하지 않음 — 페이지 이탈 시 진행 중인 스트림은 복원 불가
-  const [isRunning, setIsRunning] = useState(false)
+  // abortRef는 컴포넌트 로컬 — 페이지 이탈 후 복귀 시 취소 버튼은 동작 안 하지만 스트림은 계속 실행됨
   const abortRef = useRef<AbortController | null>(null)
 
   const reset = useCallback(() => {
@@ -25,15 +24,13 @@ export function useAgentStream(mode: StreamMode) {
     async (response: Response) => {
       if (!response.ok) {
         const text = await response.text()
-        setStreamState(mode, { error: `요청 실패 (${response.status}): ${text}` })
-        setIsRunning(false)
+        setStreamState(mode, { error: `요청 실패 (${response.status}): ${text}`, isRunning: false })
         return
       }
 
       const reader = response.body?.getReader()
       if (!reader) {
-        setStreamState(mode, { error: '스트림을 읽을 수 없습니다.' })
-        setIsRunning(false)
+        setStreamState(mode, { error: '스트림을 읽을 수 없습니다.', isRunning: false })
         return
       }
 
@@ -89,7 +86,7 @@ export function useAgentStream(mode: StreamMode) {
         }
       } finally {
         reader.releaseLock()
-        setIsRunning(false)
+        setStreamState(mode, { isRunning: false })
       }
     },
     [mode, setStreamState],
@@ -98,7 +95,7 @@ export function useAgentStream(mode: StreamMode) {
   const startStream = useCallback(
     async (fetchFn: (signal: AbortSignal) => Promise<Response>) => {
       reset()
-      setIsRunning(true)
+      setStreamState(mode, { isRunning: true })
 
       const controller = new AbortController()
       abortRef.current = controller
@@ -108,11 +105,9 @@ export function useAgentStream(mode: StreamMode) {
         await processStream(response)
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') {
-          setStreamState(mode, { cancelled: true })
-          setIsRunning(false)
+          setStreamState(mode, { cancelled: true, isRunning: false })
         } else {
-          setStreamState(mode, { error: e instanceof Error ? e.message : '네트워크 오류가 발생했습니다.' })
-          setIsRunning(false)
+          setStreamState(mode, { error: e instanceof Error ? e.message : '네트워크 오류가 발생했습니다.', isRunning: false })
         }
       }
     },
