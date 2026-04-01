@@ -43,6 +43,11 @@ function PaperCard({ paper, summary, onAnalyze }: { paper: ArxivPaper; summary?:
             {paper.authors.slice(0, 3).join(', ')}
             {paper.authors.length > 3 && ' 외'}
           </p>
+          {paper.published_at && (
+            <p className="mt-0.5 text-xs text-gray-400">
+              {new Date(paper.published_at).getFullYear()}년 {new Date(paper.published_at).getMonth() + 1}월
+            </p>
+          )}
         </div>
         <div className="flex flex-shrink-0 flex-col items-end gap-1">
           {paper.citation_count != null && (
