@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -103,43 +104,75 @@ async def researcher_node(state: AgentState) -> dict:
             }
 
         else:
-            # 1순위: Semantic Scholar — rate limit 관대, TL;DR/인용수 포함
-            emit_log("researcher", "Semantic Scholar 검색 중...")
-            papers = await semantic_scholar_service.search_papers(search_query, max_results=5)
-            logger.info(f"[Researcher] S2 {len(papers)}편 수집")
+            # S2 + OpenAlex 병렬 수집 (각 최대 5개) → 합쳐서 최대 10개
+            emit_log("researcher", "Semantic Scholar + OpenAlex 동시 검색 중...")
+            s2_task = asyncio.create_task(
+                semantic_scholar_service.search_papers(search_query, max_results=5)
+            )
+            oa_task = asyncio.create_task(
+                openalex_service.search_papers(search_query, max_results=5)
+            )
+            s2_results, oa_results = await asyncio.gather(s2_task, oa_task, return_exceptions=True)
 
-            if papers:
-                emit_log("researcher", f"Semantic Scholar {len(papers)}편 수집 완료")
-            else:
-                # 2순위: OpenAlex — S2 결과 없을 때 사용, 완전 무료
-                emit_log("researcher", "Semantic Scholar 결과 없음 — OpenAlex 검색 중...")
-                papers = await openalex_service.search_papers(search_query, max_results=5)
-                logger.info(f"[Researcher] OpenAlex {len(papers)}편 수집")
+            # 예외 처리 — 실패한 소스는 빈 리스트로 처리
+            if isinstance(s2_results, Exception):
+                logger.warning(f"[Researcher] S2 수집 실패: {s2_results}")
+                s2_results = []
+            if isinstance(oa_results, Exception):
+                logger.warning(f"[Researcher] OpenAlex 수집 실패: {oa_results}")
+                oa_results = []
 
-                if papers:
-                    emit_log("researcher", f"OpenAlex {len(papers)}편 수집 완료")
-                else:
-                    # 3순위: arXiv — 캐시/백오프 적용된 최후 fallback
-                    emit_log("researcher", "OpenAlex 결과 없음 — arXiv 검색 중...")
-                    arxiv_results = await arxiv_service.search_papers(search_query, max_results=5)
-                    logger.info(f"[Researcher] arXiv {len(arxiv_results)}편 수집 완료")
-                    emit_log("researcher", f"arXiv {len(arxiv_results)}편 수집 완료")
+            logger.info(f"[Researcher] S2 {len(s2_results)}편, OpenAlex {len(oa_results)}편 수집")
+            emit_log("researcher", f"Semantic Scholar {len(s2_results)}편, OpenAlex {len(oa_results)}편 수집 완료")
 
-                    emit_log("researcher", "인용 정보 보완 중...")
+            # 중복 제거 — arxiv_id 기준, S2 결과 우선 유지 (인용수/TL;DR 포함)
+            seen_ids: set[str] = set()
+            papers: list[dict] = []
+            for p in s2_results:
+                aid = (p.get("arxiv_id") or "").split("v")[0]
+                if aid and aid not in seen_ids:
+                    seen_ids.add(aid)
+                    papers.append(p)
+                elif not aid:
+                    papers.append(p)
+            for p in oa_results:
+                aid = (p.get("arxiv_id") or "").split("v")[0]
+                if aid and aid not in seen_ids:
+                    seen_ids.add(aid)
+                    papers.append(p)
+                elif not aid:
+                    papers.append(p)
+
+            # 10개 미만이면 arXiv로 부족분 채움
+            shortage = 10 - len(papers)
+            if shortage > 0:
+                emit_log("researcher", f"논문 {len(papers)}편 — arXiv에서 {shortage}편 추가 수집 중...")
+                try:
+                    arxiv_results = await arxiv_service.search_papers(search_query, max_results=shortage)
+                    logger.info(f"[Researcher] arXiv {len(arxiv_results)}편 수집")
+
+                    # arXiv 논문에 S2 인용 정보 보완
                     arxiv_ids = [p.arxiv_id for p in arxiv_results]
                     enrichments = await semantic_scholar_service.enrich_papers(arxiv_ids)
                     logger.info(f"[Researcher] S2 보완 완료 — {len(enrichments)}/{len(arxiv_ids)}편 매칭")
 
-                    papers = []
                     for paper in arxiv_results:
+                        aid = paper.arxiv_id.split("v")[0]
+                        if aid in seen_ids:
+                            continue
                         paper_dict = paper.model_dump(mode="json")
-                        base_id = paper.arxiv_id.split("v")[0]
-                        if s2 := enrichments.get(base_id):
+                        if s2 := enrichments.get(aid):
                             paper_dict["citation_count"] = s2.citation_count
                             paper_dict["influential_citation_count"] = s2.influential_citation_count
                             paper_dict["tldr"] = s2.tldr
                             paper_dict["s2_paper_id"] = s2.s2_paper_id
                         papers.append(paper_dict)
+                        seen_ids.add(aid)
+
+                    emit_log("researcher", f"arXiv {len(arxiv_results)}편 추가 완료")
+                except Exception as e:
+                    logger.warning(f"[Researcher] arXiv 수집 실패 (무시): {e}")
+                    emit_log("researcher", "arXiv 수집 실패 — 계속 진행")
 
             titles = [p.get("title", "")[:50] for p in papers]
             for i, t in enumerate(titles, 1):

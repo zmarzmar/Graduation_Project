@@ -217,6 +217,13 @@ git push origin feature/기능명
 
 ---
 
+## Working Rules
+
+- **코드 작성 전 반드시 계획을 먼저 세우고 사용자 확인 후 진행**
+- 계획에는 변경할 파일, 변경 내용, 예상 동작 방식을 포함할 것
+
+---
+
 ## Environment Variables
 
 **Root `.env`**
