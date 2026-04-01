@@ -77,13 +77,17 @@ function PaperCard({ paper, summary, onAnalyze }: { paper: ArxivPaper; summary?:
 
       {/* 초록 토글 + 분석 버튼 */}
       <div className="mt-2 flex items-center justify-between">
-        <button
-          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          초록 {expanded ? '접기' : '보기'}
-        </button>
+        {paper.abstract ? (
+          <button
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            초록 {expanded ? '접기' : '보기'}
+          </button>
+        ) : (
+          <span className="text-xs text-gray-300">초록 없음</span>
+        )}
         {onAnalyze && (
           <button
             onClick={() => onAnalyze(paper)}
@@ -93,7 +97,7 @@ function PaperCard({ paper, summary, onAnalyze }: { paper: ArxivPaper; summary?:
           </button>
         )}
       </div>
-      {expanded && (
+      {expanded && paper.abstract && (
         <p className="mt-2 text-xs leading-relaxed text-gray-600">{paper.abstract}</p>
       )}
     </div>
