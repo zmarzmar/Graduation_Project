@@ -4,7 +4,18 @@ import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { BlockMath } from 'react-katex'
+import 'katex/dist/katex.min.css'
 import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-run'
+
+/** LaTeX 렌더링 실패 시 plain text로 fallback */
+function FormulaBlock({ latex }: { latex: string }) {
+  try {
+    return <BlockMath math={latex} />
+  } catch {
+    return <code className="font-mono text-xs text-gray-700">{latex}</code>
+  }
+}
 
 interface ResultsPanelProps {
   result: AgentResult
@@ -276,8 +287,12 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
                   {result.key_formulas.map((f, i) => (
                     <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                       <p className="text-xs font-semibold text-gray-700">{f.name}</p>
-                      <p className="mt-1 rounded bg-gray-900 px-2 py-1 font-mono text-xs text-green-300">{f.latex}</p>
-                      <p className="mt-1 text-xs text-gray-500">{f.description}</p>
+                      <div className="mt-2 overflow-x-auto rounded bg-white py-2 text-center">
+                        <FormulaBlock latex={f.latex} />
+                      </div>
+                      {f.description && (
+                        <p className="mt-1.5 text-xs text-gray-500">{f.description}</p>
+                      )}
                     </div>
                   ))}
                 </div>
