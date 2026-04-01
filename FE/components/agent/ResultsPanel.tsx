@@ -160,14 +160,26 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
   }
 
   const [activeTab, setActiveTab] = useState<TabId>('papers')
+  type SortKey = 'newest' | 'oldest' | 'citations'
+  const [sortKey, setSortKey] = useState<SortKey>('newest')
 
   // 분석 완료 시 논문 분석 탭으로 자동 전환
   useEffect(() => {
     if (hasAnalysis) setActiveTab('analysis')
   }, [hasAnalysis])
 
-  // 수집 논문 탭에 표시할 논문 목록 — 분석 후에도 검색 결과 5편 유지
-  const displayPapers = searchedPapers && searchedPapers.length > 0 ? searchedPapers : result.papers
+  // 수집 논문 탭에 표시할 논문 목록 — 분석 후에도 검색 결과 유지
+  const basePapers = searchedPapers && searchedPapers.length > 0 ? searchedPapers : result.papers
+
+  // 정렬 적용
+  const displayPapers = [...basePapers].sort((a, b) => {
+    if (sortKey === 'newest') return new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
+    if (sortKey === 'oldest') return new Date(a.published_at).getTime() - new Date(b.published_at).getTime()
+    // 인용수 — null은 뒤로
+    const ca = a.citation_count ?? -1
+    const cb = b.citation_count ?? -1
+    return cb - ca
+  })
 
   // 트렌드 분석 결과에서 제목으로 한 줄 요약 매핑
   const summaryMap = new Map(
@@ -202,6 +214,23 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
       <div className="p-4">
         {activeTab === 'papers' && (
           <div className="space-y-3">
+            {displayPapers.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                {(['newest', 'oldest', 'citations'] as SortKey[]).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => setSortKey(key)}
+                    className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                      sortKey === key
+                        ? 'border-blue-400 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    {key === 'newest' ? '최신순' : key === 'oldest' ? '오래된순' : '인용수'}
+                  </button>
+                ))}
+              </div>
+            )}
             {displayPapers.length === 0 ? (
               <p className="text-sm text-gray-400">수집된 논문이 없습니다.</p>
             ) : (
