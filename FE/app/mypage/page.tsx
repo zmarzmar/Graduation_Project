@@ -3,8 +3,19 @@
 import { useEffect, useState } from 'react'
 import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { BlockMath } from 'react-katex'
+import 'katex/dist/katex.min.css'
 import { getSearchHistory, getAnalysisHistory, getAnalysisDetail } from '@/lib/api'
 import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail } from '@/lib/api'
+
+/** LaTeX 렌더링 실패 시 plain text로 fallback */
+function FormulaBlock({ latex }: { latex: string }) {
+  try {
+    return <BlockMath math={latex} />
+  } catch {
+    return <code className="font-mono text-xs text-gray-700">{latex}</code>
+  }
+}
 
 const MODE_LABEL: Record<string, string> = {
   search: '키워드 검색',
@@ -113,6 +124,24 @@ function AnalysisAccordion({ item }: { item: AnalysisHistoryItem }) {
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+              {detail.key_formulas?.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-gray-600">🔢 핵심 수식</p>
+                  <div className="space-y-2">
+                    {detail.key_formulas.map((f, i) => (
+                      <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                        <p className="text-xs font-medium text-gray-700">{f.name}</p>
+                        <div className="mt-2 overflow-x-auto rounded bg-white py-2 text-center">
+                          <FormulaBlock latex={f.latex} />
+                        </div>
+                        {f.description && (
+                          <p className="mt-1 text-xs text-gray-500">{f.description}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {detail.generated_code && (
