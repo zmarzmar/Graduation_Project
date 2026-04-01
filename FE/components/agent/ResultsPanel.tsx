@@ -243,9 +243,9 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
             {displayPapers.length === 0 ? (
               <p className="text-sm text-gray-400">수집된 논문이 없습니다.</p>
             ) : (
-              displayPapers.map((paper) => (
+              displayPapers.map((paper, i) => (
                 <PaperCard
-                  key={paper.arxiv_id || paper.title}
+                  key={paper.arxiv_id || `${paper.title}-${i}`}
                   paper={paper}
                   summary={summaryMap.get(paper.title)}
                   onAnalyze={onAnalyze}

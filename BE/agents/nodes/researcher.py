@@ -125,23 +125,28 @@ async def researcher_node(state: AgentState) -> dict:
             logger.info(f"[Researcher] S2 {len(s2_results)}편, OpenAlex {len(oa_results)}편 수집")
             emit_log("researcher", f"Semantic Scholar {len(s2_results)}편, OpenAlex {len(oa_results)}편 수집 완료")
 
-            # 중복 제거 — arxiv_id 기준, S2 결과 우선 유지 (인용수/TL;DR 포함)
+            # 중복 제거 — arxiv_id 우선, 없으면 title 기준 / S2 결과 우선 유지
             seen_ids: set[str] = set()
+            seen_titles: set[str] = set()
             papers: list[dict] = []
+
+            def _add_if_unique(p: dict) -> None:
+                aid = (p.get("arxiv_id") or "").split("v")[0]
+                title = (p.get("title") or "").strip().lower()
+                if aid:
+                    if aid in seen_ids:
+                        return
+                    seen_ids.add(aid)
+                elif title:
+                    if title in seen_titles:
+                        return
+                    seen_titles.add(title)
+                papers.append(p)
+
             for p in s2_results:
-                aid = (p.get("arxiv_id") or "").split("v")[0]
-                if aid and aid not in seen_ids:
-                    seen_ids.add(aid)
-                    papers.append(p)
-                elif not aid:
-                    papers.append(p)
+                _add_if_unique(p)
             for p in oa_results:
-                aid = (p.get("arxiv_id") or "").split("v")[0]
-                if aid and aid not in seen_ids:
-                    seen_ids.add(aid)
-                    papers.append(p)
-                elif not aid:
-                    papers.append(p)
+                _add_if_unique(p)
 
             # 10개 미만이면 arXiv로 부족분 채움
             shortage = 10 - len(papers)
