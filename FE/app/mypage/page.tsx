@@ -5,6 +5,8 @@ import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, Chevro
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BlockMath } from 'react-katex'
 import 'katex/dist/katex.min.css'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory } from '@/lib/api'
 import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail } from '@/lib/api'
 
@@ -26,6 +28,35 @@ const MODE_LABEL: Record<string, string> = {
 function formatDate(iso: string) {
   const d = new Date(iso)
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function ConfirmDialog({
+  open,
+  title,
+  description,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean
+  title: string
+  description: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
+      <DialogContent showCloseButton={false} className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel}>취소</Button>
+          <Button variant="destructive" onClick={onConfirm}>삭제</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function EmptyState({ message, sub }: { message: string; sub: string }) {
@@ -176,6 +207,7 @@ export default function MyPage() {
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [confirmDialog, setConfirmDialog] = useState<{ type: 'search' | 'analysis' } | null>(null)
 
   useEffect(() => {
     Promise.all([getSearchHistory(), getAnalysisHistory()])
@@ -193,9 +225,7 @@ export default function MyPage() {
   }
 
   async function handleDeleteAllSearch() {
-    if (!confirm('검색 기록을 모두 삭제하시겠어요?')) return
-    await deleteAllSearchHistory()
-    setSearchHistory([])
+    setConfirmDialog({ type: 'search' })
   }
 
   async function handleDeleteAnalysis(id: number) {
@@ -204,13 +234,29 @@ export default function MyPage() {
   }
 
   async function handleDeleteAllAnalysis() {
-    if (!confirm('분석 히스토리를 모두 삭제하시겠어요?')) return
-    await deleteAllAnalysisHistory()
-    setAnalysisHistory([])
+    setConfirmDialog({ type: 'analysis' })
+  }
+
+  async function handleConfirmDelete() {
+    if (confirmDialog?.type === 'search') {
+      await deleteAllSearchHistory()
+      setSearchHistory([])
+    } else if (confirmDialog?.type === 'analysis') {
+      await deleteAllAnalysisHistory()
+      setAnalysisHistory([])
+    }
+    setConfirmDialog(null)
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <ConfirmDialog
+        open={confirmDialog !== null}
+        title={confirmDialog?.type === 'search' ? '검색 기록 전체 삭제' : '분석 히스토리 전체 삭제'}
+        description={confirmDialog?.type === 'search' ? '모든 검색 기록이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.' : '모든 분석 히스토리가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.'}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmDialog(null)}
+      />
       <div>
         <h1 className="text-2xl font-bold text-gray-900">마이페이지</h1>
         <p className="mt-1 text-sm text-gray-500">내 정보와 분석 기록을 확인하세요.</p>
