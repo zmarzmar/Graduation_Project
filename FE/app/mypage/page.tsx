@@ -87,46 +87,45 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
 
   return (
     <div className="border-b border-gray-100 last:border-0">
-      <button className="w-full py-3 text-left" onClick={handleToggle}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            {item.paper_title ? (
-              <p className="truncate text-sm font-medium text-gray-800">{item.paper_title}</p>
-            ) : (
-              <p className="text-sm font-medium text-gray-800">{item.query}</p>
+      {/* button 중첩 방지 — 토글 영역과 삭제 버튼을 div로 분리 */}
+      <div className="flex items-start gap-3 py-3">
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={handleToggle}>
+          {item.paper_title ? (
+            <p className="truncate text-sm font-medium text-gray-800">{item.paper_title}</p>
+          ) : (
+            <p className="text-sm font-medium text-gray-800">{item.query}</p>
+          )}
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
+            <span>{MODE_LABEL[item.mode] ?? item.mode}</span>
+            {item.has_code && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" />코드 생성됨</span>
+              </>
             )}
-            <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-400">
-              <span>{MODE_LABEL[item.mode] ?? item.mode}</span>
-              {item.has_code && (
-                <>
-                  <span>·</span>
-                  <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" />코드 생성됨</span>
-                </>
-              )}
-              {item.has_code && (
-                <>
-                  <span>·</span>
-                  {item.review_passed ? (
-                    <span className="flex items-center gap-1 text-green-500"><CheckCircle className="h-3 w-3" />검증 통과</span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-red-400"><XCircle className="h-3 w-3" />검증 미통과</span>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-2">
-            <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
-            {open ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(item.id) }}
-              className="text-gray-300 hover:text-red-400"
-            >
-              <XCircle className="h-4 w-4" />
-            </button>
+            {item.has_code && (
+              <>
+                <span>·</span>
+                {item.review_passed ? (
+                  <span className="flex items-center gap-1 text-green-500"><CheckCircle className="h-3 w-3" />검증 통과</span>
+                ) : (
+                  <span className="flex items-center gap-1 text-red-400"><XCircle className="h-3 w-3" />검증 미통과</span>
+                )}
+              </>
+            )}
           </div>
         </div>
-      </button>
+        <div className="flex flex-shrink-0 items-center gap-2 cursor-pointer" onClick={handleToggle}>
+          <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
+          {open ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+        </div>
+        <button
+          onClick={() => onDelete(item.id)}
+          className="flex-shrink-0 text-gray-300 hover:text-red-400"
+        >
+          <XCircle className="h-4 w-4" />
+        </button>
+      </div>
 
       {open && (
         <div className="pb-4 space-y-4">
