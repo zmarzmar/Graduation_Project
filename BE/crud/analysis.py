@@ -1,4 +1,4 @@
-from sqlalchemy import delete, select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.analysis import AnalysisResult
@@ -38,26 +38,33 @@ async def create_analysis_result(
 async def get_recent_analysis_results(
     db: AsyncSession, limit: int = 20
 ) -> list[AnalysisResult]:
-    """최근 분석 결과 조회"""
+    """최근 분석 결과 조회 (소프트 딜리트 제외)"""
     result = await db.execute(
-        select(AnalysisResult).order_by(AnalysisResult.created_at.desc()).limit(limit)
+        select(AnalysisResult)
+        .where(AnalysisResult.is_deleted == False)  # noqa: E712
+        .order_by(AnalysisResult.created_at.desc())
+        .limit(limit)
     )
     return list(result.scalars().all())
 
 
 async def delete_analysis_result_by_id(db: AsyncSession, result_id: int) -> bool:
-    """분석 결과 개별 삭제. 삭제 성공 여부 반환"""
+    """분석 결과 개별 소프트 딜리트. 성공 여부 반환"""
     result = await db.execute(
-        select(AnalysisResult).where(AnalysisResult.id == result_id)
+        select(AnalysisResult).where(AnalysisResult.id == result_id, AnalysisResult.is_deleted == False)  # noqa: E712
     )
     obj = result.scalar_one_or_none()
     if not obj:
         return False
-    await db.delete(obj)
+    obj.is_deleted = True
     return True
 
 
 async def delete_all_analysis_results(db: AsyncSession) -> int:
-    """분석 결과 전체 삭제. 삭제된 행 수 반환"""
-    result = await db.execute(delete(AnalysisResult))
+    """분석 결과 전체 소프트 딜리트. 처리된 행 수 반환"""
+    result = await db.execute(
+        update(AnalysisResult)
+        .where(AnalysisResult.is_deleted == False)  # noqa: E712
+        .values(is_deleted=True)
+    )
     return result.rowcount
