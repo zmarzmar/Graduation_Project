@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.analysis import AnalysisResult
@@ -43,3 +43,21 @@ async def get_recent_analysis_results(
         select(AnalysisResult).order_by(AnalysisResult.created_at.desc()).limit(limit)
     )
     return list(result.scalars().all())
+
+
+async def delete_analysis_result_by_id(db: AsyncSession, result_id: int) -> bool:
+    """분석 결과 개별 삭제. 삭제 성공 여부 반환"""
+    result = await db.execute(
+        select(AnalysisResult).where(AnalysisResult.id == result_id)
+    )
+    obj = result.scalar_one_or_none()
+    if not obj:
+        return False
+    await db.delete(obj)
+    return True
+
+
+async def delete_all_analysis_results(db: AsyncSession) -> int:
+    """분석 결과 전체 삭제. 삭제된 행 수 반환"""
+    result = await db.execute(delete(AnalysisResult))
+    return result.rowcount

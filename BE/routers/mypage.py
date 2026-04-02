@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from core.dependencies import get_db
+from crud import analysis as crud_analysis
+from crud import search_history as crud_search_history
 from models.analysis import AnalysisResult
 from models.paper import Paper
 from models.search_history import SearchHistory
@@ -88,6 +90,38 @@ async def get_search_history(db: AsyncSession = Depends(get_db)):
         select(SearchHistory).order_by(SearchHistory.created_at.desc()).limit(20)
     )
     return result.scalars().all()
+
+
+@router.delete("/mypage/search-history", status_code=204)
+async def delete_all_search_history(db: AsyncSession = Depends(get_db)):
+    """검색 기록 전체 삭제"""
+    await crud_search_history.delete_all_search_history(db)
+    await db.commit()
+
+
+@router.delete("/mypage/search-history/{history_id}", status_code=204)
+async def delete_search_history(history_id: int, db: AsyncSession = Depends(get_db)):
+    """검색 기록 개별 삭제"""
+    deleted = await crud_search_history.delete_search_history_by_id(db, history_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="검색 기록을 찾을 수 없습니다.")
+    await db.commit()
+
+
+@router.delete("/mypage/analysis-history", status_code=204)
+async def delete_all_analysis_history(db: AsyncSession = Depends(get_db)):
+    """분석 히스토리 전체 삭제"""
+    await crud_analysis.delete_all_analysis_results(db)
+    await db.commit()
+
+
+@router.delete("/mypage/analysis-history/{analysis_id}", status_code=204)
+async def delete_analysis_history(analysis_id: int, db: AsyncSession = Depends(get_db)):
+    """분석 히스토리 개별 삭제"""
+    deleted = await crud_analysis.delete_analysis_result_by_id(db, analysis_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="분석 기록을 찾을 수 없습니다.")
+    await db.commit()
 
 
 @router.get("/mypage/analysis-history", response_model=list[AnalysisHistoryItem])

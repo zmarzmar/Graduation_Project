@@ -5,7 +5,7 @@ import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, Chevro
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BlockMath } from 'react-katex'
 import 'katex/dist/katex.min.css'
-import { getSearchHistory, getAnalysisHistory, getAnalysisDetail } from '@/lib/api'
+import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory } from '@/lib/api'
 import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail } from '@/lib/api'
 
 /** LaTeX 렌더링 실패 시 plain text로 fallback */
@@ -37,7 +37,7 @@ function EmptyState({ message, sub }: { message: string; sub: string }) {
   )
 }
 
-function AnalysisAccordion({ item }: { item: AnalysisHistoryItem }) {
+function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDelete: (id: number) => void }) {
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<AnalysisDetail | null>(null)
   const [fetching, setFetching] = useState(false)
@@ -87,6 +87,12 @@ function AnalysisAccordion({ item }: { item: AnalysisHistoryItem }) {
           <div className="flex flex-shrink-0 items-center gap-2">
             <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
             {open ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(item.id) }}
+              className="text-gray-300 hover:text-red-400"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </button>
@@ -181,6 +187,28 @@ export default function MyPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  async function handleDeleteSearch(id: number) {
+    await deleteSearchHistory(id)
+    setSearchHistory((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  async function handleDeleteAllSearch() {
+    if (!confirm('검색 기록을 모두 삭제하시겠어요?')) return
+    await deleteAllSearchHistory()
+    setSearchHistory([])
+  }
+
+  async function handleDeleteAnalysis(id: number) {
+    await deleteAnalysisHistory(id)
+    setAnalysisHistory((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  async function handleDeleteAllAnalysis() {
+    if (!confirm('분석 히스토리를 모두 삭제하시겠어요?')) return
+    await deleteAllAnalysisHistory()
+    setAnalysisHistory([])
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
@@ -212,13 +240,20 @@ export default function MyPage() {
       {/* 최근 검색 기록 */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="h-4 w-4" />
-            최근 검색 기록
+          <CardTitle className="flex items-center justify-between text-base">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              최근 검색 기록
+              {searchHistory.length > 0 && (
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600">
+                  {searchHistory.length}
+                </span>
+              )}
+            </div>
             {searchHistory.length > 0 && (
-              <span className="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600">
-                {searchHistory.length}
-              </span>
+              <button onClick={handleDeleteAllSearch} className="text-xs text-red-400 hover:text-red-600">
+                전체 삭제
+              </button>
             )}
           </CardTitle>
         </CardHeader>
@@ -237,7 +272,12 @@ export default function MyPage() {
                       {MODE_LABEL[item.mode] ?? item.mode} · 논문 {item.result_count}편
                     </p>
                   </div>
-                  <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
+                    <button onClick={() => handleDeleteSearch(item.id)} className="text-gray-300 hover:text-red-400">
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -248,13 +288,20 @@ export default function MyPage() {
       {/* 분석 히스토리 */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Code2 className="h-4 w-4" />
-            분석 히스토리
+          <CardTitle className="flex items-center justify-between text-base">
+            <div className="flex items-center gap-2">
+              <Code2 className="h-4 w-4" />
+              분석 히스토리
+              {analysisHistory.length > 0 && (
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600">
+                  {analysisHistory.length}
+                </span>
+              )}
+            </div>
             {analysisHistory.length > 0 && (
-              <span className="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600">
-                {analysisHistory.length}
-              </span>
+              <button onClick={handleDeleteAllAnalysis} className="text-xs text-red-400 hover:text-red-600">
+                전체 삭제
+              </button>
             )}
           </CardTitle>
         </CardHeader>
@@ -266,7 +313,7 @@ export default function MyPage() {
           ) : (
             <div>
               {analysisHistory.map((item) => (
-                <AnalysisAccordion key={item.id} item={item} />
+                <AnalysisAccordion key={item.id} item={item} onDelete={handleDeleteAnalysis} />
               ))}
             </div>
           )}

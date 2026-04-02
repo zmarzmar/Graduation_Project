@@ -112,6 +112,30 @@ export async function getAnalysisDetail(id: number): Promise<AnalysisDetail> {
   return res.json()
 }
 
+/** 검색 기록 개별 삭제 */
+export async function deleteSearchHistory(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/mypage/search-history/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('검색 기록 삭제 실패')
+}
+
+/** 검색 기록 전체 삭제 */
+export async function deleteAllSearchHistory(): Promise<void> {
+  const res = await fetch(`${API_BASE}/mypage/search-history`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('검색 기록 전체 삭제 실패')
+}
+
+/** 분석 히스토리 개별 삭제 */
+export async function deleteAnalysisHistory(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/mypage/analysis-history/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('분석 기록 삭제 실패')
+}
+
+/** 분석 히스토리 전체 삭제 */
+export async function deleteAllAnalysisHistory(): Promise<void> {
+  const res = await fetch(`${API_BASE}/mypage/analysis-history`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('분석 기록 전체 삭제 실패')
+}
+
 /** 서버 헬스 체크 */
 export async function healthCheck(): Promise<{ status: string; version: string }> {
   const base = API_BASE.replace('/api/v1', '')
