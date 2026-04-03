@@ -286,11 +286,6 @@ export default function MyPage() {
                 {userInfo.affiliation && (
                   <p className="text-sm text-gray-500">{userInfo.affiliation}</p>
                 )}
-                {userInfo.preferred_framework && (
-                  <span className="inline-block rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
-                    {userInfo.preferred_framework}
-                  </span>
-                )}
               </div>
             ) : (
               <div className="space-y-1 text-sm text-gray-500">
