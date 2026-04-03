@@ -136,6 +136,22 @@ export async function deleteAllAnalysisHistory(): Promise<void> {
   if (!res.ok) throw new Error('분석 기록 전체 삭제 실패')
 }
 
+export interface UserInfo {
+  id: number
+  username: string
+  full_name: string | null
+  email: string
+  affiliation: string | null
+  preferred_framework: string | null
+}
+
+/** 내 정보 조회 */
+export async function getMyInfo(): Promise<UserInfo> {
+  const res = await fetch(`${API_BASE}/mypage/me`)
+  if (!res.ok) throw new Error('내 정보 조회 실패')
+  return res.json()
+}
+
 /** 서버 헬스 체크 */
 export async function healthCheck(): Promise<{ status: string; version: string }> {
   const base = API_BASE.replace('/api/v1', '')

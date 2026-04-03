@@ -7,8 +7,8 @@ import { BlockMath } from 'react-katex'
 import 'katex/dist/katex.min.css'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory } from '@/lib/api'
-import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail } from '@/lib/api'
+import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory, getMyInfo } from '@/lib/api'
+import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo } from '@/lib/api'
 
 /** LaTeX 렌더링 실패 시 plain text로 fallback */
 function FormulaBlock({ latex }: { latex: string }) {
@@ -203,14 +203,16 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
 }
 
 export default function MyPage() {
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'search' | 'analysis' } | null>(null)
 
   useEffect(() => {
-    Promise.all([getSearchHistory(), getAnalysisHistory()])
-      .then(([search, analysis]) => {
+    Promise.all([getMyInfo(), getSearchHistory(), getAnalysisHistory()])
+      .then(([user, search, analysis]) => {
+        setUserInfo(user)
         setSearchHistory(search)
         setAnalysisHistory(analysis)
       })
@@ -271,13 +273,31 @@ export default function MyPage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
               <User className="h-8 w-8" />
             </div>
-            <div className="space-y-1 text-sm text-gray-500">
-              <p>로그인 후 이용 가능합니다.</p>
-              <p className="text-xs">회원가입 기능은 추후 지원 예정입니다.</p>
-            </div>
+            {userInfo ? (
+              <div className="space-y-1">
+                <p className="text-base font-semibold text-gray-900">
+                  {userInfo.full_name ?? userInfo.username}
+                  <span className="ml-2 text-sm font-normal text-gray-400">@{userInfo.username}</span>
+                </p>
+                <p className="text-sm text-gray-500">{userInfo.email}</p>
+                {userInfo.affiliation && (
+                  <p className="text-sm text-gray-500">{userInfo.affiliation}</p>
+                )}
+                {userInfo.preferred_framework && (
+                  <span className="inline-block rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">
+                    {userInfo.preferred_framework}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1 text-sm text-gray-500">
+                <p>로그인 후 이용 가능합니다.</p>
+                <p className="text-xs">회원가입 기능은 추후 지원 예정입니다.</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

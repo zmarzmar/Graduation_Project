@@ -11,8 +11,31 @@ from crud import search_history as crud_search_history
 from models.analysis import AnalysisResult
 from models.paper import Paper
 from models.search_history import SearchHistory
+from models.user import User
 
 router = APIRouter(tags=["mypage"])
+
+
+class UserInfo(BaseModel):
+    id: int
+    username: str
+    full_name: str | None
+    email: str
+    affiliation: str | None
+    preferred_framework: str | None
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/mypage/me", response_model=UserInfo)
+async def get_my_info(db: AsyncSession = Depends(get_db)):
+    """내 정보 조회 — 로그인 미구현으로 임시 id=1 반환"""
+    result = await db.execute(select(User).where(User.id == 1))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
+    return user
 
 
 class SearchHistoryItem(BaseModel):
