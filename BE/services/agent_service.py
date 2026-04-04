@@ -4,7 +4,8 @@ import json
 import logging
 from typing import AsyncGenerator
 
-from pypdf import PdfReader
+import fitz
+import httpx
 
 from agents.graph import agent_graph, analyze_graph
 from agents.log_stream import set_log_queue
@@ -21,10 +22,18 @@ _AGENT_NODES = {"planner", "researcher", "trend_analyzer", "analyzer", "coder", 
 
 
 def extract_pdf_text(file_bytes: bytes) -> str:
-    """PDF 바이트에서 전체 텍스트를 추출한다."""
-    reader = PdfReader(io.BytesIO(file_bytes))
-    pages = [page.extract_text() or "" for page in reader.pages]
+    """PDF 바이트에서 전체 텍스트를 추출한다. (pymupdf 사용)"""
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    pages = [page.get_text() for page in doc]
     return "\n".join(pages)
+
+
+async def download_pdf_text(pdf_url: str) -> str:
+    """arXiv PDF URL에서 PDF를 다운로드하고 전체 텍스트를 추출한다."""
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        response = await client.get(pdf_url)
+        response.raise_for_status()
+    return extract_pdf_text(response.content)
 
 
 def _make_initial_state(
@@ -228,8 +237,22 @@ async def stream_analyze(
     paper: dict,
     user_query: str,
 ) -> AsyncGenerator[str, None]:
-    """사용자가 선택한 논문 1편을 Analyzer → Coder → Reviewer로 분석한다."""
-    initial_state = _make_initial_state("pdf", user_query)
+    """사용자가 선택한 논문 1편을 Analyzer → Coder → Reviewer로 분석한다.
+    pdf_url이 있으면 arXiv PDF 전체 텍스트를 다운로드해서 분석에 사용한다.
+    """
+    # arXiv PDF 다운로드 시도
+    pdf_text = ""
+    pdf_url = paper.get("pdf_url", "")
+    if pdf_url:
+        try:
+            yield _sse({"event": "log", "node": "analyzer", "message": "arXiv PDF 다운로드 중..."})
+            pdf_text = await download_pdf_text(pdf_url)
+            yield _sse({"event": "log", "node": "analyzer", "message": f"PDF 전체 텍스트 추출 완료 ({len(pdf_text)}자)"})
+        except Exception as e:
+            logger.warning(f"PDF 다운로드 실패, 초록으로 대체: {e}")
+            yield _sse({"event": "log", "node": "analyzer", "message": "PDF 다운로드 실패 — 초록으로 분석 진행"})
+
+    initial_state = _make_initial_state("pdf", user_query, pdf_text=pdf_text)
     initial_state["papers"] = [paper]
     accumulated: dict = dict(initial_state)
 
