@@ -69,8 +69,8 @@ async def analyzer_node(state: AgentState) -> dict:
 
     # 분석 대상 텍스트 구성 — PDF 텍스트 우선, 없으면 수집된 논문 사용
     if pdf_text:
-        paper_text = pdf_text[:6000]
-        emit_log("analyzer", "PDF 내용 분석 중...")
+        paper_text = pdf_text
+        emit_log("analyzer", "PDF 전체 내용 분석 중...")
     elif papers:
         first = papers[0]
         paper_text = f"제목: {first.get('title', '')}\n\n초록:\n{first.get('abstract', '')}"
