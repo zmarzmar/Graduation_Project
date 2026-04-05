@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from fastapi import HTTPException
@@ -12,6 +13,65 @@ from services import arxiv_service, openalex_service, semantic_scholar_service
 logger = logging.getLogger(__name__)
 
 _HF_PAPERS_URL = "https://huggingface.co/api/daily_papers"
+
+
+def _filter_by_keywords(papers: list[dict], keywords: list[str]) -> list[dict]:
+    """제목/초록에 키워드가 하나 이상 포함된 논문만 반환한다."""
+    if not keywords:
+        return papers
+    result = []
+    for p in papers:
+        text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
+        if any(kw.lower() in text for kw in keywords):
+            result.append(p)
+    return result
+
+
+def _trend_score(paper: dict, now: datetime) -> float:
+    """트렌드 점수 계산 — upvote, 인용 수, 최신성 가중 합산."""
+    score = 0.0
+    score += (paper.get("upvotes") or 0) * 3
+    score += min((paper.get("citation_count") or 0), 100)  # 인용 수는 최대 100점으로 cap
+
+    pub = paper.get("published_at")
+    if pub:
+        try:
+            if isinstance(pub, str):
+                dt = datetime.fromisoformat(pub.replace("Z", "+00:00"))
+            else:
+                dt = pub
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            days_old = (now - dt).days
+            if days_old <= 30:
+                score += 10
+            elif days_old <= 90:
+                score += 5
+            elif days_old <= 180:
+                score += 2
+        except Exception:
+            pass
+    return score
+
+
+def _deduplicate(papers: list[dict]) -> list[dict]:
+    """arxiv_id 또는 title 기준 중복 제거. 앞 순서(높은 점수) 우선."""
+    seen_ids: set[str] = set()
+    seen_titles: set[str] = set()
+    result = []
+    for p in papers:
+        aid = (p.get("arxiv_id") or "").split("v")[0]
+        title = (p.get("title") or "").strip().lower()
+        if aid:
+            if aid in seen_ids:
+                continue
+            seen_ids.add(aid)
+        elif title:
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+        result.append(p)
+    return result
 
 
 def _parse_plan(plan_str: str) -> dict:
@@ -64,37 +124,52 @@ async def researcher_node(state: AgentState) -> dict:
 
     try:
         if mode == "trend":
-            emit_log("researcher", "HuggingFace Daily Papers 수집 중...")
-            hf_papers = await _fetch_hf_trending(limit=5)
-            emit_log("researcher", f"HuggingFace 논문 {len(hf_papers)}편 수집 완료")
-            logger.info(f"[Researcher] HF 논문 {len(hf_papers)}편 수집")
+            now = datetime.now(timezone.utc)
+            # 6개월 전 날짜 계산 (S2 파라미터용: "YYYY-MM" 형식)
+            six_months_ago = now - timedelta(days=180)
+            date_from = six_months_ago.strftime("%Y-%m")
 
-            # S2 보완 (5편) — 실패해도 HF 논문 유지
+            # HF Daily Papers 수집 후 키워드 관련성 필터링
+            emit_log("researcher", "HuggingFace Daily Papers 수집 중...")
+            hf_all = await _fetch_hf_trending(limit=20)
+            hf_papers = _filter_by_keywords(hf_all, keywords[:3])
+            emit_log("researcher", f"HuggingFace 관련 논문 {len(hf_papers)}편 (전체 {len(hf_all)}편 중)")
+            logger.info(f"[Researcher] HF 키워드 필터 — {len(hf_all)}편 → {len(hf_papers)}편")
+
+            # S2 최근 6개월 논문 수집
             s2_papers = []
             try:
-                emit_log("researcher", f"Semantic Scholar 트렌드 검색 중... ({search_query})")
-                s2_papers = await semantic_scholar_service.search_papers(search_query, max_results=5)
+                emit_log("researcher", f"Semantic Scholar 최근 6개월 검색 중... ({search_query})")
+                s2_papers = await semantic_scholar_service.search_papers(
+                    search_query, max_results=10, date_from=date_from
+                )
                 emit_log("researcher", f"Semantic Scholar {len(s2_papers)}편 수집 완료")
                 logger.info(f"[Researcher] S2 트렌드 {len(s2_papers)}편 수집")
             except Exception as e:
                 logger.warning(f"[Researcher] S2 수집 실패 (무시): {e}")
                 emit_log("researcher", "Semantic Scholar 수집 실패 — 계속 진행")
 
-            # arXiv 보너스 (5편) — 성공하면 최대 15편, 실패해도 10편 보장
+            # arXiv 최근 6개월 논문 수집
             arxiv_papers = []
             try:
-                emit_log("researcher", f"arXiv 트렌드 검색 중... ({search_query})")
-                arxiv_results = await arxiv_service.search_papers(search_query, max_results=5)
+                emit_log("researcher", f"arXiv 최근 6개월 검색 중... ({search_query})")
+                arxiv_results = await arxiv_service.search_papers(
+                    search_query, max_results=10, recent_months=6
+                )
                 arxiv_papers = [p.model_dump(mode="json") for p in arxiv_results]
                 emit_log("researcher", f"arXiv {len(arxiv_papers)}편 수집 완료")
                 logger.info(f"[Researcher] arXiv 트렌드 {len(arxiv_papers)}편 수집")
             except Exception as e:
                 logger.warning(f"[Researcher] arXiv 수집 실패 (무시): {e}")
-                emit_log("researcher", "arXiv 수집 실패 — HF+S2 논문으로 계속 진행")
+                emit_log("researcher", "arXiv 수집 실패 — 계속 진행")
 
-            papers = hf_papers + s2_papers + arxiv_papers
-            emit_log("researcher", f"총 {len(papers)}편 수집 완료")
-            logger.info(f"[Researcher] 완료 — 총 {len(papers)}편")
+            # 전체 합산 후 트렌드 점수 기준 정렬, 상위 10편 선택
+            all_papers = hf_papers + s2_papers + arxiv_papers
+            scored = sorted(all_papers, key=lambda p: _trend_score(p, now), reverse=True)
+            papers = _deduplicate(scored)[:10]
+
+            emit_log("researcher", f"트렌드 점수 기준 상위 {len(papers)}편 선정 완료")
+            logger.info(f"[Researcher] 완료 — 트렌드 논문 {len(papers)}편")
 
             return {
                 "papers": papers,
