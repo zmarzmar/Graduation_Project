@@ -111,7 +111,10 @@ async def get_analysis_detail(analysis_id: int, db: AsyncSession = Depends(get_d
 async def get_search_history(db: AsyncSession = Depends(get_db)):
     """최근 검색 기록 20개 반환"""
     result = await db.execute(
-        select(SearchHistory).order_by(SearchHistory.created_at.desc()).limit(20)
+        select(SearchHistory)
+        .where(SearchHistory.is_deleted == False)  # noqa: E712
+        .order_by(SearchHistory.created_at.desc())
+        .limit(20)
     )
     return result.scalars().all()
 
@@ -154,6 +157,7 @@ async def get_analysis_history(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(AnalysisResult, Paper)
         .outerjoin(Paper, AnalysisResult.paper_id == Paper.id)
+        .where(AnalysisResult.is_deleted == False)  # noqa: E712
         .order_by(AnalysisResult.created_at.desc())
         .limit(20)
     )
