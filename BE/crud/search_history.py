@@ -13,12 +13,20 @@ async def create_search_history(
 ) -> SearchHistory:
     """검색 기록 저장"""
     # 논문 목록에서 표시에 필요한 최소 정보만 저장
+    # url이 없으면 S2 페이지로 fallback
+    def _resolve_url(p: dict) -> str:
+        if url := p.get("url", ""):
+            return url
+        if s2_id := p.get("s2_paper_id", ""):
+            return f"https://www.semanticscholar.org/paper/{s2_id}"
+        return ""
+
     paper_list = [
         {
             "title": p.get("title", ""),
             "authors": p.get("authors", [])[:3],
             "arxiv_id": p.get("arxiv_id", ""),
-            "url": p.get("url", ""),
+            "url": _resolve_url(p),
         }
         for p in (papers or [])
     ]
