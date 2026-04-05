@@ -53,18 +53,28 @@ def _s2_item_to_dict(item: dict) -> dict:
     }
 
 
-async def search_papers(query: str, max_results: int = 5) -> list[dict]:
+async def search_papers(
+    query: str,
+    max_results: int = 5,
+    date_from: str | None = None,
+) -> list[dict]:
     """Semantic Scholar 검색 API로 논문을 검색한다.
 
     arXiv보다 훨씬 관대한 rate limit. API 키 없이도 동작하며,
     키가 있으면 초당 100 요청으로 상향된다.
     실패 시 빈 리스트를 반환해 arXiv fallback이 동작하도록 한다.
+
+    Args:
+        date_from: "YYYY-MM" 형식 — 이 날짜 이후 논문만 검색 (예: "2025-10")
     """
-    params = {
+    params: dict = {
         "query": query,
         "limit": max_results,
         "fields": _S2_SEARCH_FIELDS,
     }
+    if date_from:
+        # S2 publicationDateOrYear: "2025-10:" → 2025년 10월 이후
+        params["publicationDateOrYear"] = f"{date_from}:"
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.get(

@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import feedparser
 import httpx
@@ -43,9 +43,17 @@ def _parse_entry(entry: feedparser.FeedParserDict) -> PaperResult:
     )
 
 
-async def search_papers(query: str, max_results: int = 10) -> list[PaperResult]:
-    """arXiv에서 논문 검색. 캐시 우선, 429 응답 시 최대 3회 자동 재시도."""
-    cache_key = f"{query}:{max_results}"
+async def search_papers(
+    query: str,
+    max_results: int = 10,
+    recent_months: int | None = None,
+) -> list[PaperResult]:
+    """arXiv에서 논문 검색. 캐시 우선, 429 응답 시 최대 3회 자동 재시도.
+
+    Args:
+        recent_months: 설정 시 최근 N개월 이내 논문만 반환 (제출일 기준 필터)
+    """
+    cache_key = f"{query}:{max_results}:{recent_months}"
     now = time.monotonic()
     if cache_key in _cache:
         ts, cached = _cache[cache_key]
@@ -53,11 +61,13 @@ async def search_papers(query: str, max_results: int = 10) -> list[PaperResult]:
             logger.info(f"[arXiv] 캐시 히트 — '{query}' ({len(cached)}편)")
             return cached
 
+    # recent_months 설정 시 최신순 정렬로 전환
+    sort_by = "submittedDate" if recent_months else "relevance"
     params = {
         "search_query": f"all:{query}",
         "start": 0,
         "max_results": max_results,
-        "sortBy": "relevance",
+        "sortBy": sort_by,
         "sortOrder": "descending",
     }
 
@@ -80,5 +90,14 @@ async def search_papers(query: str, max_results: int = 10) -> list[PaperResult]:
 
     feed = feedparser.parse(response.text)
     results = [_parse_entry(entry) for entry in feed.entries]
+
+    # recent_months 설정 시 날짜 기준 필터링
+    if recent_months and results:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=recent_months * 30)
+        results = [
+            r for r in results
+            if r.published_at and r.published_at.replace(tzinfo=timezone.utc) >= cutoff
+        ]
+
     _cache[cache_key] = (now, results)
     return results
