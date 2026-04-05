@@ -198,7 +198,7 @@ async def _save_to_db(
     async with AsyncSessionLocal() as db:
         # 검색 기록 저장 (항상)
         await crud_search_history.create_search_history(
-            db, query=user_query, mode=mode, result_count=len(papers)
+            db, query=user_query, mode=mode, result_count=len(papers), papers=papers
         )
 
         if search_only:

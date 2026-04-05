@@ -43,6 +43,7 @@ class SearchHistoryItem(BaseModel):
     query: str
     mode: str
     result_count: int
+    papers: list[dict]
     created_at: datetime
 
     class Config:
