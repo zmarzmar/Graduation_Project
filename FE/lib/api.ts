@@ -63,11 +63,19 @@ export function runAnalyzeAgent(paper: ArxivPaper, query: string, signal?: Abort
   })
 }
 
+export interface SearchHistoryPaper {
+  title: string
+  authors: string[]
+  arxiv_id: string
+  url: string
+}
+
 export interface SearchHistoryItem {
   id: number
   query: string
   mode: string
   result_count: number
+  papers: SearchHistoryPaper[]
   created_at: string
 }
 

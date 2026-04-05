@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BlockMath } from 'react-katex'
 import 'katex/dist/katex.min.css'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory, getMyInfo } from '@/lib/api'
-import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo } from '@/lib/api'
+import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, SearchHistoryPaper } from '@/lib/api'
 
 /** LaTeX 렌더링 실패 시 plain text로 fallback */
 function FormulaBlock({ latex }: { latex: string }) {
@@ -64,6 +64,50 @@ function EmptyState({ message, sub }: { message: string; sub: string }) {
     <div className="flex flex-col items-center justify-center py-8 text-center">
       <p className="text-sm font-medium text-gray-500">{message}</p>
       <p className="mt-1 text-xs text-gray-400">{sub}</p>
+    </div>
+  )
+}
+
+function SearchAccordion({ item, onDelete }: { item: SearchHistoryItem; onDelete: (id: number) => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="border-b border-gray-100 last:border-0">
+      <div className="flex items-start gap-3 py-3">
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setOpen((v) => !v)}>
+          <p className="truncate text-sm font-medium text-gray-800">{item.query}</p>
+          <p className="mt-0.5 text-xs text-gray-400">
+            {MODE_LABEL[item.mode] ?? item.mode} · 논문 {item.result_count}편
+          </p>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2 cursor-pointer" onClick={() => setOpen((v) => !v)}>
+          <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
+          {open ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+        </div>
+        <button onClick={() => onDelete(item.id)} className="flex-shrink-0 text-gray-300 hover:text-red-400">
+          <XCircle className="h-4 w-4" />
+        </button>
+      </div>
+
+      {open && item.papers.length > 0 && (
+        <div className="pb-4 space-y-2">
+          {item.papers.map((paper: SearchHistoryPaper, i: number) => (
+            <div key={i} className="flex items-start justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-gray-700">{paper.title}</p>
+                {paper.authors.length > 0 && (
+                  <p className="mt-0.5 truncate text-xs text-gray-400">{paper.authors.join(', ')}</p>
+                )}
+              </div>
+              {paper.url && (
+                <a href={paper.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-gray-400 hover:text-blue-500">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -323,22 +367,9 @@ export default function MyPage() {
           ) : searchHistory.length === 0 ? (
             <EmptyState message="검색 기록이 없습니다." sub="키워드 검색이나 PDF 업로드로 논문을 분석해보세요." />
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div>
               {searchHistory.map((item) => (
-                <div key={item.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{item.query}</p>
-                    <p className="mt-0.5 text-xs text-gray-400">
-                      {MODE_LABEL[item.mode] ?? item.mode} · 논문 {item.result_count}편
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400">{formatDate(item.created_at)}</span>
-                    <button onClick={() => handleDeleteSearch(item.id)} className="text-gray-300 hover:text-red-400">
-                      <XCircle className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                <SearchAccordion key={item.id} item={item} onDelete={handleDeleteSearch} />
               ))}
             </div>
           )}
