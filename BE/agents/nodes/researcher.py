@@ -149,7 +149,7 @@ async def researcher_node(state: AgentState) -> dict:
                 logger.warning(f"[Researcher] S2 수집 실패 (무시): {e}")
                 emit_log("researcher", "Semantic Scholar 수집 실패 — 계속 진행")
 
-            # arXiv 최근 6개월 논문 수집
+            # arXiv 최근 6개월 논문 수집 + S2 인용 수 보완
             arxiv_papers = []
             try:
                 emit_log("researcher", f"arXiv 최근 6개월 검색 중... ({search_query})")
@@ -159,6 +159,19 @@ async def researcher_node(state: AgentState) -> dict:
                 arxiv_papers = [p.model_dump(mode="json") for p in arxiv_results]
                 emit_log("researcher", f"arXiv {len(arxiv_papers)}편 수집 완료")
                 logger.info(f"[Researcher] arXiv 트렌드 {len(arxiv_papers)}편 수집")
+
+                # S2 Batch API로 인용 수 보완
+                if arxiv_papers:
+                    emit_log("researcher", "arXiv 논문 인용 수 보완 중...")
+                    arxiv_ids = [p["arxiv_id"] for p in arxiv_papers if p.get("arxiv_id")]
+                    enrichments = await semantic_scholar_service.enrich_papers(arxiv_ids)
+                    for paper in arxiv_papers:
+                        aid = (paper.get("arxiv_id") or "").split("v")[0]
+                        if s2 := enrichments.get(aid):
+                            paper["citation_count"] = s2.citation_count
+                            paper["tldr"] = s2.tldr
+                    logger.info(f"[Researcher] S2 보완 완료 — {len(enrichments)}/{len(arxiv_ids)}편 매칭")
+                    emit_log("researcher", f"인용 수 보완 완료 ({len(enrichments)}편 매칭)")
             except Exception as e:
                 logger.warning(f"[Researcher] arXiv 수집 실패 (무시): {e}")
                 emit_log("researcher", "arXiv 수집 실패 — 계속 진행")
