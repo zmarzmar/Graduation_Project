@@ -43,14 +43,19 @@ _SYSTEM_PROMPT = """당신은 AI 논문 트렌드 분석 전문가입니다.
 - 초록이 없으면 제목만으로 최선의 요약 작성"""
 
 
+def _sanitize(text: str) -> str:
+    """null 바이트 및 제어 문자를 제거해 JSON 직렬화 오류를 방지한다."""
+    return "".join(ch for ch in text if ch >= " " or ch in "\n\t")
+
+
 def _build_prompt(papers: list[dict]) -> str:
     """논문 목록을 프롬프트용 텍스트로 변환한다."""
     lines = []
     for i, paper in enumerate(papers, 1):
         lines.append(f"## 논문 {i}")
-        lines.append(f"제목: {paper.get('title', 'N/A')}")
+        lines.append(f"제목: {_sanitize(paper.get('title', 'N/A'))}")
         if abstract := paper.get("abstract", ""):
-            lines.append(f"초록: {abstract[:400]}")
+            lines.append(f"초록: {_sanitize(abstract)[:400]}")
         lines.append("")
     return "\n".join(lines)
 
