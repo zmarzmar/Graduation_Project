@@ -173,9 +173,9 @@ async def stream_agent(
         "mode": mode,
     })
 
-    # DB 저장 — search 모드는 검색 기록만, pdf/trend는 전체 저장
+    # DB 저장 — search/trend 모드는 검색 기록만, pdf는 전체 저장
     try:
-        await _save_to_db(mode, user_query, accumulated, search_only=(mode == "search"))
+        await _save_to_db(mode, user_query, accumulated, search_only=(mode in ("search", "trend")))
     except Exception as e:
         logger.error(f"DB 저장 실패 (무시): {e}")
 
