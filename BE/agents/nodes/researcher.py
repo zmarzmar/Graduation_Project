@@ -163,8 +163,8 @@ async def researcher_node(state: AgentState) -> dict:
                 logger.warning(f"[Researcher] arXiv 수집 실패 (무시): {e}")
                 emit_log("researcher", "arXiv 수집 실패 — 계속 진행")
 
-            # 전체 합산 후 트렌드 점수 기준 정렬, 상위 10편 선택
-            all_papers = hf_papers + s2_papers + arxiv_papers
+            # 초록 없는 논문 제외 후 트렌드 점수 기준 정렬, 상위 10편 선택
+            all_papers = [p for p in hf_papers + s2_papers + arxiv_papers if p.get("abstract", "").strip()]
             scored = sorted(all_papers, key=lambda p: _trend_score(p, now), reverse=True)
             papers = _deduplicate(scored)[:10]
 
