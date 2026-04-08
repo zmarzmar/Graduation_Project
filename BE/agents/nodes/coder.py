@@ -46,10 +46,16 @@ async def coder_node(state: AgentState) -> dict:
     """논문 내용을 분석해 PyTorch 코드 스켈레톤을 생성한다.
     2회차 이상에서는 review_feedback를 반영해 코드를 수정한다.
     """
-    paper_context = _build_paper_context(state.get("papers", []))
     iteration = state.get("iteration_count", 0)
     label = "최초 생성" if iteration == 0 else f"피드백 반영 ({iteration}회차 → {iteration + 1}회차)"
     logger.info(f"[Coder] 시작 — {label}")
+
+    # pdf_text 우선 사용, 없으면 초록 기반 컨텍스트 사용
+    pdf_text = state.get("pdf_text", "")
+    if pdf_text:
+        paper_context = f"[논문 전문]\n{pdf_text}"
+    else:
+        paper_context = _build_paper_context(state.get("papers", []))
 
     # Analyzer 결과 컨텍스트 추가
     summary = state.get("paper_summary", "")
