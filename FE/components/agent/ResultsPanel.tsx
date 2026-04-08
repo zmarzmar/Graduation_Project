@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { BlockMath } from 'react-katex'
 import 'katex/dist/katex.min.css'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-run'
 
 /** LaTeX 렌더링 실패 시 plain text로 fallback */
@@ -358,9 +360,14 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
                 복사
               </Button>
             </div>
-            <pre className="overflow-x-auto rounded-lg bg-gray-900 p-4 text-xs leading-relaxed text-gray-100">
-              <code>{result.generated_code}</code>
-            </pre>
+            <SyntaxHighlighter
+              language="python"
+              style={oneDark}
+              customStyle={{ borderRadius: '0.5rem', fontSize: '0.75rem', margin: 0 }}
+              showLineNumbers
+            >
+              {result.generated_code}
+            </SyntaxHighlighter>
           </div>
         )}
 

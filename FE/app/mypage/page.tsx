@@ -7,6 +7,8 @@ import { BlockMath } from 'react-katex'
 import 'katex/dist/katex.min.css'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory, getMyInfo } from '@/lib/api'
 import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, SearchHistoryPaper } from '@/lib/api'
 
@@ -227,9 +229,16 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
               {detail.generated_code && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-gray-600">💻 생성 코드</p>
-                  <pre className="overflow-x-auto rounded-lg bg-gray-900 p-3 text-xs leading-relaxed text-gray-100 max-h-60">
-                    <code>{detail.generated_code}</code>
-                  </pre>
+                  <div className="max-h-60 overflow-auto rounded-lg">
+                    <SyntaxHighlighter
+                      language="python"
+                      style={oneDark}
+                      customStyle={{ borderRadius: '0.5rem', fontSize: '0.75rem', margin: 0, maxHeight: '15rem' }}
+                      showLineNumbers
+                    >
+                      {detail.generated_code}
+                    </SyntaxHighlighter>
+                  </div>
                 </div>
               )}
               {detail.review_feedback && (
