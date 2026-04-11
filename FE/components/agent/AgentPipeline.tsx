@@ -58,7 +58,7 @@ export function AgentPipeline({ nodeStatuses, nodeLogs, mode }: AgentPipelinePro
     <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
       <h3 className="text-sm font-semibold text-gray-700">파이프라인 진행 상황</h3>
 
-      {/* 수평 스텝 바 */}
+      {/* 수평 스텝 바 — 노드와 화살표를 분리해 화살표 길이를 균등하게 유지 */}
       <div className="flex items-center">
         {visibleNodes.map((node, idx) => {
           const status = nodeStatuses[node.name]
@@ -67,9 +67,9 @@ export function AgentPipeline({ nodeStatuses, nodeLogs, mode }: AgentPipelinePro
           const isError  = status === 'error'
 
           return (
-            <div key={node.name} className="flex items-center flex-1 min-w-0">
-              {/* 노드 */}
-              <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div key={node.name} className="contents">
+              {/* 노드 — 고정 너비로 레이블 길이 영향 차단 */}
+              <div className="flex flex-col items-center gap-1 w-16 flex-shrink-0">
                 {/* 아이콘 원 */}
                 <div className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-300 ${
                   isActive ? 'border-blue-400 bg-blue-50'
@@ -93,20 +93,20 @@ export function AgentPipeline({ nodeStatuses, nodeLogs, mode }: AgentPipelinePro
                 </div>
               </div>
 
-              {/* 화살표 연결선 (마지막 노드 제외) */}
+              {/* 화살표 연결선 — 선(div)과 화살머리(svg)를 붙여 하나처럼 보이게 */}
               {idx < visibleNodes.length - 1 && (
-                <div className="flex-1 flex items-center px-1 mb-5">
+                <div className="flex-1 flex items-center mb-5">
                   <div className={`h-0.5 flex-1 transition-all duration-500 ${
                     isDone ? 'bg-green-300' : 'bg-gray-200'
                   }`} />
                   <svg
-                    className={`h-3 w-3 flex-shrink-0 transition-colors duration-500 ${
+                    className={`h-2.5 w-2.5 flex-shrink-0 transition-colors duration-500 ${
                       isDone ? 'text-green-300' : 'text-gray-200'
                     }`}
-                    viewBox="0 0 12 12"
-                    fill="currentColor"
+                    viewBox="0 0 8 12"
+                    fill="none"
                   >
-                    <path d="M2 6h7M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
               )}
