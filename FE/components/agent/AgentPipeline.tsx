@@ -26,7 +26,7 @@ const ALL_NODES: NodeConfig[] = [
 
 const SEARCH_NODES: NodeName[]  = ['planner', 'researcher']
 const ANALYZE_NODES: NodeName[] = ['analyzer', 'coder', 'reviewer']
-const PDF_NODES: NodeName[]     = ['planner', 'analyzer', 'coder', 'reviewer']
+const PDF_NODES: NodeName[]     = ['planner', 'researcher', 'analyzer', 'coder', 'reviewer']
 const TREND_NODES: NodeName[]   = ['planner', 'researcher', 'trend_analyzer']
 
 function NodeIcon({ status }: { status: string }) {
