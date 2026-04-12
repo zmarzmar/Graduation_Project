@@ -245,37 +245,42 @@ export default function HomePage() {
       {/* Empty State — 분석 시작 전에만 표시 */}
       {!showPipeline && (
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">어떻게 작동하나요?</p>
+          <p className="text-sm font-semibold text-gray-500">어떻게 작동하나요?</p>
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                <Search className="h-4 w-4" />
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                  <Search className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-semibold text-gray-800">키워드 검색</p>
               </div>
-              <p className="text-sm font-semibold text-gray-800">키워드 검색</p>
-              <p className="text-xs leading-relaxed text-gray-500">
-                관심 키워드를 입력하면 여러 논문 데이터베이스에서 관련 논문을 수집하고 PyTorch 코드를 자동으로 재현합니다.
+              <p className="text-xs leading-relaxed text-gray-500 break-keep">
+                키워드를 입력하면 여러 논문 DB에서 관련 논문을 수집하고 PyTorch 코드를 자동 재현합니다.
               </p>
             </div>
             <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-600">
-                <Upload className="h-4 w-4" />
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+                  <Upload className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-semibold text-gray-800">PDF 업로드</p>
               </div>
-              <p className="text-sm font-semibold text-gray-800">PDF 업로드</p>
-              <p className="text-xs leading-relaxed text-gray-500">
-                논문 PDF를 직접 업로드하면 전문을 분석해 핵심 수식·강점·한계를 정리하고 코드를 재현합니다.
+              <p className="text-xs leading-relaxed text-gray-500 break-keep">
+                논문 PDF를 업로드하면 전문을 분석해 핵심 수식·강점·한계를 정리하고 코드를 재현합니다.
               </p>
             </div>
             <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600">
-                <TrendingUp className="h-4 w-4" />
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-semibold text-gray-800">트렌드 브리핑</p>
               </div>
-              <p className="text-sm font-semibold text-gray-800">트렌드 브리핑</p>
-              <p className="text-xs leading-relaxed text-gray-500">
-                관심 분야를 입력하면 HuggingFace · arXiv 기반 최신 트렌드 논문 Top 10과 키워드 리포트를 생성합니다.
+              <p className="text-xs leading-relaxed text-gray-500 break-keep">
+                관심 분야를 입력하면 HuggingFace · arXiv 기반 최신 논문 Top 10과 키워드 리포트를 생성합니다.
               </p>
             </div>
           </div>
-
         </div>
       )}
 
