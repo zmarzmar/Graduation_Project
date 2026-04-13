@@ -252,7 +252,7 @@ async def stream_analyze(
             logger.warning(f"PDF 다운로드 실패, 초록으로 대체: {e}")
             yield _sse({"event": "log", "node": "analyzer", "message": "PDF 다운로드 실패 — 초록으로 분석 진행"})
 
-    initial_state = _make_initial_state("pdf", user_query, pdf_text=pdf_text)
+    initial_state = _make_initial_state("analyze", user_query, pdf_text=pdf_text)
     initial_state["papers"] = [paper]
     accumulated: dict = dict(initial_state)
 
@@ -311,7 +311,7 @@ async def stream_analyze(
         "review_feedback": accumulated.get("review_feedback", ""),
         "review_passed": accumulated.get("review_passed", False),
         "iteration_count": accumulated.get("iteration_count", 0),
-        "mode": "search",
+        "mode": "analyze",
     }
 
     # DB 저장 — 선택한 논문 + 분석 결과

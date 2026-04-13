@@ -25,6 +25,7 @@ const MODE_LABEL: Record<string, string> = {
   search: '키워드 검색',
   pdf: 'PDF 업로드',
   trend: '트렌드 브리핑',
+  analyze: '논문 선택 분석',
 }
 
 function formatDate(iso: string) {

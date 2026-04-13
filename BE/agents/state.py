@@ -5,7 +5,7 @@ class AgentState(TypedDict):
     """LangGraph 에이전트 파이프라인 공유 상태"""
 
     # ── 입력 ──────────────────────────────────────────────────────────────
-    mode: str           # "pdf" | "search" | "trend"
+    mode: str           # "pdf" | "search" | "trend" | "analyze"
     user_query: str     # 사용자 입력 (키워드 또는 설명)
     pdf_text: str       # PDF 추출 텍스트 (mode == "pdf" 전용)
 
