@@ -262,6 +262,7 @@ export default function MyPage() {
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'search' | 'analysis' } | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([getMyInfo(), getSearchHistory(), getAnalysisHistory()])
@@ -275,8 +276,12 @@ export default function MyPage() {
   }, [])
 
   async function handleDeleteSearch(id: number) {
-    await deleteSearchHistory(id)
-    setSearchHistory((prev) => prev.filter((item) => item.id !== id))
+    try {
+      await deleteSearchHistory(id)
+      setSearchHistory((prev) => prev.filter((item) => item.id !== id))
+    } catch {
+      setDeleteError('삭제에 실패했습니다. 다시 시도해주세요.')
+    }
   }
 
   async function handleDeleteAllSearch() {
@@ -284,8 +289,12 @@ export default function MyPage() {
   }
 
   async function handleDeleteAnalysis(id: number) {
-    await deleteAnalysisHistory(id)
-    setAnalysisHistory((prev) => prev.filter((item) => item.id !== id))
+    try {
+      await deleteAnalysisHistory(id)
+      setAnalysisHistory((prev) => prev.filter((item) => item.id !== id))
+    } catch {
+      setDeleteError('삭제에 실패했습니다. 다시 시도해주세요.')
+    }
   }
 
   async function handleDeleteAllAnalysis() {
@@ -293,12 +302,16 @@ export default function MyPage() {
   }
 
   async function handleConfirmDelete() {
-    if (confirmDialog?.type === 'search') {
-      await deleteAllSearchHistory()
-      setSearchHistory([])
-    } else if (confirmDialog?.type === 'analysis') {
-      await deleteAllAnalysisHistory()
-      setAnalysisHistory([])
+    try {
+      if (confirmDialog?.type === 'search') {
+        await deleteAllSearchHistory()
+        setSearchHistory([])
+      } else if (confirmDialog?.type === 'analysis') {
+        await deleteAllAnalysisHistory()
+        setAnalysisHistory([])
+      }
+    } catch {
+      setDeleteError('삭제에 실패했습니다. 다시 시도해주세요.')
     }
     setConfirmDialog(null)
   }
@@ -316,6 +329,13 @@ export default function MyPage() {
         <h1 className="text-2xl font-bold text-gray-900">마이페이지</h1>
         <p className="mt-1 text-sm text-gray-500">내 정보와 분석 기록을 확인하세요.</p>
       </div>
+
+      {deleteError && (
+        <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span>{deleteError}</span>
+          <button onClick={() => setDeleteError(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
+        </div>
+      )}
 
       {/* 내 정보 */}
       <Card>
