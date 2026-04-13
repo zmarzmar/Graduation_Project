@@ -1,7 +1,9 @@
 // BE API 호출 전용 파일 — 컴포넌트에서 직접 fetch 금지
 import type { ArxivPaper } from './types/agent-run'
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1').replace(/\/$/, '')
+// NEXT_PUBLIC_API_URL은 /api/v1 없이 베이스 URL만 설정 (예: http://localhost:8000)
+const _apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+const API_BASE = _apiUrl.replace(/\/$/, '') + '/api/v1'
 
 export interface PaperSearchResponse {
   query: string
