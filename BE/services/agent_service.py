@@ -339,7 +339,7 @@ async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict) -
         # 분석 결과 저장
         await crud_analysis.create_analysis_result(
             db,
-            mode="search",
+            mode="analyze",
             query=user_query,
             generated_code=accumulated.get("generated_code", ""),
             review_feedback=accumulated.get("review_feedback", ""),
