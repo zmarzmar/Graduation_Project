@@ -351,14 +351,32 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
               <span className="text-xs text-gray-500">
                 반복 횟수: {result.iteration_count ?? 1}회
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={() => navigator.clipboard.writeText(result.generated_code!)}
-              >
-                복사
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    const blob = new Blob([result.generated_code!], { type: 'text/plain' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = 'generated_code.py'
+                    a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                >
+                  다운로드
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => navigator.clipboard.writeText(result.generated_code!)}
+                >
+                  복사
+                </Button>
+              </div>
             </div>
             <SyntaxHighlighter
               language="python"
