@@ -23,7 +23,21 @@ _SYSTEM_PROMPT = """당신은 AI 논문을 PyTorch 코드로 구현하는 전문
 - 모든 클래스와 함수에 타입 힌트 필수
 - 논문의 핵심 알고리즘/수식을 인라인 주석으로 표기
 - 구현이 필요한 부분은 TODO 주석으로 명시
-- import 포함, 실행 가능한 완전한 코드로 작성"""
+- import 포함, 실행 가능한 완전한 코드로 작성
+- 응답은 반드시 코드만 출력할 것 — 코드 앞뒤에 설명 문장을 절대 붙이지 말 것
+- 설명이 필요하면 반드시 Python 주석(#)으로만 작성할 것"""
+
+
+def _extract_code(text: str) -> str:
+    """LLM 응답에서 Python 코드 블록만 추출한다.
+    ```python ... ``` 블록이 있으면 그 내용만 반환하고,
+    없으면 전체 텍스트를 그대로 반환한다.
+    """
+    import re
+    match = re.search(r"```(?:python)?\s*\n(.*?)```", text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text.strip()
 
 
 def _build_paper_context(papers: list[dict]) -> str:
@@ -93,7 +107,7 @@ async def coder_node(state: AgentState) -> dict:
             SystemMessage(content=_SYSTEM_PROMPT),
             HumanMessage(content=user_content),
         ])
-        generated_code = response.content
+        generated_code = _extract_code(response.content)
         emit_log("coder", f"코드 생성 완료 ({len(generated_code)}자)")
         logger.info(f"[Coder] 완료 — 코드 {len(generated_code)}자 생성")
     except Exception as e:
