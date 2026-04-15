@@ -87,6 +87,7 @@ async def analyzer_node(state: AgentState) -> dict:
             "error": "분석할 논문이 없습니다.",
         }
 
+    response = None
     try:
         emit_log("analyzer", "요약 및 리뷰 생성 중...")
         response = await _llm.ainvoke([
@@ -96,10 +97,7 @@ async def analyzer_node(state: AgentState) -> dict:
         result = json.loads(response.content)
     except Exception as e:
         logger.error(f"[Analyzer] LLM 호출 실패: {e}")
-        try:
-            result = _extract_json(response.content if 'response' in dir() else "")
-        except Exception:
-            result = {}
+        result = _extract_json(response.content if response is not None else "")
 
     summary = result.get("summary", "")
     review = result.get("review", {})
