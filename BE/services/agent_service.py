@@ -208,7 +208,13 @@ async def _save_to_db(
         # 논문 저장 (pdf 모드만 — 분석 대상 논문이 명확할 때)
         paper_id: int | None = None
         if papers and mode == "pdf":
-            first_paper_dict = papers[0] if isinstance(papers[0], dict) else papers[0].__dict__
+            p = papers[0]
+            if isinstance(p, dict):
+                first_paper_dict = p
+            elif hasattr(p, "model_dump"):
+                first_paper_dict = p.model_dump()
+            else:
+                first_paper_dict = vars(p)
             try:
                 paper_schema = PaperResult(**first_paper_dict)
                 paper_obj = await crud_paper.upsert_paper(db, paper_schema)
