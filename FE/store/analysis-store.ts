@@ -88,13 +88,7 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
     set((state) => ({
       streams: {
         ...state.streams,
-        [mode]: {
-          nodeStatuses: { ...INITIAL_NODE_STATUSES },
-          nodeLogs: { ...INITIAL_NODE_LOGS },
-          result: null,
-          cancelled: false,
-          error: null,
-        },
+        [mode]: { ...INITIAL_STREAM },
       },
     })),
 }))
