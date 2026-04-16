@@ -38,9 +38,15 @@ _SYSTEM_PROMPT = """당신은 AI 논문 구현 코드를 검토하는 전문 리
 
 def _extract_json(text: str) -> dict:
     """LLM 응답 텍스트에서 JSON 블록을 추출한다.
-    ```json ... ``` 코드 블록과 중괄호 직접 파싱을 순서대로 시도한다.
+    순수 JSON 직접 파싱 → 코드 블록 → 브라켓 카운팅 순으로 시도한다.
     """
-    # ```json ... ``` 블록 추출 시도
+    # 1. LLM이 순수 JSON만 반환한 경우 바로 파싱
+    try:
+        return json.loads(text.strip())
+    except json.JSONDecodeError:
+        pass
+
+    # 2. ```json ... ``` 코드 블록 추출 시도
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
         try:
@@ -48,13 +54,31 @@ def _extract_json(text: str) -> dict:
         except json.JSONDecodeError:
             pass
 
-    # 최상위 중괄호 블록 직접 파싱 시도
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
+    # 3. 브라켓 카운팅으로 첫 번째 완결된 JSON 객체 추출 — 문자열 내 {}도 올바르게 처리
+    start = text.find("{")
+    if start != -1:
+        depth = 0
+        in_str = False
+        escape = False
+        for i, ch in enumerate(text[start:], start):
+            if escape:
+                escape = False
+                continue
+            if ch == "\\" and in_str:
+                escape = True
+                continue
+            if ch == '"':
+                in_str = not in_str
+            elif not in_str:
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            return json.loads(text[start : i + 1])
+                        except json.JSONDecodeError:
+                            break
 
     return {}
 
