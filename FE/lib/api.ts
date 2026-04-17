@@ -13,7 +13,7 @@ export interface PaperSearchResponse {
 /** arXiv 논문 검색 */
 export async function searchPapers(
   query: string,
-  maxResults = 5,
+  maxResults = 3,
 ): Promise<PaperSearchResponse> {
   const params = new URLSearchParams({
     search: query,
