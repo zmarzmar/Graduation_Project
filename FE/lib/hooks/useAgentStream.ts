@@ -63,7 +63,7 @@ export function useAgentStream(mode: StreamMode) {
                 const cur = useAnalysisStore.getState().streams[mode].nodeStatuses
                 setStreamState(mode, { nodeStatuses: { ...cur, [event.node as NodeName]: status } })
               } else if (event.event === 'complete') {
-                setStreamState(mode, { result: event.result ?? null })
+                setStreamState(mode, { result: event.result ?? null, error: null })
               } else if (event.event === 'error') {
                 setStreamState(mode, { error: event.message ?? '알 수 없는 오류가 발생했습니다.' })
               }
