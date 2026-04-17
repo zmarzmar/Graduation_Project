@@ -137,8 +137,14 @@ async def enrich_papers(arxiv_ids: list[str]) -> dict[str, S2Data]:
         except httpx.TimeoutException:
             raise HTTPException(status_code=504, detail="Semantic Scholar API 응답 시간 초과.")
 
+    try:
+        data = response.json()
+    except Exception:
+        logger.warning("[S2 Enrich] JSON 파싱 실패 — 빈 결과 반환")
+        return {}
+
     result: dict[str, S2Data] = {}
-    for base_id, item in zip(base_ids, response.json()):
+    for base_id, item in zip(base_ids, data):
         if item is None:
             continue
         result[base_id] = S2Data(
