@@ -3,23 +3,13 @@
 import { useEffect, useState } from 'react'
 import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BlockMath } from 'react-katex'
-import 'katex/dist/katex.min.css'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory, getMyInfo } from '@/lib/api'
 import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, SearchHistoryPaper } from '@/lib/api'
-
-/** LaTeX 렌더링 실패 시 plain text로 fallback */
-function FormulaBlock({ latex }: { latex: string }) {
-  try {
-    return <BlockMath math={latex} />
-  } catch {
-    return <code className="font-mono text-xs text-gray-700">{latex}</code>
-  }
-}
+import { FormulaBlock } from '@/components/ui/formula-block'
 
 const MODE_LABEL: Record<string, string> = {
   search: '키워드 검색',

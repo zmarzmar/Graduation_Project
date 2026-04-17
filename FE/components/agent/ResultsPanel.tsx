@@ -1,23 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { BlockMath } from 'react-katex'
-import 'katex/dist/katex.min.css'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-run'
-
-/** LaTeX 렌더링 실패 시 plain text로 fallback */
-function FormulaBlock({ latex }: { latex: string }) {
-  try {
-    return <BlockMath math={latex} />
-  } catch {
-    return <code className="font-mono text-xs text-gray-700">{latex}</code>
-  }
-}
+import { FormulaBlock } from '@/components/ui/formula-block'
 
 interface ResultsPanelProps {
   result: AgentResult
@@ -74,7 +64,7 @@ function PaperCard({ paper, summary, onAnalyze }: { paper: ArxivPaper; summary?:
 
       {/* 기존 TL;DR (S2 제공) */}
       {!summary && paper.tldr && (
-        <p className="mt-2 text-xs text-gray-600 italic">"{paper.tldr}"</p>
+        <p className="mt-2 text-xs text-gray-600 italic">&quot;{paper.tldr}&quot;</p>
       )}
 
       {/* 초록 토글 + 분석 버튼 */}
@@ -170,14 +160,11 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
     review: '코드 리뷰',
   }
 
-  const [activeTab, setActiveTab] = useState<TabId>('papers')
+  // 수동 탭 전환 오버라이드 — null이면 데이터 기반 기본값 사용
+  const [tabOverride, setTabOverride] = useState<TabId | null>(null)
+  const activeTab: TabId = tabOverride ?? (hasAnalysis ? 'analysis' : 'papers')
   type SortKey = 'newest' | 'oldest' | 'citations'
   const [sortKey, setSortKey] = useState<SortKey>('newest')
-
-  // 분석 완료 시 논문 분석 탭으로 자동 전환
-  useEffect(() => {
-    if (hasAnalysis) setActiveTab('analysis')
-  }, [hasAnalysis])
 
   // 수집 논문 탭에 표시할 논문 목록 — 분석 후에도 검색 결과 유지
   const basePapers = searchedPapers && searchedPapers.length > 0 ? searchedPapers : result.papers
@@ -209,7 +196,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
                 ? 'border-b-2 border-blue-500 text-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => setTabOverride(tab)}
           >
             {labels[tab]}
             {tab === 'papers' && (
