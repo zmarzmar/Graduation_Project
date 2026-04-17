@@ -1,7 +1,11 @@
+import logging
+
 from fastapi import APIRouter, Query
 
 from schemas.paper import SearchResponse
 from services import arxiv_service, semantic_scholar_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["papers"])
 
@@ -14,7 +18,11 @@ async def search_papers(
     """arXiv 논문 검색 + Semantic Scholar 인용 정보 보완"""
     papers = await arxiv_service.search_papers(search, max_results)
 
-    enrichments = await semantic_scholar_service.enrich_papers([p.arxiv_id for p in papers])
+    try:
+        enrichments = await semantic_scholar_service.enrich_papers([p.arxiv_id for p in papers])
+    except Exception as e:
+        logger.warning(f"[Enrich] 인용 정보 보강 실패 (검색은 계속): {e}")
+        enrichments = {}
 
     for paper in papers:
         base_id = paper.arxiv_id.split("v")[0]
