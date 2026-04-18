@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserCheck, UserX, Shield } from 'lucide-react';
+import { Users, UserCheck, Shield } from 'lucide-react';
 import { mockUsers, getUserStats } from '@/lib/mock-data/users';
-import { User, UserRole, UserStatus } from '@/lib/types/user';
+import { UserRole, UserStatus } from '@/lib/types/user';
 import Link from 'next/link';
 
 export default function UsersPage() {

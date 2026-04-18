@@ -1,18 +1,10 @@
 'use client';
 
-import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Header } from '@/components/shared/Header';
 import { Footer } from '@/components/shared/Footer';
 import { useState } from 'react';
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
 
 export default function RootLayout({
   children,
@@ -37,7 +29,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${jetbrainsMono.variable} antialiased bg-gray-50 flex flex-col min-h-screen`}
+        className="antialiased bg-gray-50 flex min-h-screen flex-col"
       >
         <QueryClientProvider client={queryClient}>
           <Header />

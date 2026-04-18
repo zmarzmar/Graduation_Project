@@ -7,7 +7,6 @@ import {
   Cpu,
   HardDrive,
   Network,
-  Server,
   AlertCircle,
   CheckCircle,
 } from 'lucide-react';

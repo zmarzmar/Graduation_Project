@@ -1,7 +1,7 @@
 // 논문 분석 탭 상태를 전역으로 유지 — 페이지 이탈 후 복귀 시 상태 보존
 
 import { create } from 'zustand'
-import type { AgentMode, AgentResult, ArxivPaper, NodeLogs, NodeName, NodeStatuses } from '@/lib/types/agent-run'
+import type { AgentMode, AgentResult, ArxivPaper, NodeLogs, NodeStatuses } from '@/lib/types/agent-run'
 
 export type StreamMode = 'search' | 'pdf' | 'trend'
 
