@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai_research_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend_net
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: ai_research_chroma
+    restart: unless-stopped
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      - backend_net
+
+  backend_blue:
+    image: ghcr.io/${GHCR_OWNER}/graduation-project-be:${BACKEND_IMAGE_TAG:-latest}
+    container_name: ai_research_backend_blue
+    restart: unless-stopped
+    env_file:
+      - ./deploy/env/backend.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      APP_COLOR: blue
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${BACKEND_BLUE_PORT:-18001}:8000"
+    networks:
+      - backend_net
+
+  backend_green:
+    image: ghcr.io/${GHCR_OWNER}/graduation-project-be:${BACKEND_IMAGE_TAG:-latest}
+    container_name: ai_research_backend_green
+    restart: unless-stopped
+    env_file:
+      - ./deploy/env/backend.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      APP_COLOR: green
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${BACKEND_GREEN_PORT:-18002}:8000"
+    networks:
+      - backend_net
+
+networks:
+  backend_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  chroma_data:

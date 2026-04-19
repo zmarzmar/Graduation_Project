@@ -1,0 +1,95 @@
+name: Backend CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'BE/**'
+      - 'docker-compose.prod.yml'
+      - 'deploy/**'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: backend-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-ci:
+    name: Backend Build Check
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: BE
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Compile check
+        run: uv run python -m compileall agents core crud models routers schemas services main.py
+
+      - name: Build Docker image
+        run: docker build -t graduation-project-be:test .
+
+  deploy:
+    name: Backend Deploy
+    runs-on: ubuntu-latest
+    needs: backend-ci
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./BE
+          file: ./BE/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/graduation-project-be:latest
+            ghcr.io/${{ github.repository_owner }}/graduation-project-be:sha-${{ github.sha }}
+
+      - name: Deploy on Oracle server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            if [ ! -d /opt/graduation-project/.git ]; then
+              echo "Repository is missing at /opt/graduation-project"
+              exit 1
+            fi
+            cd /opt/graduation-project
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            chmod +x deploy/deploy.sh
+            BACKEND_BLUE_PORT=18001 BACKEND_GREEN_PORT=18002 bash deploy/deploy.sh sha-${{ github.sha }}

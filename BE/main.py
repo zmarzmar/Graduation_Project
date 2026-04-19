@@ -24,7 +24,7 @@ app = FastAPI(
 # CORS 설정 — FE(localhost:3000)에서 호출 허용
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
