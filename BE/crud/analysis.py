@@ -16,6 +16,7 @@ async def create_analysis_result(
     paper_summary: str = "",
     paper_review: dict | None = None,
     key_formulas: list | None = None,
+    user_id: int | None = None,
 ) -> AnalysisResult:
     """분석 결과 저장"""
     result = AnalysisResult(
@@ -29,6 +30,7 @@ async def create_analysis_result(
         paper_summary=paper_summary,
         paper_review=paper_review or {},
         key_formulas=key_formulas or [],
+        user_id=user_id,
     )
     db.add(result)
     await db.flush()

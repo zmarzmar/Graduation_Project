@@ -10,6 +10,7 @@ async def create_search_history(
     mode: str,
     result_count: int = 0,
     papers: list[dict] | None = None,
+    user_id: int | None = None,
 ) -> SearchHistory:
     """검색 기록 저장"""
     # 논문 목록에서 표시에 필요한 최소 정보만 저장
@@ -30,7 +31,7 @@ async def create_search_history(
         }
         for p in (papers or [])
     ]
-    history = SearchHistory(query=query, mode=mode, result_count=result_count, papers=paper_list)
+    history = SearchHistory(query=query, mode=mode, result_count=result_count, papers=paper_list, user_id=user_id)
     db.add(history)
     await db.flush()
     return history

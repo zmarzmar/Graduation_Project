@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:3000,https://paperpilot.cloud,https://www.paperpilot.cloud"
 
+    # JWT
+    jwt_secret_key: str = "change-me-in-production"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

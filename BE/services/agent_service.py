@@ -98,6 +98,7 @@ async def stream_agent(
     mode: str,
     user_query: str,
     pdf_text: str = "",
+    user_id: int | None = None,
 ) -> AsyncGenerator[str, None]:
     """LangGraph 그래프를 실행하고 노드 로그 및 완료 이벤트를 실시간 SSE로 스트리밍한다.
 
@@ -175,7 +176,7 @@ async def stream_agent(
 
     # DB 저장 — search/trend 모드는 검색 기록만, pdf는 전체 저장
     try:
-        await _save_to_db(mode, user_query, accumulated, search_only=(mode in ("search", "trend")))
+        await _save_to_db(mode, user_query, accumulated, search_only=(mode in ("search", "trend")), user_id=user_id)
     except Exception as e:
         logger.error(f"DB 저장 실패 (무시): {e}")
 
@@ -187,6 +188,7 @@ async def _save_to_db(
     user_query: str,
     accumulated: dict,
     search_only: bool = False,
+    user_id: int | None = None,
 ) -> None:
     """에이전트 실행 결과를 DB에 저장한다.
 
@@ -198,7 +200,7 @@ async def _save_to_db(
     async with AsyncSessionLocal() as db:
         # 검색 기록 저장 (항상)
         await crud_search_history.create_search_history(
-            db, query=user_query, mode=mode, result_count=len(papers), papers=papers
+            db, query=user_query, mode=mode, result_count=len(papers), papers=papers, user_id=user_id
         )
 
         if search_only:
@@ -235,6 +237,7 @@ async def _save_to_db(
             paper_summary=accumulated.get("paper_summary", ""),
             paper_review=accumulated.get("paper_review", {}),
             key_formulas=accumulated.get("key_formulas", []),
+            user_id=user_id,
         )
         await db.commit()
 
@@ -242,6 +245,7 @@ async def _save_to_db(
 async def stream_analyze(
     paper: dict,
     user_query: str,
+    user_id: int | None = None,
 ) -> AsyncGenerator[str, None]:
     """사용자가 선택한 논문 1편을 Analyzer → Coder → Reviewer로 분석한다.
     pdf_url이 있으면 arXiv PDF 전체 텍스트를 다운로드해서 분석에 사용한다.
@@ -324,14 +328,14 @@ async def stream_analyze(
     # DB 저장 — 선택한 논문 + 분석 결과
     try:
         accumulated["papers"] = [paper]
-        await _save_analyze_to_db(user_query, paper, accumulated)
+        await _save_analyze_to_db(user_query, paper, accumulated, user_id=user_id)
     except Exception as e:
         logger.error(f"분석 DB 저장 실패 (무시): {e}")
 
     yield _sse({"event": "complete", "result": final_result})
 
 
-async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict) -> None:
+async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict, user_id: int | None = None) -> None:
     """사용자가 선택한 논문 분석 결과를 DB에 저장한다."""
     async with AsyncSessionLocal() as db:
         # 선택한 논문 저장
@@ -356,6 +360,7 @@ async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict) -
             paper_summary=accumulated.get("paper_summary", ""),
             paper_review=accumulated.get("paper_review", {}),
             key_formulas=accumulated.get("key_formulas", []),
+            user_id=user_id,
         )
         await db.commit()
 

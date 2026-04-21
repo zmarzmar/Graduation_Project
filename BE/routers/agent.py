@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from core.dependencies import get_optional_user
+from models.user import User
 from services import agent_service
 
 router = APIRouter(tags=["agent"])
@@ -28,7 +30,10 @@ class AnalyzeRequest(BaseModel):
 # ── 엔드포인트 ────────────────────────────────────────────────────────────────
 
 @router.post("/agent/pdf")
-async def run_pdf_agent(file: UploadFile = File(...)) -> StreamingResponse:
+async def run_pdf_agent(
+    file: UploadFile = File(...),
+    current_user: User | None = Depends(get_optional_user),
+) -> StreamingResponse:
     """PDF를 업로드하면 논문을 자동 분석하고 코드를 재현한다. (SSE 스트리밍)"""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="PDF 파일만 업로드 가능합니다.")
@@ -47,19 +52,24 @@ async def run_pdf_agent(file: UploadFile = File(...)) -> StreamingResponse:
             mode="pdf",
             user_query=file.filename,
             pdf_text=pdf_text,
+            user_id=current_user.id if current_user else None,
         ),
         media_type="text/event-stream",
-        headers={"X-Accel-Buffering": "no"},  # Nginx 버퍼링 비활성화
+        headers={"X-Accel-Buffering": "no"},
     )
 
 
 @router.post("/agent/search")
-async def run_search_agent(request: SearchRequest) -> StreamingResponse:
+async def run_search_agent(
+    request: SearchRequest,
+    current_user: User | None = Depends(get_optional_user),
+) -> StreamingResponse:
     """키워드로 arXiv 논문을 검색하고 분석 및 코드를 재현한다. (SSE 스트리밍)"""
     return StreamingResponse(
         agent_service.stream_agent(
             mode="search",
             user_query=request.query,
+            user_id=current_user.id if current_user else None,
         ),
         media_type="text/event-stream",
         headers={"X-Accel-Buffering": "no"},
@@ -67,12 +77,16 @@ async def run_search_agent(request: SearchRequest) -> StreamingResponse:
 
 
 @router.post("/agent/analyze")
-async def run_analyze_agent(request: AnalyzeRequest) -> StreamingResponse:
+async def run_analyze_agent(
+    request: AnalyzeRequest,
+    current_user: User | None = Depends(get_optional_user),
+) -> StreamingResponse:
     """사용자가 선택한 논문 1편을 분석하고 코드를 재현한다. (SSE 스트리밍)"""
     return StreamingResponse(
         agent_service.stream_analyze(
             paper=request.paper,
             user_query=request.query,
+            user_id=current_user.id if current_user else None,
         ),
         media_type="text/event-stream",
         headers={"X-Accel-Buffering": "no"},
@@ -80,12 +94,16 @@ async def run_analyze_agent(request: AnalyzeRequest) -> StreamingResponse:
 
 
 @router.post("/agent/trend")
-async def run_trend_agent(request: TrendRequest) -> StreamingResponse:
+async def run_trend_agent(
+    request: TrendRequest,
+    current_user: User | None = Depends(get_optional_user),
+) -> StreamingResponse:
     """HuggingFace + arXiv 기반 최신 트렌드 논문 요약 리포트를 생성한다. (SSE 스트리밍)"""
     return StreamingResponse(
         agent_service.stream_agent(
             mode="trend",
             user_query=request.topic,
+            user_id=current_user.id if current_user else None,
         ),
         media_type="text/event-stream",
         headers={"X-Accel-Buffering": "no"},

@@ -25,6 +25,9 @@ class AnalysisResult(Base):
     paper_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
     paper_review: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     key_formulas: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

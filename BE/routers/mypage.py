@@ -1,11 +1,11 @@
-from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
-from pydantic import BaseModel
 from datetime import datetime
 
-from core.dependencies import get_db
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.dependencies import get_current_user, get_db
 from crud import analysis as crud_analysis
 from crud import search_history as crud_search_history
 from models.analysis import AnalysisResult
@@ -29,13 +29,9 @@ class UserInfo(BaseModel):
 
 
 @router.get("/mypage/me", response_model=UserInfo)
-async def get_my_info(db: AsyncSession = Depends(get_db)):
-    """내 정보 조회 — 로그인 미구현으로 임시 id=1 반환"""
-    result = await db.execute(select(User).where(User.id == 1))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
-    return user
+async def get_my_info(current_user: User = Depends(get_current_user)):
+    """내 정보 조회"""
+    return current_user
 
 
 class SearchHistoryItem(BaseModel):
@@ -108,11 +104,14 @@ async def get_analysis_detail(analysis_id: int, db: AsyncSession = Depends(get_d
 
 
 @router.get("/mypage/search-history", response_model=list[SearchHistoryItem])
-async def get_search_history(db: AsyncSession = Depends(get_db)):
+async def get_search_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """최근 검색 기록 20개 반환"""
     result = await db.execute(
         select(SearchHistory)
-        .where(SearchHistory.is_deleted == False)  # noqa: E712
+        .where(SearchHistory.user_id == current_user.id, SearchHistory.is_deleted == False)  # noqa: E712
         .order_by(SearchHistory.created_at.desc())
         .limit(20)
     )
@@ -152,12 +151,15 @@ async def delete_analysis_history(analysis_id: int, db: AsyncSession = Depends(g
 
 
 @router.get("/mypage/analysis-history", response_model=list[AnalysisHistoryItem])
-async def get_analysis_history(db: AsyncSession = Depends(get_db)):
+async def get_analysis_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """최근 분석 히스토리 20개 반환 (논문 제목 포함)"""
     result = await db.execute(
         select(AnalysisResult, Paper)
         .outerjoin(Paper, AnalysisResult.paper_id == Paper.id)
-        .where(AnalysisResult.is_deleted == False)  # noqa: E712
+        .where(AnalysisResult.user_id == current_user.id, AnalysisResult.is_deleted == False)  # noqa: E712
         .order_by(AnalysisResult.created_at.desc())
         .limit(20)
     )

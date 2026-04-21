@@ -20,4 +20,6 @@ dependencies = [
     "alembic>=1.18.4",
     "chromadb>=1.5.5",
     "openai>=2.29.0",
+    "bcrypt>=5.0.0",
+    "pyjwt>=2.12.1",
 ]
