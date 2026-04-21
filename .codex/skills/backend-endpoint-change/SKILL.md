@@ -1,3 +1,8 @@
+---
+name: backend-endpoint-change
+description: FastAPI 엔드포인트 변경 시 라우터와 서비스 경계를 유지하기 위한 체크리스트
+---
+
 # backend-endpoint-change
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: frontend-api-change
+description: 프론트엔드에서 API 호출, 타입, UI 상태 처리를 함께 수정할 때 사용하는 체크리스트
+---
+
 # frontend-api-change
 
 ## Purpose

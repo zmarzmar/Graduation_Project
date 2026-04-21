@@ -1,3 +1,8 @@
+---
+name: fullstack-contract-sync
+description: FE와 BE 계약이 함께 바뀌는 작업에서 경로와 필드를 동기화하기 위한 체크리스트
+---
+
 # fullstack-contract-sync
 
 ## Purpose

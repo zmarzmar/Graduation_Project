@@ -1,3 +1,8 @@
+---
+name: agent-pipeline-change
+description: LangGraph 상태, 노드, 그래프 분기 로직 변경 시 파이프라인 무결성을 점검하는 체크리스트
+---
+
 # agent-pipeline-change
 
 ## Purpose

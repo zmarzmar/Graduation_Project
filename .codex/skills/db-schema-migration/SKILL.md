@@ -1,3 +1,8 @@
+---
+name: db-schema-migration
+description: 모델, 스키마, CRUD, 마이그레이션 변경을 함께 다룰 때 사용하는 체크리스트
+---
+
 # db-schema-migration
 
 ## Purpose
