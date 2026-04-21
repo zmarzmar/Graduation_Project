@@ -4,7 +4,25 @@ import "./globals.css";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Header } from '@/components/shared/Header';
 import { Footer } from '@/components/shared/Footer';
-import { useState } from 'react';
+import { AuthModal } from '@/components/ui/auth-modal';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { useEffect, useState } from 'react';
+
+function AppShell({ children }: { children: React.ReactNode }) {
+  const { initAuth } = useAuth()
+  useEffect(() => { initAuth() }, [initAuth])
+
+  return (
+    <>
+      <Header />
+      <main className="container mx-auto px-4 py-6 flex-1">
+        {children}
+      </main>
+      <Footer />
+      <AuthModal />
+    </>
+  )
+}
 
 export default function RootLayout({
   children,
@@ -32,11 +50,7 @@ export default function RootLayout({
         className="antialiased bg-gray-50 flex min-h-screen flex-col"
       >
         <QueryClientProvider client={queryClient}>
-          <Header />
-          <main className="container mx-auto px-4 py-6 flex-1">
-            {children}
-          </main>
-          <Footer />
+          <AppShell>{children}</AppShell>
         </QueryClientProvider>
       </body>
     </html>

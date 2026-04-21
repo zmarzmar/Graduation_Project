@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -10,6 +10,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory, getMyInfo } from '@/lib/api'
 import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, SearchHistoryPaper } from '@/lib/api'
 import { FormulaBlock } from '@/components/ui/formula-block'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 const MODE_LABEL: Record<string, string> = {
   search: '키워드 검색',
@@ -247,14 +248,25 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
 }
 
 export default function MyPage() {
+  const { isLoggedIn, openModal } = useAuth()
+  const authChecked = useRef(false)
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[]>([])
-  const [loading, setLoading] = useState(true)
+  // 로그인 상태일 때만 로딩 시작
+  const [loading, setLoading] = useState(isLoggedIn)
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'search' | 'analysis' } | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // 비로그인 시 로그인 모달 오픈
   useEffect(() => {
+    if (!authChecked.current) {
+      authChecked.current = true
+      if (!isLoggedIn) {
+        openModal('login')
+        return
+      }
+    }
     Promise.all([getMyInfo(), getSearchHistory(), getAnalysisHistory()])
       .then(([user, search, analysis]) => {
         setUserInfo(user)
@@ -263,7 +275,7 @@ export default function MyPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [isLoggedIn, openModal])
 
   async function handleDeleteSearch(id: number) {
     try {
