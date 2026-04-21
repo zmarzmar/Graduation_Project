@@ -1,3 +1,8 @@
+---
+name: change-verification-checklist
+description: 변경 후 필요한 검증 항목을 범위별로 점검하기 위한 체크리스트
+---
+
 # change-verification-checklist
 
 ## Purpose
