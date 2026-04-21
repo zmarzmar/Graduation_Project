@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Search, User } from 'lucide-react';
+import { BookOpen, LogOut, Search, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export function Header() {
   const pathname = usePathname();
+  const { user, isLoggedIn, logout, openModal } = useAuth();
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -24,30 +27,68 @@ export function Header() {
             </div>
           </Link>
 
-          <nav className="flex items-center gap-1">
-            <Link
-              href="/"
-              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                isActive('/') && !isActive('/mypage')
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <Search className="h-4 w-4" />
-              <span>논문 분석</span>
-            </Link>
-            <Link
-              href="/mypage"
-              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                isActive('/mypage')
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <User className="h-4 w-4" />
-              <span>마이페이지</span>
-            </Link>
-          </nav>
+          <div className="flex items-center gap-2">
+            <nav className="flex items-center gap-1">
+              <Link
+                href="/"
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                  isActive('/') && !isActive('/mypage')
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Search className="h-4 w-4" />
+                <span>논문 분석</span>
+              </Link>
+              <Link
+                href="/mypage"
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                  isActive('/mypage')
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <User className="h-4 w-4" />
+                <span>마이페이지</span>
+              </Link>
+            </nav>
+
+            {/* 로그인 상태에 따라 다른 UI */}
+            <div className="flex items-center gap-2 pl-2 border-l ml-1">
+              {isLoggedIn ? (
+                <>
+                  <span className="text-sm text-gray-600 font-medium">
+                    {user?.username}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={logout}
+                    className="text-gray-500 hover:text-red-500"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openModal('login')}
+                    className="text-gray-600"
+                  >
+                    로그인
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => openModal('register')}
+                  >
+                    회원가입
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </header>
