@@ -89,7 +89,7 @@ jobs:
             cd /opt/graduation-project
             git fetch origin main
             git checkout main
-            git pull --ff-only origin main
+            git reset --hard origin/main
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
             chmod +x deploy/deploy.sh
             BACKEND_BLUE_PORT=18001 BACKEND_GREEN_PORT=18002 bash deploy/deploy.sh sha-${{ github.sha }}
