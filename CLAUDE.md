@@ -183,17 +183,15 @@ POST /api/v1/agent/trend
 | Branch | Description |
 |--------|-------------|
 | `main` | Default branch. Production-ready and deployed to production. |
-| `develop` | Integration branch for active development and test deployment |
 | `feature/{description}` | New feature branch (e.g. `feature/add-planner-node`) |
 
 ### Flow
 
-1. Create `feature` branch from `develop`
+1. Create `feature` branch from `main`
 2. Commit with proper message format
-3. Push and create Pull Request (base: `develop`)
-4. Merge into `develop` after review and validate on the develop deployment
-5. Create `develop -> main` PR only when the tested state is ready for production
-6. Rebase-merge `develop -> main` so `main` stays a linear copy of the approved `develop` state
+3. Push and create Pull Request (base: `main`)
+4. Validate on CI and preview/test environment as needed
+5. Merge into `main` after review
 
 ```bash
 # 새 기능 브랜치 생성
@@ -205,7 +203,7 @@ git commit -m "✨ Feat: Add new feature"
 git push origin feature/기능명
 
 # GitHub에서 PR 생성
-# base: develop ← compare: feature/기능명
+# base: main ← compare: feature/기능명
 ```
 
 ### Git Rules
@@ -215,20 +213,17 @@ git push origin feature/기능명
 - push는 항상 사용자 확인 후 진행
 - Never commit directly to `main`
 - `main` is the default branch and production branch
-- `develop` is the test deployment branch
-- Create all `feature/*` branches from `develop`
-- Run CI on both `develop` and `main`, and on related pull requests
+- Create all `feature/*` branches from `main`
+- Run CI on `main` and on related pull requests
 - Never hardcode API keys
 - **로컬 `git merge`로 브랜치를 직접 병합하지 않는다** — 브랜치 병합은 **GitHub MCP (`mcp__github__create_pull_request` → `mcp__github__merge_pull_request`)** 사용을 기본으로 한다. MCP 미가용 시에만 `gh` CLI 또는 GitHub 웹 UI로 대체하며, 사용자가 명시적으로 요청한 경우에만 로컬 머지를 진행한다.
-- **브랜치 흐름은 `feature -> develop -> main` 단방향으로 유지한다** — `main -> develop` 병합이나 동기화 PR은 만들지 않는다.
+- **브랜치 흐름은 `feature -> main` 단방향으로 유지한다** — 장기 유지 브랜치는 `main`만 사용한다.
 - **머지 방식**:
-  - `feature → develop`: `merge` (merge commit 방식) — 작업 흐름 보존
-  - `develop → main`: `rebase` (rebase merge 방식) — main이 검증 완료된 develop의 선형 복사본이 되도록 유지해 두 브랜치 간 behind/ahead 누적과 불필요한 merge commit 생성을 방지한다
+  - `feature → main`: `merge` (merge commit 방식) — 작업 흐름 보존
 - **배포 원칙**:
-  - `develop` 푸시: 테스트 배포
   - `main` 푸시: 운영 배포
-  - 서버 동기화는 `git pull` 대신 대상 브랜치 `fetch + reset --hard`를 사용
-  - GitHub Actions는 `staging`/`production` environment의 동일한 secret/variable 이름으로 배포 대상을 나눈다
+  - 서버 동기화는 `git pull` 대신 `fetch + reset --hard origin/main`을 사용
+  - GitHub Actions는 `production` environment의 secret/variable 이름으로 배포 대상을 관리한다
   - `deploy/runtime/*` 같은 런타임 생성 파일은 추적하지 않는다
 
 ---

@@ -55,19 +55,19 @@
 - 문서 변경은 `📝 Docs: ...`, 기능 변경은 `✨ Feat: ...`, 버그 수정은 `🐛 Fix: ...` 형식을 우선 사용한다.
 - push는 사용자가 명시적으로 요청한 경우에만 진행한다.
 - 기본 브랜치는 `main`으로 유지한다.
-- `main`은 운영 배포 브랜치, `develop`은 테스트 배포 브랜치로 사용한다.
-- 기능 작업 브랜치는 항상 `develop`에서 분기한다.
-- CI는 `develop`과 `main` 푸시, 그리고 관련 PR에서 모두 확인한다.
+- `main`만 장기 유지 브랜치로 사용한다.
+- 기능 작업 브랜치는 항상 `main`에서 분기한다.
+- 기능 작업은 `feature/* -> main` PR로만 반영한다.
+- CI는 관련 PR과 `main` 푸시에서 확인한다.
 - 로컬 터미널에서 `git merge`로 브랜치를 직접 병합하지 않는다.
 - 브랜치 병합이 필요하면 반드시 GitHub MCP로 PR을 생성하고, 그 PR 기준으로 병합 절차를 진행한다.
 - 브랜치 병합이 필요하면 GitHub PR 또는 웹 UI 기반 머지를 우선하고, 다른 방식은 사용자가 명시적으로 요청한 경우에만 진행한다.
-- 머지 흐름은 `feature → develop → main` 단방향으로 유지한다.
-- `main → develop` 병합이나 동기화 PR은 만들지 않는다.
-- 머지 방식: `feature → develop`은 merge commit, `develop → main`은 rebase merge를 기본으로 한다. `main`을 검증 완료된 `develop`의 선형 복사본으로 유지해 merge commit 누적과 behind/ahead 혼선을 줄이기 위한 규칙이다.
-- 백엔드 배포는 `develop` 푸시 시 테스트 배포, `main` 푸시 시 운영 배포로 분리한다.
-- 배포 서버의 저장소는 `git pull` 대신 대상 원격 브랜치로 `fetch` 후 `reset --hard`로 맞춘다. 서버 로컬 브랜치 히스토리를 기준으로 동기화하지 않는다.
-- 테스트/운영이 같은 서버를 쓰더라도 배포 경로, compose 파일, runtime 상태 파일, upstream 파일, 포트는 환경별로 분리한다.
-- GitHub Actions 백엔드 배포는 `staging`, `production` environment를 기준으로 같은 이름의 secret/variable 세트를 사용한다. 브랜치마다 별도 이름의 workflow를 만들기보다 environment 값으로 분기한다.
+- 머지 흐름은 `feature → main` 단방향으로 유지한다.
+- `main`은 merge 완료된 기능만 쌓이는 기준 브랜치로 유지한다.
+- 머지 방식은 `feature → main` 기본 merge commit으로 유지한다. 필요 시에만 rebase/squash를 사용한다.
+- 백엔드 배포는 `main` 푸시에만 실행한다.
+- 배포 서버의 저장소는 `git pull` 대신 `fetch` 후 `reset --hard origin/main`으로 맞춘다. 서버 로컬 브랜치 히스토리를 기준으로 동기화하지 않는다.
+- GitHub Actions 백엔드 배포는 `production` environment 기준의 secret/variable 세트를 사용한다.
 - `deploy/runtime/` 아래 런타임 생성 파일은 버전 관리 대상에 포함하지 않는다.
 
 ## Naming And Comments
