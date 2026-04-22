@@ -215,6 +215,9 @@ git push origin feature/기능명
 - Never commit directly to `main`
 - Never hardcode API keys
 - **로컬 `git merge`로 브랜치를 직접 병합하지 않는다** — 브랜치 병합은 **GitHub MCP (`mcp__github__create_pull_request` → `mcp__github__merge_pull_request`)** 사용을 기본으로 한다. MCP 미가용 시에만 `gh` CLI 또는 GitHub 웹 UI로 대체하며, 사용자가 명시적으로 요청한 경우에만 로컬 머지를 진행한다.
+- **머지 방식**:
+  - `feature → develop`: `merge` (merge commit 방식) — 작업 흐름 보존
+  - `develop → main`: `rebase` (rebase merge 방식) — main이 develop의 선형 복사본이 되도록 유지해 두 브랜치 간 behind/ahead 누적을 방지한다
 
 ---
 

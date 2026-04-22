@@ -57,6 +57,7 @@
 - 로컬 터미널에서 `git merge`로 브랜치를 직접 병합하지 않는다.
 - 브랜치 병합이 필요하면 반드시 GitHub MCP로 PR을 생성하고, 그 PR 기준으로 병합 절차를 진행한다.
 - 브랜치 병합이 필요하면 GitHub PR 또는 웹 UI 기반 머지를 우선하고, 다른 방식은 사용자가 명시적으로 요청한 경우에만 진행한다.
+- 머지 방식: `feature → develop`은 merge commit, `develop → main`은 rebase merge를 기본으로 한다. main을 develop의 선형 복사본으로 유지해 behind/ahead 누적을 방지하기 위한 규칙이다.
 
 ## Naming And Comments
 - Python은 `snake_case`, TypeScript는 `camelCase`를 사용한다.
