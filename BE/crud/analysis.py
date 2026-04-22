@@ -50,10 +50,14 @@ async def get_recent_analysis_results(
     return list(result.scalars().all())
 
 
-async def delete_analysis_result_by_id(db: AsyncSession, result_id: int) -> bool:
-    """분석 결과 개별 소프트 딜리트. 성공 여부 반환"""
+async def delete_analysis_result_by_id(db: AsyncSession, result_id: int, user_id: int) -> bool:
+    """분석 결과 개별 소프트 딜리트. 본인 소유만 가능. 성공 여부 반환"""
     result = await db.execute(
-        select(AnalysisResult).where(AnalysisResult.id == result_id, AnalysisResult.is_deleted == False)  # noqa: E712
+        select(AnalysisResult).where(
+            AnalysisResult.id == result_id,
+            AnalysisResult.user_id == user_id,
+            AnalysisResult.is_deleted == False,  # noqa: E712
+        )
     )
     obj = result.scalar_one_or_none()
     if not obj:
@@ -62,11 +66,14 @@ async def delete_analysis_result_by_id(db: AsyncSession, result_id: int) -> bool
     return True
 
 
-async def delete_all_analysis_results(db: AsyncSession) -> int:
-    """분석 결과 전체 소프트 딜리트. 처리된 행 수 반환"""
+async def delete_all_analysis_results(db: AsyncSession, user_id: int) -> int:
+    """특정 유저의 분석 결과 전체 소프트 딜리트. 처리된 행 수 반환"""
     result = await db.execute(
         update(AnalysisResult)
-        .where(AnalysisResult.is_deleted == False)  # noqa: E712
+        .where(
+            AnalysisResult.user_id == user_id,
+            AnalysisResult.is_deleted == False,  # noqa: E712
+        )
         .values(is_deleted=True)
     )
     return result.rowcount
