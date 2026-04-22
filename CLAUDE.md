@@ -214,7 +214,7 @@ git push origin feature/기능명
 - push는 항상 사용자 확인 후 진행
 - Never commit directly to `main`
 - Never hardcode API keys
-- **로컬 `git merge`로 브랜치를 직접 병합하지 않는다** — 브랜치 병합은 GitHub PR 또는 웹 UI 기반 머지를 우선한다. 사용자가 명시적으로 로컬 머지를 요청한 경우에만 진행한다.
+- **로컬 `git merge`로 브랜치를 직접 병합하지 않는다** — 브랜치 병합은 **GitHub MCP (`mcp__github__create_pull_request` → `mcp__github__merge_pull_request`)** 사용을 기본으로 한다. MCP 미가용 시에만 `gh` CLI 또는 GitHub 웹 UI로 대체하며, 사용자가 명시적으로 요청한 경우에만 로컬 머지를 진행한다.
 
 ---
 

@@ -226,3 +226,6 @@ pyrightconfig.json
 
 # 개인 설정
 .claude/settings.local.json
+
+# Playwright MCP 로컬 상태
+.playwright-mcp/
