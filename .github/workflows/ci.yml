@@ -7,6 +7,7 @@ on:
       - '.github/workflows/ci.yml'
   push:
     branches:
+      - develop
       - main
     paths:
       - 'FE/**'
