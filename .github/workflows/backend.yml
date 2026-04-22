@@ -1,8 +1,15 @@
 name: Backend CD
 
 on:
+  pull_request:
+    paths:
+      - 'BE/**'
+      - 'docker-compose.prod.yml'
+      - 'deploy/**'
+      - '.github/workflows/backend.yml'
   push:
     branches:
+      - develop
       - main
     paths:
       - 'BE/**'
@@ -49,9 +56,19 @@ jobs:
     name: Backend Deploy
     runs-on: ubuntu-latest
     needs: backend-ci
+    if: github.event_name == 'push' && (github.ref_name == 'develop' || github.ref_name == 'main')
     permissions:
       contents: read
       packages: write
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    env:
+      DEPLOY_BRANCH: ${{ github.ref_name }}
+      DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
+      DEPLOY_COMPOSE_FILE: ${{ vars.DEPLOY_COMPOSE_FILE }}
+      DEPLOY_STATE_DIR: ${{ vars.DEPLOY_STATE_DIR }}
+      DEPLOY_UPSTREAM_FILE: ${{ vars.DEPLOY_UPSTREAM_FILE }}
+      BACKEND_BLUE_PORT: ${{ vars.BACKEND_BLUE_PORT }}
+      BACKEND_GREEN_PORT: ${{ vars.BACKEND_GREEN_PORT }}
 
     steps:
       - name: Checkout repository
@@ -71,8 +88,8 @@ jobs:
           file: ./BE/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/graduation-project-be:latest
             ghcr.io/${{ github.repository_owner }}/graduation-project-be:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/graduation-project-be:${{ github.ref_name == 'main' && 'latest' || 'develop-latest' }}
 
       - name: Deploy on Oracle server
         uses: appleboy/ssh-action@v1.2.0
@@ -80,16 +97,28 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DEPLOY_BRANCH,DEPLOY_APP_DIR,DEPLOY_COMPOSE_FILE,DEPLOY_STATE_DIR,DEPLOY_UPSTREAM_FILE,BACKEND_BLUE_PORT,BACKEND_GREEN_PORT
           script: |
             set -e
-            if [ ! -d /opt/graduation-project/.git ]; then
-              echo "Repository is missing at /opt/graduation-project"
+            APP_DIR="${DEPLOY_APP_DIR:-/opt/graduation-project}"
+            COMPOSE_FILE="${DEPLOY_COMPOSE_FILE:-${APP_DIR}/docker-compose.prod.yml}"
+            STATE_DIR="${DEPLOY_STATE_DIR:-${APP_DIR}/deploy/runtime}"
+            UPSTREAM_FILE="${DEPLOY_UPSTREAM_FILE:-${STATE_DIR}/backend_upstream.conf}"
+
+            if [ ! -d "${APP_DIR}/.git" ]; then
+              echo "Repository is missing at ${APP_DIR}"
               exit 1
             fi
-            cd /opt/graduation-project
-            git fetch origin main
-            git checkout main
-            git reset --hard origin/main
+            cd "${APP_DIR}"
+            git fetch origin "${DEPLOY_BRANCH}"
+            git checkout "${DEPLOY_BRANCH}"
+            git reset --hard "origin/${DEPLOY_BRANCH}"
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
             chmod +x deploy/deploy.sh
-            BACKEND_BLUE_PORT=18001 BACKEND_GREEN_PORT=18002 bash deploy/deploy.sh sha-${{ github.sha }}
+            APP_DIR="${APP_DIR}" \
+            COMPOSE_FILE="${COMPOSE_FILE}" \
+            STATE_DIR="${STATE_DIR}" \
+            UPSTREAM_FILE="${UPSTREAM_FILE}" \
+            BACKEND_BLUE_PORT="${BACKEND_BLUE_PORT:-18001}" \
+            BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-18002}" \
+            bash deploy/deploy.sh sha-${{ github.sha }}
