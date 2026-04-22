@@ -33,11 +33,11 @@ export interface AuthUser {
 }
 
 /** 회원가입 — JWT 즉시 반환 */
-export async function register(email: string, password: string, username: string): Promise<AuthTokenResponse> {
+export async function register(email: string, password: string, username: string, full_name?: string): Promise<AuthTokenResponse> {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, username }),
+    body: JSON.stringify({ email, password, username, full_name }),
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))

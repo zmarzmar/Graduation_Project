@@ -45,8 +45,8 @@ export function useAuth() {
   )
 
   const register = useCallback(
-    async (email: string, password: string, username: string) => {
-      const { access_token } = await apiRegister(email, password, username)
+    async (email: string, password: string, username: string, fullName?: string) => {
+      const { access_token } = await apiRegister(email, password, username, fullName)
       setToken(access_token)
       const me = await getMe()
       setUser(me)

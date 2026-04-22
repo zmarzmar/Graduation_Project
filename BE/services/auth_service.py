@@ -46,7 +46,7 @@ def decode_access_token(token: str) -> dict:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="유효하지 않은 토큰입니다.")
 
 
-async def register_user(db: AsyncSession, email: str, password: str, username: str) -> User:
+async def register_user(db: AsyncSession, email: str, password: str, username: str, full_name: str | None = None) -> User:
     """신규 유저를 생성한다. 이메일/유저명 중복 시 400 반환."""
     existing = await db.execute(
         select(User).where((User.email == email) | (User.username == username))
@@ -54,7 +54,7 @@ async def register_user(db: AsyncSession, email: str, password: str, username: s
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="이미 사용 중인 이메일 또는 유저명입니다.")
 
-    user = User(email=email, password_hash=hash_password(password), username=username)
+    user = User(email=email, password_hash=hash_password(password), username=username, full_name=full_name)
     db.add(user)
     await db.flush()
     await db.refresh(user)

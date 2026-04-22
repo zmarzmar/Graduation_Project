@@ -13,6 +13,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     username: str = Field(..., min_length=2, max_length=50)
+    full_name: str | None = Field(None, max_length=100)
 
 
 class LoginRequest(BaseModel):
@@ -40,7 +41,7 @@ class UserResponse(BaseModel):
 @router.post("/auth/register", response_model=TokenResponse, status_code=201)
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """회원가입 — 성공 시 JWT 즉시 반환."""
-    user = await auth_service.register_user(db, request.email, request.password, request.username)
+    user = await auth_service.register_user(db, request.email, request.password, request.username, request.full_name)
     await db.commit()
     token = auth_service.create_access_token(user.id, user.email)
     return TokenResponse(access_token=token)
