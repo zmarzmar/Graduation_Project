@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/opt/graduation-project"
-STATE_DIR="${APP_DIR}/deploy/runtime"
-ACTIVE_FILE="${STATE_DIR}/backend_active"
-UPSTREAM_FILE="${STATE_DIR}/backend_upstream.conf"
-COMPOSE_FILE="${APP_DIR}/docker-compose.prod.yml"
+APP_DIR="${APP_DIR:-/opt/graduation-project}"
+STATE_DIR="${STATE_DIR:-${APP_DIR}/deploy/runtime}"
+ACTIVE_FILE="${ACTIVE_FILE:-${STATE_DIR}/backend_active}"
+UPSTREAM_FILE="${UPSTREAM_FILE:-${STATE_DIR}/backend_upstream.conf}"
+COMPOSE_FILE="${COMPOSE_FILE:-${APP_DIR}/docker-compose.prod.yml}"
 
 BACKEND_BLUE_PORT="${BACKEND_BLUE_PORT:-18001}"
 BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-18002}"
