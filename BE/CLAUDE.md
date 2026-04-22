@@ -120,6 +120,7 @@ async def run_search_agent(request: SearchRequest):
 - **에이전트 로직**: 반드시 agents/에만 작성. services/에서 직접 작성 금지
 - **변수명**: snake_case
 - **주석**: 한국어로 작성
+- **소유권 검증**: 유저 데이터를 다루는 단건 조회·삭제 엔드포인트(및 대응 CRUD)는 반드시 `user_id == current_user.id` + `is_deleted == False` 필터를 기본 적용한다
 
 ---
 

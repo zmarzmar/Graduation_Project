@@ -74,12 +74,20 @@ class AnalysisDetail(BaseModel):
 
 
 @router.get("/mypage/analysis-history/{analysis_id}", response_model=AnalysisDetail)
-async def get_analysis_detail(analysis_id: int, db: AsyncSession = Depends(get_db)):
-    """특정 분석 결과 상세 조회"""
+async def get_analysis_detail(
+    analysis_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """특정 분석 결과 상세 조회 — 본인 소유만 가능"""
     result = await db.execute(
         select(AnalysisResult, Paper)
         .outerjoin(Paper, AnalysisResult.paper_id == Paper.id)
-        .where(AnalysisResult.id == analysis_id)
+        .where(
+            AnalysisResult.id == analysis_id,
+            AnalysisResult.user_id == current_user.id,
+            AnalysisResult.is_deleted == False,  # noqa: E712
+        )
     )
     row = result.first()
     if not row:
@@ -119,32 +127,50 @@ async def get_search_history(
 
 
 @router.delete("/mypage/search-history", status_code=204)
-async def delete_all_search_history(db: AsyncSession = Depends(get_db)):
-    """검색 기록 전체 삭제"""
-    await crud_search_history.delete_all_search_history(db)
+async def delete_all_search_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """본인 검색 기록 전체 삭제"""
+    await crud_search_history.delete_all_search_history(db, user_id=current_user.id)
     await db.commit()
 
 
 @router.delete("/mypage/search-history/{history_id}", status_code=204)
-async def delete_search_history(history_id: int, db: AsyncSession = Depends(get_db)):
-    """검색 기록 개별 삭제"""
-    deleted = await crud_search_history.delete_search_history_by_id(db, history_id)
+async def delete_search_history(
+    history_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """검색 기록 개별 삭제 — 본인 소유만 가능"""
+    deleted = await crud_search_history.delete_search_history_by_id(
+        db, history_id, user_id=current_user.id
+    )
     if not deleted:
         raise HTTPException(status_code=404, detail="검색 기록을 찾을 수 없습니다.")
     await db.commit()
 
 
 @router.delete("/mypage/analysis-history", status_code=204)
-async def delete_all_analysis_history(db: AsyncSession = Depends(get_db)):
-    """분석 히스토리 전체 삭제"""
-    await crud_analysis.delete_all_analysis_results(db)
+async def delete_all_analysis_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """본인 분석 히스토리 전체 삭제"""
+    await crud_analysis.delete_all_analysis_results(db, user_id=current_user.id)
     await db.commit()
 
 
 @router.delete("/mypage/analysis-history/{analysis_id}", status_code=204)
-async def delete_analysis_history(analysis_id: int, db: AsyncSession = Depends(get_db)):
-    """분석 히스토리 개별 삭제"""
-    deleted = await crud_analysis.delete_analysis_result_by_id(db, analysis_id)
+async def delete_analysis_history(
+    analysis_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """분석 히스토리 개별 삭제 — 본인 소유만 가능"""
+    deleted = await crud_analysis.delete_analysis_result_by_id(
+        db, analysis_id, user_id=current_user.id
+    )
     if not deleted:
         raise HTTPException(status_code=404, detail="분석 기록을 찾을 수 없습니다.")
     await db.commit()
