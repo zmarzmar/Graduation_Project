@@ -304,7 +304,6 @@ async def stream_analyze(
             elif kind == "error":
                 logger.error(f"분석 스트리밍 중 오류: {data}")
                 yield _sse({"event": "error", "message": data})
-                yield _sse({"event": "complete", "result": {}})
                 return
 
             elif kind == "done":
