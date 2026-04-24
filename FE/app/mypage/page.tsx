@@ -267,13 +267,18 @@ export default function MyPage() {
         return
       }
     }
-    Promise.all([getMyInfo(), getSearchHistory(), getAnalysisHistory()])
-      .then(([user, search, analysis]) => {
-        setUserInfo(user)
-        setSearchHistory(search)
-        setAnalysisHistory(analysis)
+    // 세 요청 중 하나가 실패해도 나머지 섹션은 정상 렌더링되도록 allSettled 사용
+    Promise.allSettled([getMyInfo(), getSearchHistory(), getAnalysisHistory()])
+      .then(([userResult, searchResult, analysisResult]) => {
+        if (userResult.status === 'fulfilled') setUserInfo(userResult.value)
+        else console.error('getMyInfo 실패:', userResult.reason)
+
+        if (searchResult.status === 'fulfilled') setSearchHistory(searchResult.value)
+        else console.error('getSearchHistory 실패:', searchResult.reason)
+
+        if (analysisResult.status === 'fulfilled') setAnalysisHistory(analysisResult.value)
+        else console.error('getAnalysisHistory 실패:', analysisResult.reason)
       })
-      .catch(console.error)
       .finally(() => setLoading(false))
   }, [isLoggedIn, openModal])
 
