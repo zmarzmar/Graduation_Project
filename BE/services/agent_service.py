@@ -207,24 +207,11 @@ async def _save_to_db(
             await db.commit()
             return
 
-        # 논문 저장 (pdf 모드만 — 분석 대상 논문이 명확할 때)
-        paper_id: int | None = None
-        if papers and mode == "pdf":
-            p = papers[0]
-            if isinstance(p, dict):
-                first_paper_dict = p
-            elif hasattr(p, "model_dump"):
-                first_paper_dict = p.model_dump()
-            else:
-                first_paper_dict = vars(p)
-            try:
-                paper_schema = PaperResult(**first_paper_dict)
-                paper_obj = await crud_paper.upsert_paper(db, paper_schema)
-                paper_id = paper_obj.id
-            except Exception as e:
-                logger.warning(f"논문 저장 실패 (무시): {e}")
-
-        # 분석 결과 저장 (pdf/trend 모드)
+        # PDF 모드는 analyzer가 업로드된 PDF 본문을 기반으로 분석하지만,
+        # researcher가 수집한 papers[0]은 키워드 검색 1위 결과(다른 논문일 수 있음)라
+        # paper_id를 연결하지 않는다. 업로드된 논문의 식별은 user_query(파일명)와
+        # paper_summary로 충분하고, 향후 PDF 본문에서 arxiv_id를 추출할 수 있게 되면
+        # 그때 정확 매칭을 붙인다.
         await crud_analysis.create_analysis_result(
             db,
             mode=mode,
@@ -233,7 +220,7 @@ async def _save_to_db(
             review_feedback=accumulated.get("review_feedback", ""),
             review_passed=accumulated.get("review_passed", False),
             iteration_count=accumulated.get("iteration_count", 0),
-            paper_id=paper_id,
+            paper_id=None,
             paper_summary=accumulated.get("paper_summary", ""),
             paper_review=accumulated.get("paper_review", {}),
             key_formulas=accumulated.get("key_formulas", []),
