@@ -48,6 +48,9 @@ jobs:
       - name: Compile check
         run: uv run python -m compileall agents core crud models routers schemas services main.py
 
+      - name: Alembic revision graph check
+        run: uv run alembic heads
+
       - name: Build Docker image
         run: docker build -t graduation-project-be:test .
 

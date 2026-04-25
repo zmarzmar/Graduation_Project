@@ -42,6 +42,23 @@ echo "Deploy image tag: ${BACKEND_IMAGE_TAG}"
 docker compose -f "${COMPOSE_FILE}" pull postgres chromadb "backend_${NEXT_COLOR}"
 docker compose -f "${COMPOSE_FILE}" up -d postgres chromadb "backend_${NEXT_COLOR}"
 
+# 새 백엔드 컨테이너에서 마이그레이션을 실행한 뒤 nginx upstream을 전환한다.
+# blue-green 배포 특성상 마이그레이션은 backward-compatible 해야 한다
+# (기존 활성 컨테이너가 마이그레이션 중에도 여전히 요청을 처리하기 때문).
+echo "Running alembic migrations on backend_${NEXT_COLOR}..."
+for i in $(seq 1 10); do
+  if docker compose -f "${COMPOSE_FILE}" exec -T "backend_${NEXT_COLOR}" uv run alembic upgrade head; then
+    break
+  fi
+
+  if [[ "${i}" -eq 10 ]]; then
+    echo "Alembic migration failed for backend_${NEXT_COLOR}"
+    exit 1
+  fi
+
+  sleep 2
+done
+
 echo "Waiting for backend_${NEXT_COLOR} health check..."
 for i in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:${NEXT_PORT}/health" >/dev/null; then
