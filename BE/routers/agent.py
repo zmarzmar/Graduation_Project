@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from core.config import settings
 from core.dependencies import get_optional_user_id
 from services import agent_service
 
@@ -37,7 +38,15 @@ async def run_pdf_agent(
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="PDF 파일만 업로드 가능합니다.")
 
-    file_bytes = await file.read()
+    # Content-Length는 클라이언트가 위조할 수 있으므로 신뢰하지 않고,
+    # 상한 + 1 바이트를 읽어 실제 수신한 크기로 초과 여부를 판단한다.
+    limit = settings.max_pdf_upload_bytes
+    file_bytes = await file.read(limit + 1)
+    if len(file_bytes) > limit:
+        raise HTTPException(
+            status_code=413,
+            detail=f"PDF 크기가 제한({limit // (1024 * 1024)}MB)을 초과했습니다.",
+        )
     if not file_bytes:
         raise HTTPException(status_code=400, detail="빈 파일입니다.")
 

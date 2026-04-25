@@ -178,6 +178,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+# macOS의 case-insensitive git이 ENV/ 규칙을 deploy/env/와 매칭하기 때문에 예외 처리
+!deploy/env/
 
 # Spyder project settings
 .spyderproject
