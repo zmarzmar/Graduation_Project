@@ -145,7 +145,7 @@ services:
       - backend_net
 
   grafana:
-    image: grafana/grafana-oss:latest
+    image: grafana/grafana-oss:12.3.0
     container_name: ai_research_grafana
     profiles:
       - monitoring
@@ -154,6 +154,9 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change_me_before_use}
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
     depends_on:
       - prometheus
     ports:
