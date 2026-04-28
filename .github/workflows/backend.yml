@@ -5,7 +5,9 @@ on:
     paths:
       - 'BE/**'
       - 'docker-compose.prod.yml'
-      - 'deploy/**'
+      - 'deploy/deploy.sh'
+      - 'deploy/nginx/**'
+      - 'deploy/env/backend.env.example'
       - '.github/workflows/backend.yml'
   push:
     branches:
@@ -13,7 +15,9 @@ on:
     paths:
       - 'BE/**'
       - 'docker-compose.prod.yml'
-      - 'deploy/**'
+      - 'deploy/deploy.sh'
+      - 'deploy/nginx/**'
+      - 'deploy/env/backend.env.example'
       - '.github/workflows/backend.yml'
   workflow_dispatch:
 
