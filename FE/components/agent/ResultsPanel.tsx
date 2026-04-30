@@ -8,6 +8,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-run'
 import { FormulaBlock } from '@/components/ui/formula-block'
+import { MathText } from '@/components/ui/math-text'
 
 interface ResultsPanelProps {
   result: AgentResult
@@ -263,7 +264,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
               <div>
                 <h4 className="mb-2 text-sm font-semibold text-gray-700">📄 논문 요약</h4>
                 <p className="rounded-lg bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">
-                  {result.paper_summary}
+                  <MathText text={result.paper_summary} />
                 </p>
               </div>
             )}
@@ -278,7 +279,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
                       {result.paper_review.strengths.map((s, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
                           <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-400" />
-                          {s}
+                          <MathText text={s} />
                         </li>
                       ))}
                     </ul>
@@ -291,7 +292,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
                       {result.paper_review.limitations.map((l, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
                           <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-400" />
-                          {l}
+                          <MathText text={l} />
                         </li>
                       ))}
                     </ul>
@@ -300,7 +301,9 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
                 {result.paper_review.significance && (
                   <div>
                     <h4 className="mb-1.5 text-sm font-semibold text-gray-700">🎯 의의</h4>
-                    <p className="text-sm leading-relaxed text-gray-600">{result.paper_review.significance}</p>
+                    <p className="text-sm leading-relaxed text-gray-600">
+                      <MathText text={result.paper_review.significance} />
+                    </p>
                   </div>
                 )}
               </div>
@@ -318,7 +321,9 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
                         <FormulaBlock latex={f.latex} />
                       </div>
                       {f.description && (
-                        <p className="mt-1.5 text-xs text-gray-500">{f.description}</p>
+                        <p className="mt-1.5 text-xs text-gray-500">
+                          <MathText text={f.description} />
+                        </p>
                       )}
                     </div>
                   ))}
@@ -390,7 +395,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
             </div>
             {result.review_feedback && (
               <p className="whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">
-                {result.review_feedback}
+                <MathText text={result.review_feedback} />
               </p>
             )}
           </div>
