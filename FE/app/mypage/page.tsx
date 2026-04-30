@@ -10,6 +10,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory, getMyInfo } from '@/lib/api'
 import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, SearchHistoryPaper } from '@/lib/api'
 import { FormulaBlock } from '@/components/ui/formula-block'
+import { MathText } from '@/components/ui/math-text'
 import { useAuth } from '@/lib/hooks/useAuth'
 
 const MODE_LABEL: Record<string, string> = {
@@ -173,7 +174,9 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
               {detail.paper_summary && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-gray-600">📄 논문 요약</p>
-                  <p className="rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-700">{detail.paper_summary}</p>
+                  <p className="rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-700">
+                    <MathText text={detail.paper_summary} />
+                  </p>
                 </div>
               )}
               {(detail.paper_review?.strengths?.length ?? 0) > 0 && (
@@ -182,7 +185,8 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
                   <ul className="space-y-1">
                     {detail.paper_review!.strengths!.map((s, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
-                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-400" />{s}
+                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-400" />
+                        <MathText text={s} />
                       </li>
                     ))}
                   </ul>
@@ -194,7 +198,8 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
                   <ul className="space-y-1">
                     {detail.paper_review!.limitations!.map((l, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
-                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-400" />{l}
+                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-400" />
+                        <MathText text={l} />
                       </li>
                     ))}
                   </ul>
@@ -211,7 +216,9 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
                           <FormulaBlock latex={f.latex} />
                         </div>
                         {f.description && (
-                          <p className="mt-1 text-xs text-gray-500">{f.description}</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            <MathText text={f.description} />
+                          </p>
                         )}
                       </div>
                     ))}
@@ -236,7 +243,9 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
               {detail.review_feedback && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-gray-600">🔍 코드 리뷰</p>
-                  <p className="rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-700 whitespace-pre-wrap">{detail.review_feedback}</p>
+                  <p className="rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-700 whitespace-pre-wrap">
+                    <MathText text={detail.review_feedback} />
+                  </p>
                 </div>
               )}
             </>
