@@ -94,7 +94,9 @@ sudo systemctl reload nginx
 
 echo "${NEXT_COLOR}" > "${ACTIVE_FILE}"
 if [[ "${CURRENT_COLOR}" != "none" ]]; then
-  docker compose -f "${COMPOSE_FILE}" stop "backend_${CURRENT_COLOR}" || true
+  docker compose -f "${COMPOSE_FILE}" stop --timeout 20 "backend_${CURRENT_COLOR}" || true
 fi
 
 echo "Switched active backend from ${CURRENT_COLOR}:${CURRENT_PORT:-not_running} to ${NEXT_COLOR}:${NEXT_PORT}"
+echo "Deploy completed successfully"
+exit 0

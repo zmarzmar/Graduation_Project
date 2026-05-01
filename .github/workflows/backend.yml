@@ -102,7 +102,8 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 10m
+          command_timeout: 20m
+          script_stop: true
           envs: DEPLOY_APP_DIR,DEPLOY_COMPOSE_FILE,DEPLOY_STATE_DIR,DEPLOY_UPSTREAM_FILE,BACKEND_BLUE_PORT,BACKEND_GREEN_PORT
           script: |
             set -e
@@ -128,3 +129,5 @@ jobs:
             BACKEND_BLUE_PORT="${BACKEND_BLUE_PORT:-18001}" \
             BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-18002}" \
             bash deploy/deploy.sh sha-${{ github.sha }}
+            echo "Remote deploy command completed"
+            exit 0
