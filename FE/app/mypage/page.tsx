@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -257,28 +257,36 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
 }
 
 export default function MyPage() {
-  const { isLoggedIn, openModal } = useAuth()
-  const authChecked = useRef(false)
+  const { isLoggedIn, isAuthReady, openModal } = useAuth()
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[]>([])
-  // 로그인 상태일 때만 로딩 시작
-  const [loading, setLoading] = useState(isLoggedIn)
+  const [loading, setLoading] = useState(true)
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'search' | 'analysis' } | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  // 비로그인 시 로그인 모달 오픈
   useEffect(() => {
-    if (!authChecked.current) {
-      authChecked.current = true
-      if (!isLoggedIn) {
-        openModal('login')
-        return
-      }
+    if (!isAuthReady) return
+
+    if (!isLoggedIn) {
+      queueMicrotask(() => {
+        setUserInfo(null)
+        setSearchHistory([])
+        setAnalysisHistory([])
+        setLoading(false)
+      })
+      openModal('login')
+      return
     }
+
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true)
+    })
     // 세 요청 중 하나가 실패해도 나머지 섹션은 정상 렌더링되도록 allSettled 사용
     Promise.allSettled([getMyInfo(), getSearchHistory(), getAnalysisHistory()])
       .then(([userResult, searchResult, analysisResult]) => {
+        if (cancelled) return
         if (userResult.status === 'fulfilled') setUserInfo(userResult.value)
         else console.error('getMyInfo 실패:', userResult.reason)
 
@@ -288,8 +296,14 @@ export default function MyPage() {
         if (analysisResult.status === 'fulfilled') setAnalysisHistory(analysisResult.value)
         else console.error('getAnalysisHistory 실패:', analysisResult.reason)
       })
-      .finally(() => setLoading(false))
-  }, [isLoggedIn, openModal])
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthReady, isLoggedIn, openModal])
 
   async function handleDeleteSearch(id: number) {
     try {

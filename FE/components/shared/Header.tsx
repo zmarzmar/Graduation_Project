@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 
 export function Header() {
   const pathname = usePathname();
-  const { user, isLoggedIn, logout, openModal } = useAuth();
+  const { user, isLoggedIn, isAuthReady, logout, openModal } = useAuth();
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -55,7 +55,9 @@ export function Header() {
 
             {/* 로그인 상태에 따라 다른 UI */}
             <div className="flex items-center gap-2 pl-2 border-l ml-1">
-              {isLoggedIn ? (
+              {!isAuthReady ? (
+                <div className="h-8 w-28" aria-hidden="true" />
+              ) : isLoggedIn ? (
                 <>
                   <span className="text-sm text-gray-600 font-medium">
                     {user?.username}
