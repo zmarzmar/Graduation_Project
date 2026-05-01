@@ -2,6 +2,7 @@ import asyncio
 import io
 import json
 import logging
+from contextlib import suppress
 from typing import AsyncGenerator
 
 import fitz
@@ -19,6 +20,15 @@ logger = logging.getLogger(__name__)
 
 # SSE 이벤트를 전송할 노드 목록 (LangGraph 내부 노드 제외)
 _AGENT_NODES = {"planner", "researcher", "trend_analyzer", "analyzer", "coder", "reviewer"}
+
+
+async def _cancel_task(task: asyncio.Task[None]) -> None:
+    """실행 중인 graph task를 취소하고 취소 완료까지 기다린다."""
+    if task.done():
+        return
+    task.cancel()
+    with suppress(asyncio.CancelledError):
+        await task
 
 
 def extract_pdf_text(file_bytes: bytes) -> str:
@@ -160,7 +170,7 @@ async def stream_agent(
                 break
 
     finally:
-        task.cancel()
+        await _cancel_task(task)
 
     # 최종 결과 전송
     final_result = accumulated.get("final_result") or {}
@@ -297,7 +307,7 @@ async def stream_analyze(
                 break
 
     finally:
-        task.cancel()
+        await _cancel_task(task)
 
     final_result = {
         "papers": [paper],
