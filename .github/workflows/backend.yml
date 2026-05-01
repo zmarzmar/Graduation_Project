@@ -102,6 +102,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 10m
           envs: DEPLOY_APP_DIR,DEPLOY_COMPOSE_FILE,DEPLOY_STATE_DIR,DEPLOY_UPSTREAM_FILE,BACKEND_BLUE_PORT,BACKEND_GREEN_PORT
           script: |
             set -e

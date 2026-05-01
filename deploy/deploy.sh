@@ -11,6 +11,14 @@ BACKEND_BLUE_PORT="${BACKEND_BLUE_PORT:-18001}"
 BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-18002}"
 BACKEND_IMAGE_TAG="${1:?usage: deploy.sh <image-tag>}"
 
+dump_backend_diagnostics() {
+  local service_name="${1}"
+  echo "Docker compose status for ${service_name}:"
+  docker compose -f "${COMPOSE_FILE}" ps "${service_name}" || true
+  echo "Recent logs for ${service_name}:"
+  docker compose -f "${COMPOSE_FILE}" logs --tail=200 "${service_name}" || true
+}
+
 mkdir -p "${STATE_DIR}"
 cd "${APP_DIR}"
 
@@ -60,13 +68,14 @@ for i in $(seq 1 10); do
 done
 
 echo "Waiting for backend_${NEXT_COLOR} health check..."
-for i in $(seq 1 30); do
-  if curl -fsS "http://127.0.0.1:${NEXT_PORT}/health" >/dev/null; then
+for i in $(seq 1 60); do
+  if curl --connect-timeout 2 --max-time 5 -fsS "http://127.0.0.1:${NEXT_PORT}/health" >/dev/null; then
     break
   fi
 
-  if [[ "${i}" -eq 30 ]]; then
+  if [[ "${i}" -eq 60 ]]; then
     echo "Health check failed for backend_${NEXT_COLOR}"
+    dump_backend_diagnostics "backend_${NEXT_COLOR}"
     exit 1
   fi
 

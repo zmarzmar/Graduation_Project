@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 
 from core.config import settings
 from core.dependencies import get_optional_user_id
-from services import agent_service
 
 router = APIRouter(tags=["agent"])
 
@@ -35,6 +34,8 @@ async def run_pdf_agent(
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StreamingResponse:
     """PDF를 업로드하면 논문을 자동 분석하고 코드를 재현한다. (SSE 스트리밍)"""
+    from services import agent_service
+
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="PDF 파일만 업로드 가능합니다.")
 
@@ -73,6 +74,8 @@ async def run_search_agent(
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StreamingResponse:
     """키워드로 arXiv 논문을 검색하고 분석 및 코드를 재현한다. (SSE 스트리밍)"""
+    from services import agent_service
+
     return StreamingResponse(
         agent_service.stream_agent(
             mode="search",
@@ -90,6 +93,8 @@ async def run_analyze_agent(
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StreamingResponse:
     """사용자가 선택한 논문 1편을 분석하고 코드를 재현한다. (SSE 스트리밍)"""
+    from services import agent_service
+
     return StreamingResponse(
         agent_service.stream_analyze(
             paper=request.paper,
@@ -107,6 +112,8 @@ async def run_trend_agent(
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StreamingResponse:
     """HuggingFace + arXiv 기반 최신 트렌드 논문 요약 리포트를 생성한다. (SSE 스트리밍)"""
+    from services import agent_service
+
     return StreamingResponse(
         agent_service.stream_agent(
             mode="trend",
