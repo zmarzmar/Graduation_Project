@@ -102,11 +102,14 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Deploy on Oracle server
+        id: deploy-primary
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
           command_timeout: 20m
           script_stop: true
           envs: DEPLOY_APP_DIR,DEPLOY_COMPOSE_FILE,DEPLOY_STATE_DIR,DEPLOY_UPSTREAM_FILE,BACKEND_BLUE_PORT,BACKEND_GREEN_PORT
@@ -135,4 +138,42 @@ jobs:
             BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-18002}" \
             bash deploy/deploy.sh sha-${{ github.sha }}
             echo "Remote deploy command completed"
+            exit 0
+
+      - name: Retry deploy on Oracle server
+        if: steps.deploy-primary.outcome == 'failure'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
+          command_timeout: 20m
+          script_stop: true
+          envs: DEPLOY_APP_DIR,DEPLOY_COMPOSE_FILE,DEPLOY_STATE_DIR,DEPLOY_UPSTREAM_FILE,BACKEND_BLUE_PORT,BACKEND_GREEN_PORT
+          script: |
+            set -e
+            APP_DIR="${DEPLOY_APP_DIR:-/opt/graduation-project}"
+            COMPOSE_FILE="${DEPLOY_COMPOSE_FILE:-${APP_DIR}/docker-compose.prod.yml}"
+            STATE_DIR="${DEPLOY_STATE_DIR:-${APP_DIR}/deploy/runtime}"
+            UPSTREAM_FILE="${DEPLOY_UPSTREAM_FILE:-${STATE_DIR}/backend_upstream.conf}"
+
+            if [ ! -d "${APP_DIR}/.git" ]; then
+              echo "Repository is missing at ${APP_DIR}"
+              exit 1
+            fi
+            cd "${APP_DIR}"
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            chmod +x deploy/deploy.sh
+            APP_DIR="${APP_DIR}" \
+            COMPOSE_FILE="${COMPOSE_FILE}" \
+            STATE_DIR="${STATE_DIR}" \
+            UPSTREAM_FILE="${UPSTREAM_FILE}" \
+            BACKEND_BLUE_PORT="${BACKEND_BLUE_PORT:-18001}" \
+            BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-18002}" \
+            bash deploy/deploy.sh sha-${{ github.sha }}
+            echo "Remote deploy command completed after retry"
             exit 0
