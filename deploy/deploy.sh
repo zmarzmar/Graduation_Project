@@ -19,6 +19,17 @@ dump_backend_diagnostics() {
   docker compose -f "${COMPOSE_FILE}" logs --tail=200 "${service_name}" || true
 }
 
+cleanup_old_backend_images() {
+  echo "Cleaning old backend images, keeping latest 3 sha tags..."
+  docker images "ghcr.io/*/graduation-project-be" \
+    --format "{{.CreatedAt}}\t{{.Repository}}:{{.Tag}}" \
+    | grep ":sha-" \
+    | sort -r \
+    | tail -n +4 \
+    | cut -f2 \
+    | xargs -r docker rmi || true
+}
+
 mkdir -p "${STATE_DIR}"
 cd "${APP_DIR}"
 
@@ -98,5 +109,6 @@ if [[ "${CURRENT_COLOR}" != "none" ]]; then
 fi
 
 echo "Switched active backend from ${CURRENT_COLOR}:${CURRENT_PORT:-not_running} to ${NEXT_COLOR}:${NEXT_PORT}"
+cleanup_old_backend_images
 echo "Deploy completed successfully"
 exit 0
