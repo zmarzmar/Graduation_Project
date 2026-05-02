@@ -115,7 +115,6 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${SSH_HOST}" >> ~/.ssh/known_hosts
 
           ssh \
             -i ~/.ssh/deploy_key \
@@ -123,6 +122,8 @@ jobs:
             -o ConnectTimeout=60 \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
             "${SSH_USER}@${SSH_HOST}" \
             "DEPLOY_APP_DIR='${DEPLOY_APP_DIR}' DEPLOY_COMPOSE_FILE='${DEPLOY_COMPOSE_FILE}' DEPLOY_STATE_DIR='${DEPLOY_STATE_DIR}' DEPLOY_UPSTREAM_FILE='${DEPLOY_UPSTREAM_FILE}' BACKEND_BLUE_PORT='${BACKEND_BLUE_PORT}' BACKEND_GREEN_PORT='${BACKEND_GREEN_PORT}' GHCR_USERNAME='${GHCR_USERNAME}' GHCR_TOKEN='${GHCR_TOKEN}' DEPLOY_IMAGE_TAG='sha-${{ github.sha }}' bash -s" <<'REMOTE_SCRIPT'
           set -euo pipefail
