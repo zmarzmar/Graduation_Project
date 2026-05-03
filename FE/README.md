@@ -33,6 +33,7 @@ npm run dev  # localhost:3000
 ## Environment Variables
 
 ```
+# 백엔드 origin만 입력한다. /api/v1은 FE/lib/api.ts에서 자동으로 붙인다.
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_USE_MOCK_DATA=false
 ```

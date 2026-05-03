@@ -95,6 +95,7 @@ Planner → Researcher → Coder → Reviewer → Router
 ## API 연결
 
 - **Base URL**: `http://localhost:8000` (개발), `NEXT_PUBLIC_API_URL` 환경변수로 관리
+- **API prefix**: `/api/v1`은 `FE/lib/api.ts`에서 자동으로 붙인다.
 - **Mock 데이터**: `NEXT_PUBLIC_USE_MOCK_DATA=true` 시 목업 데이터 사용
 - **실제 API 연결 시**: `NEXT_PUBLIC_USE_MOCK_DATA=false`로 변경
 
@@ -111,6 +112,7 @@ GET  /api/v1/papers/search  # 논문 검색
 ## Environment Variables
 
 ```
+# 백엔드 origin만 입력한다. /api/v1은 FE/lib/api.ts에서 자동으로 붙인다.
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_USE_MOCK_DATA=false
 ```

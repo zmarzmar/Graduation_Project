@@ -1,8 +1,15 @@
 // BE API 호출 전용 파일 — 컴포넌트에서 직접 fetch 금지
 import type { ArxivPaper } from './types/agent-run'
 
-// NEXT_PUBLIC_API_URL은 /api/v1까지 포함한 전체 경로로 설정 (예: http://localhost:8000/api/v1)
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1').replace(/\/$/, '')
+// NEXT_PUBLIC_API_URL은 백엔드 origin 기준으로 설정한다. 기존 /api/v1 포함 값도 호환한다.
+const API_VERSION_PATH = '/api/v1'
+const API_ORIGIN = normalizeApiOrigin(process.env.NEXT_PUBLIC_API_URL)
+const API_BASE = `${API_ORIGIN}${API_VERSION_PATH}`
+
+function normalizeApiOrigin(rawUrl?: string): string {
+  const url = (rawUrl?.trim() || 'http://localhost:8000').replace(/\/+$/, '')
+  return url.endsWith(API_VERSION_PATH) ? url.slice(0, -API_VERSION_PATH.length) : url
+}
 
 /** 인증 필요 API 전용 fetch — Authorization 헤더 자동 주입 */
 function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -226,8 +233,7 @@ export async function getMyInfo(): Promise<UserInfo> {
 
 /** 서버 헬스 체크 */
 export async function healthCheck(): Promise<{ status: string; version: string }> {
-  const base = API_BASE.replace('/api/v1', '')
-  const res = await fetch(`${base}/health`)
+  const res = await fetch(`${API_ORIGIN}/health`)
   if (!res.ok) throw new Error('서버 응답 없음')
   return res.json()
 }
