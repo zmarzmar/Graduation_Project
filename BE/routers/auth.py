@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +17,8 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    identifier: str | None = Field(None, min_length=1)
+    email: str | None = Field(None, min_length=1)
     password: str
 
 
@@ -33,6 +34,7 @@ class UserResponse(BaseModel):
     full_name: str | None
     affiliation: str | None
     preferred_framework: str | None
+    is_admin: bool
 
     class Config:
         from_attributes = True
@@ -50,7 +52,10 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     """로그인 — 성공 시 JWT 반환."""
-    user = await auth_service.authenticate_user(db, request.email, request.password)
+    identifier = request.identifier or request.email
+    if not identifier:
+        raise HTTPException(status_code=400, detail="이메일 또는 아이디를 입력해주세요.")
+    user = await auth_service.authenticate_user(db, identifier, request.password)
     await db.commit()
     token = auth_service.create_access_token(user.id, user.email)
     return TokenResponse(access_token=token)

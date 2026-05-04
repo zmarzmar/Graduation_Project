@@ -23,6 +23,7 @@ class User(Base):
     preferred_categories: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     # 계정 상태
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

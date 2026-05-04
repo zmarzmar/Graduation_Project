@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, FileText, Activity } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Activity, Lock } from 'lucide-react';
+import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 const navItems = [
   {
@@ -33,6 +36,40 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { user, isAuthReady, isLoggedIn, openModal } = useAuth();
+
+  useEffect(() => {
+    if (isAuthReady && !isLoggedIn) openModal('login');
+  }, [isAuthReady, isLoggedIn, openModal]);
+
+  if (!isAuthReady) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-500">
+        권한을 확인하는 중입니다.
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center">
+        <Lock className="mx-auto h-8 w-8 text-gray-400" />
+        <h1 className="mt-3 text-lg font-semibold text-gray-900">관리자 로그인이 필요합니다.</h1>
+        <p className="mt-1 text-sm text-gray-500">관리자 계정으로 로그인하면 이 화면을 볼 수 있습니다.</p>
+        <Button className="mt-4" onClick={() => openModal('login')}>로그인</Button>
+      </div>
+    );
+  }
+
+  if (!user?.is_admin) {
+    return (
+      <div className="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-6 text-center">
+        <Lock className="mx-auto h-8 w-8 text-red-400" />
+        <h1 className="mt-3 text-lg font-semibold text-gray-900">관리자 권한이 없습니다.</h1>
+        <p className="mt-1 text-sm text-gray-500">관리자 계정으로 다시 로그인해주세요.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-6">

@@ -37,6 +37,7 @@ export interface AuthUser {
   full_name: string | null
   affiliation: string | null
   preferred_framework: string | null
+  is_admin: boolean
 }
 
 /** 회원가입 — JWT 즉시 반환 */
@@ -54,11 +55,11 @@ export async function register(email: string, password: string, username: string
 }
 
 /** 로그인 — JWT 반환 */
-export async function login(email: string, password: string): Promise<AuthTokenResponse> {
+export async function login(identifier: string, password: string): Promise<AuthTokenResponse> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ identifier, password }),
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))

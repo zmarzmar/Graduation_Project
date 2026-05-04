@@ -1,10 +1,12 @@
 'use client'
 
 import { useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { getMe, login as apiLogin, register as apiRegister } from '@/lib/api'
 import { useAuthStore } from '@/store/auth-store'
 
 export function useAuth() {
+  const router = useRouter()
   const { user, token, isInitialized, openModal, closeModal, setUser, setToken, setInitialized, logout } = useAuthStore()
 
   /** 앱 시작 시 localStorage 토큰으로 유저 정보 복원 */
@@ -39,15 +41,16 @@ export function useAuth() {
   )
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      const { access_token } = await apiLogin(email, password)
+    async (identifier: string, password: string) => {
+      const { access_token } = await apiLogin(identifier, password)
       setToken(access_token)
       const me = await getMe()
       setUser(me)
       setInitialized(true)
       closeModal()
+      if (me.is_admin) router.push('/admin')
     },
-    [setToken, setUser, setInitialized, closeModal],
+    [setToken, setUser, setInitialized, closeModal, router],
   )
 
   const register = useCallback(
