@@ -14,7 +14,7 @@ export function AuthModal() {
   const { login, register } = useAuth()
 
   const [tab, setTab] = useState<Tab>(modalDefaultTab)
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [username, setUsername] = useState('')
@@ -23,7 +23,7 @@ export function AuthModal() {
   const [loading, setLoading] = useState(false)
 
   const resetForm = () => {
-    setEmail('')
+    setIdentifier('')
     setPassword('')
     setPasswordConfirm('')
     setUsername('')
@@ -57,9 +57,9 @@ export function AuthModal() {
     setLoading(true)
     try {
       if (tab === 'login') {
-        await login(email, password)
+        await login(identifier, password)
       } else {
-        await register(email, password, username, fullName || undefined)
+        await register(identifier, password, username, fullName || undefined)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다.')
@@ -102,14 +102,25 @@ export function AuthModal() {
               />
             </>
           )}
-          <Input
-            type="email"
-            placeholder="이메일"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            disabled={loading}
-          />
+          {tab === 'login' ? (
+            <Input
+              type="text"
+              placeholder="이메일 또는 아이디"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+              disabled={loading}
+            />
+          ) : (
+            <Input
+              type="email"
+              placeholder="이메일"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+              disabled={loading}
+            />
+          )}
           <Input
             type="password"
             placeholder={tab === 'register' ? '비밀번호 (8자 이상)' : '비밀번호'}

@@ -61,9 +61,14 @@ async def register_user(db: AsyncSession, email: str, password: str, username: s
     return user
 
 
-async def authenticate_user(db: AsyncSession, email: str, password: str) -> User:
-    """이메일과 비밀번호로 유저를 인증한다. 실패 시 401 반환."""
-    result = await db.execute(select(User).where(User.email == email, User.is_active == True))  # noqa: E712
+async def authenticate_user(db: AsyncSession, identifier: str, password: str) -> User:
+    """이메일 또는 유저명과 비밀번호로 유저를 인증한다. 실패 시 401 반환."""
+    result = await db.execute(
+        select(User).where(
+            ((User.email == identifier) | (User.username == identifier)),
+            User.is_active == True,  # noqa: E712
+        )
+    )
     user = result.scalar_one_or_none()
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
