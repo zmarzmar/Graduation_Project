@@ -232,6 +232,67 @@ export async function getMyInfo(): Promise<UserInfo> {
   return res.json()
 }
 
+export interface AdminUser {
+  id: number
+  email: string
+  username: string
+  full_name: string | null
+  affiliation: string | null
+  preferred_framework: string | null
+  is_active: boolean
+  is_admin: boolean
+  created_at: string
+  last_login_at: string | null
+}
+
+export interface AdminPaper {
+  id: number
+  arxiv_id: string
+  title: string
+  authors: string[]
+  url: string
+  pdf_url: string
+  published_at: string | null
+  categories: string[]
+  citation_count: number | null
+  created_at: string
+}
+
+export interface AdminSystemSummary {
+  status: string
+  version: string
+  database: string
+  counts: {
+    users: number
+    active_users: number
+    admin_users: number
+    papers: number
+    search_history: number
+    analysis_results: number
+  }
+}
+
+/** 관리자 사용자 목록 조회 */
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const res = await authFetch(`${API_BASE}/admin/users`)
+  if (!res.ok) throw new Error('관리자 사용자 목록 조회 실패')
+  return res.json()
+}
+
+/** 관리자 논문 목록 조회 */
+export async function getAdminPapers(): Promise<AdminPaper[]> {
+  const res = await authFetch(`${API_BASE}/admin/papers`)
+  if (!res.ok) throw new Error('관리자 논문 목록 조회 실패')
+  return res.json()
+}
+
+/** 관리자 시스템 요약 조회 */
+export async function getAdminSystemSummary(): Promise<AdminSystemSummary> {
+  const res = await authFetch(`${API_BASE}/admin/system`)
+  if (!res.ok) throw new Error('관리자 시스템 요약 조회 실패')
+  return res.json()
+}
+
 /** 서버 헬스 체크 */
 export async function healthCheck(): Promise<{ status: string; version: string }> {
   const res = await fetch(`${API_ORIGIN}/health`)

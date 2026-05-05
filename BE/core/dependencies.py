@@ -55,6 +55,16 @@ async def get_current_user(
     return user
 
 
+async def get_current_admin_user(current_user=Depends(get_current_user)):
+    """관리자 필수 의존성 — 로그인 유저가 admin이 아니면 403 반환."""
+    if not getattr(current_user, "is_admin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 권한이 필요합니다.",
+        )
+    return current_user
+
+
 async def get_optional_user_id(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> int | None:

@@ -1,31 +1,55 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Activity, Database, FileText, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getAdminSystemSummary, type AdminSystemSummary } from '@/lib/api';
 
 const sections = [
   {
     title: '사용자 관리',
-    description: '실제 사용자 관리 API가 연결되면 이 화면에서 계정을 관리합니다.',
+    description: '실제 DB 사용자 목록과 계정 상태를 확인합니다.',
     href: '/admin/users',
     icon: Users,
   },
   {
     title: '논문 DB',
-    description: '저장된 논문 조회 API가 연결되면 이 화면에서 논문 데이터를 확인합니다.',
+    description: '저장된 논문 메타데이터와 인용 정보를 확인합니다.',
     href: '/admin/papers',
     icon: FileText,
   },
   {
     title: '시스템 모니터링',
-    description: '운영 지표 API가 연결되면 이 화면에서 서비스 상태를 확인합니다.',
+    description: 'API, DB 상태와 주요 데이터 개수를 확인합니다.',
     href: '/admin/system',
     icon: Activity,
   },
 ];
 
 export default function AdminPage() {
+  const [summary, setSummary] = useState<AdminSystemSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAdminSystemSummary()
+      .then((data) => {
+        if (!cancelled) setSummary(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : '관리자 요약 조회 실패');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -43,9 +67,34 @@ export default function AdminPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-600">
-            더미 데이터는 제거했습니다. 사용자, 논문, 시스템 지표는 별도 관리자 API가 추가되면 실제 데이터로 표시됩니다.
-          </p>
+          {loading ? (
+            <p className="text-sm text-gray-500">관리자 데이터를 불러오는 중입니다.</p>
+          ) : error ? (
+            <p className="text-sm text-red-600">{error}</p>
+          ) : summary ? (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              <div>
+                <p className="text-xs text-gray-500">API</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{summary.status}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">DB</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{summary.database}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">사용자</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{summary.counts.users}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">논문</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{summary.counts.papers}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">분석</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{summary.counts.analysis_results}</p>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
