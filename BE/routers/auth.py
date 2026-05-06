@@ -44,7 +44,6 @@ class UserResponse(BaseModel):
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """회원가입 — 성공 시 JWT 즉시 반환."""
     user = await auth_service.register_user(db, request.email, request.password, request.username, request.full_name)
-    await db.commit()
     token = auth_service.create_access_token(user.id, user.email)
     return TokenResponse(access_token=token)
 
@@ -56,7 +55,6 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not identifier:
         raise HTTPException(status_code=400, detail="이메일 또는 아이디를 입력해주세요.")
     user = await auth_service.authenticate_user(db, identifier, request.password)
-    await db.commit()
     token = auth_service.create_access_token(user.id, user.email)
     return TokenResponse(access_token=token)
 

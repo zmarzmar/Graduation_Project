@@ -133,7 +133,6 @@ async def delete_all_search_history(
 ):
     """본인 검색 기록 전체 삭제"""
     await crud_search_history.delete_all_search_history(db, user_id=current_user.id)
-    await db.commit()
 
 
 @router.delete("/mypage/search-history/{history_id}", status_code=204)
@@ -148,7 +147,6 @@ async def delete_search_history(
     )
     if not deleted:
         raise HTTPException(status_code=404, detail="검색 기록을 찾을 수 없습니다.")
-    await db.commit()
 
 
 @router.delete("/mypage/analysis-history", status_code=204)
@@ -158,7 +156,6 @@ async def delete_all_analysis_history(
 ):
     """본인 분석 히스토리 전체 삭제"""
     await crud_analysis.delete_all_analysis_results(db, user_id=current_user.id)
-    await db.commit()
 
 
 @router.delete("/mypage/analysis-history/{analysis_id}", status_code=204)
@@ -173,7 +170,6 @@ async def delete_analysis_history(
     )
     if not deleted:
         raise HTTPException(status_code=404, detail="분석 기록을 찾을 수 없습니다.")
-    await db.commit()
 
 
 @router.get("/mypage/analysis-history", response_model=list[AnalysisHistoryItem])
