@@ -5,10 +5,38 @@ import type { ArxivPaper } from './types/agent-run'
 const API_VERSION_PATH = '/api/v1'
 const API_ORIGIN = normalizeApiOrigin(process.env.NEXT_PUBLIC_API_URL)
 const API_BASE = `${API_ORIGIN}${API_VERSION_PATH}`
+const GUEST_FREE_USAGE_KEY = 'guest_free_usage_used'
+
+export const GUEST_LOGIN_MESSAGE = '무료 체험을 사용했어요. 계속하려면 로그인해 주세요.'
+
+export class GuestUsageLimitError extends Error {
+  constructor() {
+    super(GUEST_LOGIN_MESSAGE)
+    this.name = 'GuestUsageLimitError'
+  }
+}
 
 function normalizeApiOrigin(rawUrl?: string): string {
   const url = (rawUrl?.trim() || 'http://localhost:8000').replace(/\/+$/, '')
   return url.endsWith(API_VERSION_PATH) ? url.slice(0, -API_VERSION_PATH.length) : url
+}
+
+export function isGuestUsageLimitError(error: unknown): error is GuestUsageLimitError {
+  return error instanceof GuestUsageLimitError
+}
+
+function hasAuthToken(): boolean {
+  return typeof window !== 'undefined' && Boolean(localStorage.getItem('auth_token'))
+}
+
+function assertGuestCanUseAgent(): void {
+  if (typeof window === 'undefined' || hasAuthToken()) return
+
+  if (sessionStorage.getItem(GUEST_FREE_USAGE_KEY) === 'true') {
+    throw new GuestUsageLimitError()
+  }
+
+  sessionStorage.setItem(GUEST_FREE_USAGE_KEY, 'true')
 }
 
 /** 인증 필요 API 전용 fetch — Authorization 헤더 자동 주입 */
@@ -100,6 +128,7 @@ export async function searchPapers(
 
 /** 키워드 검색 에이전트 실행 — SSE 스트리밍 응답 반환 */
 export function runSearchAgent(query: string, signal?: AbortSignal): Promise<Response> {
+  assertGuestCanUseAgent()
   return authFetch(`${API_BASE}/agent/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -110,6 +139,7 @@ export function runSearchAgent(query: string, signal?: AbortSignal): Promise<Res
 
 /** PDF 업로드 에이전트 실행 — SSE 스트리밍 응답 반환 */
 export function runPdfAgent(file: File, signal?: AbortSignal): Promise<Response> {
+  assertGuestCanUseAgent()
   const form = new FormData()
   form.append('file', file)
   return authFetch(`${API_BASE}/agent/pdf`, { method: 'POST', body: form, signal })
@@ -117,6 +147,7 @@ export function runPdfAgent(file: File, signal?: AbortSignal): Promise<Response>
 
 /** 트렌드 브리핑 에이전트 실행 — SSE 스트리밍 응답 반환 */
 export function runTrendAgent(topic: string, signal?: AbortSignal): Promise<Response> {
+  assertGuestCanUseAgent()
   return authFetch(`${API_BASE}/agent/trend`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -127,6 +158,7 @@ export function runTrendAgent(topic: string, signal?: AbortSignal): Promise<Resp
 
 /** 선택한 논문 분석 에이전트 실행 — SSE 스트리밍 응답 반환 */
 export function runAnalyzeAgent(paper: ArxivPaper, query: string, signal?: AbortSignal): Promise<Response> {
+  assertGuestCanUseAgent()
   return authFetch(`${API_BASE}/agent/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
