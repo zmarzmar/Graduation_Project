@@ -16,11 +16,12 @@ interface AuthState {
   isInitialized: boolean
   isModalOpen: boolean
   modalDefaultTab: 'login' | 'register'
+  modalMessage: string | null
 
   setUser: (user: AuthUser | null) => void
   setToken: (token: string | null) => void
   setInitialized: (isInitialized: boolean) => void
-  openModal: (tab?: 'login' | 'register') => void
+  openModal: (tab?: 'login' | 'register', message?: string) => void
   closeModal: () => void
   logout: () => void
 }
@@ -31,6 +32,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isInitialized: false,
   isModalOpen: false,
   modalDefaultTab: 'login',
+  modalMessage: null,
 
   setUser: (user) => set({ user }),
   setToken: (token) => {
@@ -42,8 +44,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ token })
   },
   setInitialized: (isInitialized) => set({ isInitialized }),
-  openModal: (tab = 'login') => set({ isModalOpen: true, modalDefaultTab: tab }),
-  closeModal: () => set({ isModalOpen: false }),
+  openModal: (tab = 'login', message) => set({ isModalOpen: true, modalDefaultTab: tab, modalMessage: message ?? null }),
+  closeModal: () => set({ isModalOpen: false, modalMessage: null }),
   logout: () => {
     localStorage.removeItem('auth_token')
     set({ user: null, token: null, isInitialized: true })

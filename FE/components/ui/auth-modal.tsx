@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 type Tab = 'login' | 'register'
 
 export function AuthModal() {
-  const { isModalOpen, modalDefaultTab, closeModal } = useAuthStore()
+  const { isModalOpen, modalDefaultTab, modalMessage, closeModal } = useAuthStore()
   const { login, register } = useAuth()
 
   const [tab, setTab] = useState<Tab>(modalDefaultTab)
@@ -22,14 +22,20 @@ export function AuthModal() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setIdentifier('')
     setPassword('')
     setPasswordConfirm('')
     setUsername('')
     setFullName('')
     setError('')
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    setTab(modalDefaultTab)
+    resetForm()
+  }, [isModalOpen, modalDefaultTab, resetForm])
 
   const switchTab = (t: Tab) => {
     setTab(t)
@@ -76,7 +82,9 @@ export function AuthModal() {
             {tab === 'login' ? '로그인' : '회원가입'}
           </DialogTitle>
           <DialogDescription>
-            {tab === 'login'
+            {tab === 'login' && modalMessage
+              ? modalMessage
+              : tab === 'login'
               ? 'PaperPilot에 오신 걸 환영합니다'
               : '계정을 만들고 분석 기록을 저장하세요'}
           </DialogDescription>

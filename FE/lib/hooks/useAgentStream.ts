@@ -1,12 +1,15 @@
 'use client'
 
 import { useCallback, useRef } from 'react'
+import { GUEST_LOGIN_MESSAGE, isGuestUsageLimitError } from '@/lib/api'
 import type { AgentEvent, NodeName } from '../types/agent-run'
 import type { StreamMode } from '@/store/analysis-store'
 import { useAnalysisStore } from '@/store/analysis-store'
+import { useAuthStore } from '@/store/auth-store'
 
 export function useAgentStream(mode: StreamMode) {
   const { streams, setStreamState, resetStream } = useAnalysisStore()
+  const { openModal } = useAuthStore()
   const { nodeStatuses, nodeLogs, result, isRunning, cancelled, error } = streams[mode]
 
   // abortRef는 컴포넌트 로컬 — 페이지 이탈 후 복귀 시 취소 버튼은 동작 안 하지만 스트림은 계속 실행됨
@@ -107,12 +110,15 @@ export function useAgentStream(mode: StreamMode) {
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') {
           setStreamState(mode, { cancelled: true, isRunning: false })
+        } else if (isGuestUsageLimitError(e)) {
+          openModal('login', GUEST_LOGIN_MESSAGE)
+          setStreamState(mode, { error: GUEST_LOGIN_MESSAGE, isRunning: false })
         } else {
           setStreamState(mode, { error: e instanceof Error ? e.message : '네트워크 오류가 발생했습니다.', isRunning: false })
         }
       }
     },
-    [reset, processStream, mode, setStreamState],
+    [reset, processStream, openModal, mode, setStreamState],
   )
 
   return { nodeStatuses, nodeLogs, result, isRunning, cancelled, error, startStream, cancel, reset }
