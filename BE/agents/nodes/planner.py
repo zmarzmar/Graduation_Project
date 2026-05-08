@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
@@ -9,6 +10,24 @@ from agents.state import AgentState
 from core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_json(text: str) -> dict:
+    """LLM 응답에서 JSON을 추출한다."""
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            pass
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+    return {}
+
 
 # JSON 응답 강제 — gpt-4o-mini는 response_format 지원
 _llm = ChatOpenAI(
@@ -60,26 +79,34 @@ async def planner_node(state: AgentState) -> dict:
     else:  # trend
         user_content = f"모드: 트렌드 브리핑\n\n관심 분야: {state['user_query']}"
 
+    # LLM 호출 실패와 JSON 파싱 실패를 분리해서 처리
+    _fallback_plan = {
+        "summary": f"{state['user_query']} 관련 논문을 분석합니다.",
+        "search_keywords": [state["user_query"]],
+        "focus_area": state["user_query"],
+        "framework": "pytorch",
+    }
+
     try:
         emit_log("planner", "요청 분석 중...")
         response = await _llm.ainvoke([
             SystemMessage(content=_SYSTEM_PROMPT),
             HumanMessage(content=user_content),
         ])
-        plan = json.loads(response.content)
-        keywords = plan.get('search_keywords', [])
-        emit_log("planner", f"검색 키워드: {', '.join(keywords)}")
-        logger.info(f"[Planner] 완료 — 키워드: {keywords}")
     except Exception as e:
-        logger.error(f"[Planner] LLM 호출 실패: {e}")
+        logger.error(f"[Planner] LLM API 호출 실패: {e}")
         emit_log("planner", "계획 수립 실패 — 기본값으로 진행")
-        # LLM 실패 시 사용자 쿼리를 그대로 폴백으로 사용
-        plan = {
-            "summary": f"{state['user_query']} 관련 논문을 분석합니다.",
-            "search_keywords": [state["user_query"]],
-            "focus_area": state["user_query"],
-            "framework": "pytorch",
-        }
+        plan = _fallback_plan
+    else:
+        try:
+            plan = json.loads(response.content)
+        except json.JSONDecodeError:
+            logger.warning("[Planner] JSON 파싱 실패 — _extract_json 폴백 시도")
+            plan = _extract_json(response.content) or _fallback_plan
+
+    keywords = plan.get('search_keywords', [])
+    emit_log("planner", f"검색 키워드: {', '.join(keywords)}")
+    logger.info(f"[Planner] 완료 — 키워드: {keywords}")
 
     return {
         "plan": json.dumps(plan, ensure_ascii=False),

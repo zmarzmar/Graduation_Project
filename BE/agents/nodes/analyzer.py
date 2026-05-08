@@ -87,17 +87,28 @@ async def analyzer_node(state: AgentState) -> dict:
             "error": "분석할 논문이 없습니다.",
         }
 
-    response = None
+    # LLM 호출 실패와 JSON 파싱 실패를 분리해서 처리
     try:
         emit_log("analyzer", "요약 및 리뷰 생성 중...")
         response = await _llm.ainvoke([
             SystemMessage(content=_SYSTEM_PROMPT),
             HumanMessage(content=f"다음 논문을 분석해주세요:\n\n{paper_text}"),
         ])
-        result = json.loads(response.content)
     except Exception as e:
-        logger.error(f"[Analyzer] LLM 호출 실패: {e}")
-        result = _extract_json(response.content if response is not None else "")
+        logger.error(f"[Analyzer] LLM API 호출 실패: {e}")
+        return {
+            "paper_summary": "",
+            "paper_review": {},
+            "key_formulas": [],
+            "current_node": "analyzer",
+            "error": "LLM API 호출에 실패했습니다.",
+        }
+
+    try:
+        result = json.loads(response.content)
+    except json.JSONDecodeError:
+        logger.warning("[Analyzer] JSON 파싱 실패 — _extract_json 폴백 시도")
+        result = _extract_json(response.content)
 
     summary = result.get("summary", "")
     review = result.get("review", {})
