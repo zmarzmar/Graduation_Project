@@ -65,6 +65,7 @@ export interface AgentResult {
 export interface AgentEvent {
   event: 'node_start' | 'node_done' | 'log' | 'complete' | 'error'
   node?: NodeName
+  elapsed_ms?: number
   plan_summary?: string
   papers_count?: number
   iteration?: number
@@ -79,3 +80,6 @@ export type NodeStatuses = Record<NodeName, NodeStatus>
 
 /** 노드별 실시간 로그 메시지 목록 */
 export type NodeLogs = Record<NodeName, string[]>
+
+/** 노드별 마지막 실행 소요시간(ms) */
+export type NodeDurations = Record<NodeName, number | null>

@@ -303,6 +303,7 @@ export default function HomePage() {
         <AgentPipeline
           nodeStatuses={activeStream.nodeStatuses}
           nodeLogs={activeStream.nodeLogs}
+          nodeDurations={activeStream.nodeDurations}
           mode={pipelineMode}
         />
       )}

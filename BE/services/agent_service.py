@@ -2,6 +2,7 @@ import asyncio
 import io
 import json
 import logging
+import time
 from contextlib import suppress
 from typing import AsyncGenerator
 
@@ -10,6 +11,7 @@ import httpx
 
 from agents.graph import agent_graph, analyze_graph
 from agents.log_stream import set_log_queue
+from agents.perf import log_elapsed
 from core.dependencies import AsyncSessionLocal
 from crud import analysis as crud_analysis
 from crud import paper as crud_paper
@@ -100,6 +102,8 @@ def _build_node_done_event(node_name: str, updates: dict) -> dict:
 
     if error := updates.get("error"):
         event["error"] = error
+    if (elapsed_ms := updates.get("elapsed_ms")) is not None:
+        event["elapsed_ms"] = elapsed_ms
 
     return event
 
@@ -140,6 +144,7 @@ async def stream_agent(
 
     task = asyncio.create_task(_run_graph())
     started_nodes: set[str] = set()
+    node_started_at: dict[str, float] = {}
 
     try:
         while True:
@@ -150,6 +155,7 @@ async def stream_agent(
                 # 노드 첫 로그 도착 시 node_start 이벤트 선행 전송
                 if name not in started_nodes:
                     started_nodes.add(name)
+                    node_started_at[name] = time.perf_counter()
                     yield _sse({"event": "node_start", "node": name})
                 yield _sse({"event": "log", "node": name, "message": data})
 
@@ -157,9 +163,14 @@ async def stream_agent(
                 # 노드 완료 — node_start 미전송 상태면 여기서 전송
                 if name not in started_nodes:
                     started_nodes.add(name)
+                    node_started_at[name] = time.perf_counter()
                     yield _sse({"event": "node_start", "node": name})
                 accumulated.update(data)
+                if started_at := node_started_at.get(name):
+                    data = {**data, "elapsed_ms": int((time.perf_counter() - started_at) * 1000)}
                 yield _sse(_build_node_done_event(name, data))
+                node_started_at.pop(name, None)
+                started_nodes.discard(name)
 
             elif kind == "error":
                 logger.error(f"에이전트 스트리밍 중 오류: {data}")
@@ -253,7 +264,8 @@ async def stream_analyze(
     if pdf_url:
         try:
             yield _sse({"event": "log", "node": "analyzer", "message": "arXiv PDF 다운로드 중..."})
-            pdf_text = await download_pdf_text(pdf_url)
+            async with log_elapsed(logger, "external_call", node="analyze", external="pdf_download"):
+                pdf_text = await download_pdf_text(pdf_url)
             yield _sse({"event": "log", "node": "analyzer", "message": f"PDF 전체 텍스트 추출 완료 ({len(pdf_text)}자)"})
         except Exception as e:
             logger.warning(f"PDF 다운로드 실패, 초록으로 대체: {e}")
@@ -279,6 +291,7 @@ async def stream_analyze(
 
     task = asyncio.create_task(_run_graph())
     started_nodes: set[str] = set()
+    node_started_at: dict[str, float] = {}
 
     try:
         while True:
@@ -288,15 +301,21 @@ async def stream_analyze(
             if kind == "log":
                 if name not in started_nodes:
                     started_nodes.add(name)
+                    node_started_at[name] = time.perf_counter()
                     yield _sse({"event": "node_start", "node": name})
                 yield _sse({"event": "log", "node": name, "message": data})
 
             elif kind == "node":
                 if name not in started_nodes:
                     started_nodes.add(name)
+                    node_started_at[name] = time.perf_counter()
                     yield _sse({"event": "node_start", "node": name})
                 accumulated.update(data)
+                if started_at := node_started_at.get(name):
+                    data = {**data, "elapsed_ms": int((time.perf_counter() - started_at) * 1000)}
                 yield _sse(_build_node_done_event(name, data))
+                node_started_at.pop(name, None)
+                started_nodes.discard(name)
 
             elif kind == "error":
                 logger.error(f"분석 스트리밍 중 오류: {data}")

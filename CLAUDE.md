@@ -192,6 +192,7 @@ POST /api/v1/agent/trend
 3. Push and create Pull Request (base: `main`)
 4. Validate on CI and preview/test environment as needed
 5. Merge into `main` after review
+6. Delete the merged local and remote `feature/*` branch after confirming the merge
 
 ```bash
 # 새 기능 브랜치 생성
@@ -220,6 +221,7 @@ git push origin feature/기능명
 - **브랜치 흐름은 `feature -> main` 단방향으로 유지한다** — 장기 유지 브랜치는 `main`만 사용한다.
 - **머지 방식**:
   - `feature → main`: `merge` (merge commit 방식) — 작업 흐름 보존
+- `feature/*` 브랜치를 `main`에 병합한 뒤에는 병합 완료 여부를 확인하고 해당 로컬/원격 feature 브랜치를 삭제한다.
 - **배포 원칙**:
   - `main` 푸시: 운영 배포
   - 서버 동기화는 `git pull` 대신 `fetch + reset --hard origin/main`을 사용
