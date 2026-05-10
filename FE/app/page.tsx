@@ -78,7 +78,8 @@ export default function HomePage() {
   }
 
   function handleAnalyze(paper: ArxivPaper) {
-    if (searchStream.result?.papers.length) {
+    // searchedPapers가 비어있을 때만 저장 — 분석 결과(1개)로 덮어쓰는 것을 방지
+    if (!searchedPapers.length && searchStream.result?.papers.length) {
       setSearchedPapers(searchStream.result.papers)
     }
     setSearchPipelineMode('analyze')
