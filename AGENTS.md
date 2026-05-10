@@ -67,6 +67,7 @@
 - 머지 흐름은 `feature → main` 단방향으로 유지한다.
 - `main`은 merge 완료된 기능만 쌓이는 기준 브랜치로 유지한다.
 - 머지 방식은 `feature → main` 기본 merge commit으로 유지한다. 필요 시에만 rebase/squash를 사용한다.
+- `feature/*` 브랜치를 `main`에 병합한 뒤에는 병합 완료 여부를 확인하고 해당 로컬/원격 feature 브랜치를 삭제한다.
 - 백엔드 배포는 `main` 푸시에만 실행한다.
 - 배포 서버의 저장소는 `git pull` 대신 `fetch` 후 `reset --hard origin/main`으로 맞춘다. 서버 로컬 브랜치 히스토리를 기준으로 동기화하지 않는다.
 - GitHub Actions 백엔드 배포는 `production` environment 기준의 secret/variable 세트를 사용한다.
