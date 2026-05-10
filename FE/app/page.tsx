@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search, Upload, TrendingUp, Play, RotateCcw, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,7 @@ import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
 import { useAnalysisStore } from '@/store/analysis-store'
 import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent } from '@/lib/api'
-import type { ArxivPaper, AgentMode } from '@/lib/types/agent-run'
+import type { AgentResult, ArxivPaper, AgentMode } from '@/lib/types/agent-run'
 
 const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description: string }[] = [
   {
@@ -48,6 +48,11 @@ export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 논문 분석 결과 캐시 — 같은 논문 재클릭 시 스트림 없이 바로 표시
+  const analyzeCacheRef = useRef<Map<string, AgentResult>>(new Map())
+  // 현재 분석 중인 논문 — 완료 시 캐시 키로 사용
+  const analyzingPaperRef = useRef<ArxivPaper | null>(null)
+
   // 모드별 독립 스트림 — 탭 전환 및 페이지 이탈 후에도 각자의 상태 유지
   const searchStream = useAgentStream('search')
   const pdfStream = useAgentStream('pdf')
@@ -82,9 +87,35 @@ export default function HomePage() {
     if (!searchedPapers.length && searchStream.result?.papers.length) {
       setSearchedPapers(searchStream.result.papers)
     }
+
+    const cacheKey = paper.arxiv_id || paper.title
+    const cached = analyzeCacheRef.current.get(cacheKey)
+    if (cached) {
+      // 캐시 히트 — 스트림 없이 바로 결과 표시
+      setSearchPipelineMode('analyze')
+      searchStream.showCachedResult(cached)
+      return
+    }
+
+    // 캐시 미스 — 분석 시작, 완료 후 useEffect에서 캐시 저장
+    analyzingPaperRef.current = paper
     setSearchPipelineMode('analyze')
     searchStream.startStream((signal) => runAnalyzeAgent(paper, query.trim(), signal))
   }
+
+  // 분석 완료 시 결과를 캐시에 저장
+  useEffect(() => {
+    if (
+      searchPipelineMode === 'analyze' &&
+      !searchStream.isRunning &&
+      searchStream.result !== null &&
+      analyzingPaperRef.current !== null
+    ) {
+      const paper = analyzingPaperRef.current
+      analyzeCacheRef.current.set(paper.arxiv_id || paper.title, searchStream.result)
+      analyzingPaperRef.current = null
+    }
+  }, [searchStream.result, searchStream.isRunning, searchPipelineMode])
 
   function handleReset() {
     activeStream.reset()
@@ -92,6 +123,7 @@ export default function HomePage() {
       setSearchedPapers([])
       setSearchPipelineMode('search')
       setQuery('LoRA fine-tuning')
+      analyzeCacheRef.current.clear()
     } else if (mode === 'pdf') {
       setFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''

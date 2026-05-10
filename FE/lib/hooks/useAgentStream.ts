@@ -131,5 +131,14 @@ export function useAgentStream(mode: StreamMode) {
     [reset, processStream, openModal, mode, setStreamState],
   )
 
-  return { nodeStatuses, nodeLogs, nodeDurations, result, isRunning, cancelled, error, startStream, cancel, reset }
+  // 스트림 없이 캐시된 결과를 바로 표시한다
+  const showCachedResult = useCallback(
+    (cachedResult: import('@/lib/types/agent-run').AgentResult) => {
+      resetStream(mode)
+      setStreamState(mode, { result: cachedResult })
+    },
+    [mode, resetStream, setStreamState],
+  )
+
+  return { nodeStatuses, nodeLogs, nodeDurations, result, isRunning, cancelled, error, startStream, cancel, reset, showCachedResult }
 }
