@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from agents.log_stream import emit_log
+from agents.perf import log_elapsed
 from agents.state import AgentState
 from core.config import settings
 
@@ -90,10 +91,11 @@ async def analyzer_node(state: AgentState) -> dict:
     # LLM 호출 실패와 JSON 파싱 실패를 분리해서 처리
     try:
         emit_log("analyzer", "요약 및 리뷰 생성 중...")
-        response = await _llm.ainvoke([
-            SystemMessage(content=_SYSTEM_PROMPT),
-            HumanMessage(content=f"다음 논문을 분석해주세요:\n\n{paper_text}"),
-        ])
+        async with log_elapsed(logger, "external_call", node="analyzer", external="openai"):
+            response = await _llm.ainvoke([
+                SystemMessage(content=_SYSTEM_PROMPT),
+                HumanMessage(content=f"다음 논문을 분석해주세요:\n\n{paper_text}"),
+            ])
     except Exception as e:
         logger.error(f"[Analyzer] LLM API 호출 실패: {e}")
         return {

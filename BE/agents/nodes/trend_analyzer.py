@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from agents.log_stream import emit_log
+from agents.perf import log_elapsed
 from agents.state import AgentState
 from core.config import settings
 
@@ -93,10 +94,11 @@ async def trend_analyzer_node(state: AgentState) -> dict:
     emit_log("trend_analyzer", "각 논문 한 줄 요약 생성 중...")
 
     try:
-        response = await _llm.ainvoke([
-            SystemMessage(content=_SYSTEM_PROMPT),
-            HumanMessage(content=_build_prompt(papers)),
-        ])
+        async with log_elapsed(logger, "external_call", node="trend_analyzer", external="openai"):
+            response = await _llm.ainvoke([
+                SystemMessage(content=_SYSTEM_PROMPT),
+                HumanMessage(content=_build_prompt(papers)),
+            ])
         result = _extract_json(response.content)
     except Exception as e:
         logger.error(f"[TrendAnalyzer] LLM 호출 실패: {e}")

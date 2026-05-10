@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from agents.log_stream import emit_log
+from agents.perf import log_elapsed
 from agents.state import AgentState
 from core.config import settings
 
@@ -124,10 +125,11 @@ async def reviewer_node(state: AgentState) -> dict:
     try:
         emit_log("reviewer", f"{iteration}회차 코드 검증 중...")
         emit_log("reviewer", "논문 이론과 코드 대조 분석 중...")
-        response = await _llm.ainvoke([
-            SystemMessage(content=_SYSTEM_PROMPT),
-            HumanMessage(content=user_content),
-        ])
+        async with log_elapsed(logger, "external_call", node="reviewer", external="openai"):
+            response = await _llm.ainvoke([
+                SystemMessage(content=_SYSTEM_PROMPT),
+                HumanMessage(content=user_content),
+            ])
         result = _extract_json(response.content)
     except Exception as e:
         logger.error(f"[Reviewer] LLM 호출 실패: {e}")

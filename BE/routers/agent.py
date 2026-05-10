@@ -1,11 +1,15 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from agents.perf import log_elapsed
 from core.config import settings
 from core.dependencies import get_optional_user_id
 
 router = APIRouter(tags=["agent"])
+logger = logging.getLogger(__name__)
 
 
 # ── 요청 모델 ────────────────────────────────────────────────────────────────
@@ -52,7 +56,8 @@ async def run_pdf_agent(
         raise HTTPException(status_code=400, detail="빈 파일입니다.")
 
     try:
-        pdf_text = agent_service.extract_pdf_text(file_bytes)
+        async with log_elapsed(logger, "pdf_extract", endpoint="agent_pdf"):
+            pdf_text = agent_service.extract_pdf_text(file_bytes)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"PDF 텍스트 추출 실패: {str(e)}")
 

@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/auth-store'
 export function useAgentStream(mode: StreamMode) {
   const { streams, setStreamState, resetStream } = useAnalysisStore()
   const { openModal } = useAuthStore()
-  const { nodeStatuses, nodeLogs, result, isRunning, cancelled, error } = streams[mode]
+  const { nodeStatuses, nodeLogs, nodeDurations, result, isRunning, cancelled, error } = streams[mode]
 
   // abortRef는 컴포넌트 로컬 — 페이지 이탈 후 복귀 시 취소 버튼은 동작 안 하지만 스트림은 계속 실행됨
   const abortRef = useRef<AbortController | null>(null)
@@ -55,16 +55,26 @@ export function useAgentStream(mode: StreamMode) {
               const event: AgentEvent = JSON.parse(line.slice(6))
 
               if (event.event === 'node_start' && event.node) {
-                const cur = useAnalysisStore.getState().streams[mode].nodeStatuses
-                setStreamState(mode, { nodeStatuses: { ...cur, [event.node as NodeName]: 'running' } })
+                const state = useAnalysisStore.getState().streams[mode]
+                const node = event.node as NodeName
+                setStreamState(mode, {
+                  nodeStatuses: { ...state.nodeStatuses, [node]: 'running' },
+                  nodeDurations: { ...state.nodeDurations, [node]: null },
+                })
               } else if (event.event === 'log' && event.node && event.message) {
                 const node = event.node as NodeName
                 const cur = useAnalysisStore.getState().streams[mode].nodeLogs
                 setStreamState(mode, { nodeLogs: { ...cur, [node]: [...cur[node], event.message!] } })
               } else if (event.event === 'node_done' && event.node) {
                 const status = event.error ? 'error' : 'done'
-                const cur = useAnalysisStore.getState().streams[mode].nodeStatuses
-                setStreamState(mode, { nodeStatuses: { ...cur, [event.node as NodeName]: status } })
+                const state = useAnalysisStore.getState().streams[mode]
+                const node = event.node as NodeName
+                setStreamState(mode, {
+                  nodeStatuses: { ...state.nodeStatuses, [node]: status },
+                  ...(typeof event.elapsed_ms === 'number'
+                    ? { nodeDurations: { ...state.nodeDurations, [node]: event.elapsed_ms } }
+                    : {}),
+                })
               } else if (event.event === 'complete') {
                 const currentError = useAnalysisStore.getState().streams[mode].error
                 setStreamState(mode, { result: event.result ?? null, ...(currentError ? {} : { error: null }) })
@@ -121,5 +131,5 @@ export function useAgentStream(mode: StreamMode) {
     [reset, processStream, openModal, mode, setStreamState],
   )
 
-  return { nodeStatuses, nodeLogs, result, isRunning, cancelled, error, startStream, cancel, reset }
+  return { nodeStatuses, nodeLogs, nodeDurations, result, isRunning, cancelled, error, startStream, cancel, reset }
 }

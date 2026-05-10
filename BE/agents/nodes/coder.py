@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from agents.log_stream import emit_log
+from agents.perf import log_elapsed
 from agents.state import AgentState
 from core.config import settings
 
@@ -102,10 +103,11 @@ async def coder_node(state: AgentState) -> dict:
         if iteration > 0:
             emit_log("coder", f"리뷰어 피드백 반영 ({iteration}회차 수정)")
         emit_log("coder", "PyTorch 코드 생성 중...")
-        response = await _llm.ainvoke([
-            SystemMessage(content=_SYSTEM_PROMPT),
-            HumanMessage(content=user_content),
-        ])
+        async with log_elapsed(logger, "external_call", node="coder", external="openai"):
+            response = await _llm.ainvoke([
+                SystemMessage(content=_SYSTEM_PROMPT),
+                HumanMessage(content=user_content),
+            ])
         generated_code = _extract_code(response.content)
         emit_log("coder", f"코드 생성 완료 ({len(generated_code)}자)")
         logger.info(f"[Coder] 완료 — 코드 {len(generated_code)}자 생성")

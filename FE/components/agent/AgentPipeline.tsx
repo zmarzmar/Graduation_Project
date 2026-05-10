@@ -1,11 +1,12 @@
 'use client'
 
 import { CheckCircle, Circle, Loader2, XCircle } from 'lucide-react'
-import type { AgentMode, NodeLogs, NodeName, NodeStatuses } from '@/lib/types/agent-run'
+import type { AgentMode, NodeDurations, NodeLogs, NodeName, NodeStatuses } from '@/lib/types/agent-run'
 
 interface AgentPipelineProps {
   nodeStatuses: NodeStatuses
   nodeLogs: NodeLogs
+  nodeDurations: NodeDurations
   mode: AgentMode
 }
 
@@ -38,7 +39,17 @@ function NodeIcon({ status }: { status: string }) {
   }
 }
 
-export function AgentPipeline({ nodeStatuses, nodeLogs, mode }: AgentPipelineProps) {
+function formatDuration(ms: number | null): string | null {
+  if (ms == null) return null
+  if (ms < 1000) return `${ms}ms`
+  const seconds = ms / 1000
+  if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}초`
+  const minutes = Math.floor(seconds / 60)
+  const rest = Math.round(seconds % 60)
+  return `${minutes}분 ${rest}초`
+}
+
+export function AgentPipeline({ nodeStatuses, nodeLogs, nodeDurations, mode }: AgentPipelineProps) {
   const visibleNodes =
     mode === 'trend'   ? ALL_NODES.filter((n) => TREND_NODES.includes(n.name))
     : mode === 'search'  ? ALL_NODES.filter((n) => SEARCH_NODES.includes(n.name))
@@ -65,6 +76,7 @@ export function AgentPipeline({ nodeStatuses, nodeLogs, mode }: AgentPipelinePro
           const isActive = status === 'running'
           const isDone   = status === 'done'
           const isError  = status === 'error'
+          const duration = formatDuration(nodeDurations[node.name])
 
           return (
             <div key={node.name} className="contents">
@@ -90,6 +102,9 @@ export function AgentPipeline({ nodeStatuses, nodeLogs, mode }: AgentPipelinePro
                     {node.label}
                   </p>
                   <p className="text-[10px] text-gray-400 leading-tight">{node.description}</p>
+                  {(isDone || isError) && duration && (
+                    <p className="text-[10px] text-gray-500 leading-tight">{duration}</p>
+                  )}
                 </div>
               </div>
 

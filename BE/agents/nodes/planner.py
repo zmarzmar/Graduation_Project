@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from agents.log_stream import emit_log
+from agents.perf import log_elapsed
 from agents.state import AgentState
 from core.config import settings
 
@@ -89,10 +90,11 @@ async def planner_node(state: AgentState) -> dict:
 
     try:
         emit_log("planner", "요청 분석 중...")
-        response = await _llm.ainvoke([
-            SystemMessage(content=_SYSTEM_PROMPT),
-            HumanMessage(content=user_content),
-        ])
+        async with log_elapsed(logger, "external_call", node="planner", external="openai"):
+            response = await _llm.ainvoke([
+                SystemMessage(content=_SYSTEM_PROMPT),
+                HumanMessage(content=user_content),
+            ])
     except Exception as e:
         logger.error(f"[Planner] LLM API 호출 실패: {e}")
         emit_log("planner", "계획 수립 실패 — 기본값으로 진행")

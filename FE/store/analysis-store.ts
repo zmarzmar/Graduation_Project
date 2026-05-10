@@ -1,7 +1,7 @@
 // 논문 분석 탭 상태를 전역으로 유지 — 페이지 이탈 후 복귀 시 상태 보존
 
 import { create } from 'zustand'
-import type { AgentMode, AgentResult, ArxivPaper, NodeLogs, NodeStatuses } from '@/lib/types/agent-run'
+import type { AgentMode, AgentResult, ArxivPaper, NodeDurations, NodeLogs, NodeStatuses } from '@/lib/types/agent-run'
 
 export type StreamMode = 'search' | 'pdf' | 'trend'
 
@@ -23,9 +23,19 @@ const INITIAL_NODE_LOGS: NodeLogs = {
   reviewer: [],
 }
 
+const INITIAL_NODE_DURATIONS: NodeDurations = {
+  planner: null,
+  researcher: null,
+  trend_analyzer: null,
+  analyzer: null,
+  coder: null,
+  reviewer: null,
+}
+
 export interface StreamSnapshot {
   nodeStatuses: NodeStatuses
   nodeLogs: NodeLogs
+  nodeDurations: NodeDurations
   result: AgentResult | null
   isRunning: boolean
   cancelled: boolean
@@ -35,6 +45,7 @@ export interface StreamSnapshot {
 const INITIAL_STREAM: StreamSnapshot = {
   nodeStatuses: { ...INITIAL_NODE_STATUSES },
   nodeLogs: { ...INITIAL_NODE_LOGS },
+  nodeDurations: { ...INITIAL_NODE_DURATIONS },
   result: null,
   isRunning: false,
   cancelled: false,
