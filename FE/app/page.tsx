@@ -52,6 +52,10 @@ export default function HomePage() {
   const analyzeCacheRef = useRef<Map<string, AgentResult>>(new Map())
   // 현재 분석 중인 논문 — 완료 시 캐시 키로 사용
   const analyzingPaperRef = useRef<ArxivPaper | null>(null)
+  // 분석 완료된 논문 키 집합 — 버튼 텍스트 분기에 사용
+  const [analyzedPaperKeys, setAnalyzedPaperKeys] = useState<Set<string>>(new Set())
+  // handleAnalyze 호출마다 증가 — ResultsPanel을 리마운트해서 탭 상태를 초기화한다
+  const [analyzeKey, setAnalyzeKey] = useState(0)
 
   // 모드별 독립 스트림 — 탭 전환 및 페이지 이탈 후에도 각자의 상태 유지
   const searchStream = useAgentStream('search')
@@ -88,12 +92,16 @@ export default function HomePage() {
       setSearchedPapers(searchStream.result.papers)
     }
 
+    // ResultsPanel 리마운트 → tabOverride 초기화 → 논문 분석 탭으로 자동 이동
+    setAnalyzeKey((k) => k + 1)
+
     const cacheKey = paper.arxiv_id || paper.title
     const cached = analyzeCacheRef.current.get(cacheKey)
     if (cached) {
       // 캐시 히트 — 스트림 없이 바로 결과 표시
       setSearchPipelineMode('analyze')
       searchStream.showCachedResult(cached)
+      setAnalyzedPaperKeys((prev) => new Set([...prev, cacheKey]))
       return
     }
 
@@ -112,7 +120,9 @@ export default function HomePage() {
       analyzingPaperRef.current !== null
     ) {
       const paper = analyzingPaperRef.current
-      analyzeCacheRef.current.set(paper.arxiv_id || paper.title, searchStream.result)
+      const key = paper.arxiv_id || paper.title
+      analyzeCacheRef.current.set(key, searchStream.result)
+      setAnalyzedPaperKeys((prev) => new Set([...prev, key]))
       analyzingPaperRef.current = null
     }
   }, [searchStream.result, searchStream.isRunning, searchPipelineMode])
@@ -124,6 +134,7 @@ export default function HomePage() {
       setSearchPipelineMode('search')
       setQuery('LoRA fine-tuning')
       analyzeCacheRef.current.clear()
+      setAnalyzedPaperKeys(new Set())
     } else if (mode === 'pdf') {
       setFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -344,9 +355,11 @@ export default function HomePage() {
       {/* 결과 패널 */}
       {activeStream.result && (
         <ResultsPanel
+          key={mode === 'search' ? analyzeKey : undefined}
           result={activeStream.result}
           searchedPapers={mode === 'search' ? searchedPapers : undefined}
           onAnalyze={mode === 'search' && !searchStream.isRunning ? handleAnalyze : undefined}
+          analyzedPaperKeys={mode === 'search' ? analyzedPaperKeys : undefined}
         />
       )}
     </div>
