@@ -54,6 +54,8 @@ export default function HomePage() {
   const analyzingPaperRef = useRef<ArxivPaper | null>(null)
   // 분석 완료된 논문 키 집합 — 버튼 텍스트 분기에 사용
   const [analyzedPaperKeys, setAnalyzedPaperKeys] = useState<Set<string>>(new Set())
+  // handleAnalyze 호출마다 증가 — ResultsPanel을 리마운트해서 탭 상태를 초기화한다
+  const [analyzeKey, setAnalyzeKey] = useState(0)
 
   // 모드별 독립 스트림 — 탭 전환 및 페이지 이탈 후에도 각자의 상태 유지
   const searchStream = useAgentStream('search')
@@ -89,6 +91,9 @@ export default function HomePage() {
     if (!searchedPapers.length && searchStream.result?.papers.length) {
       setSearchedPapers(searchStream.result.papers)
     }
+
+    // ResultsPanel 리마운트 → tabOverride 초기화 → 논문 분석 탭으로 자동 이동
+    setAnalyzeKey((k) => k + 1)
 
     const cacheKey = paper.arxiv_id || paper.title
     const cached = analyzeCacheRef.current.get(cacheKey)
@@ -350,6 +355,7 @@ export default function HomePage() {
       {/* 결과 패널 */}
       {activeStream.result && (
         <ResultsPanel
+          key={mode === 'search' ? analyzeKey : undefined}
           result={activeStream.result}
           searchedPapers={mode === 'search' ? searchedPapers : undefined}
           onAnalyze={mode === 'search' && !searchStream.isRunning ? handleAnalyze : undefined}
