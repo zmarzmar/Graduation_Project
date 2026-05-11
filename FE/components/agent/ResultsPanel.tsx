@@ -108,7 +108,7 @@ function TrendAnalysisPanel({ analysis }: { analysis: TrendAnalysis }) {
       {/* 트렌드 키워드 */}
       {analysis.trending_keywords.length > 0 && (
         <div>
-          <h4 className="mb-2 text-sm font-semibold text-gray-700">🔥 이번 주 트렌드 키워드</h4>
+          <h4 className="mb-2 text-sm font-semibold text-gray-700">🔥 트렌드 키워드</h4>
           <div className="flex flex-wrap gap-2">
             {analysis.trending_keywords.map((kw, i) => (
               <div
