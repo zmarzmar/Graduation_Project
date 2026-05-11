@@ -8,7 +8,7 @@ import { AgentPipeline } from '@/components/agent/AgentPipeline'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
 import { useAnalysisStore } from '@/store/analysis-store'
-import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent } from '@/lib/api'
+import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent, fetchDailyKeywords } from '@/lib/api'
 import type { AgentResult, ArxivPaper, AgentMode } from '@/lib/types/agent-run'
 
 const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description: string }[] = [
@@ -33,7 +33,8 @@ const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description:
 ]
 
 const SEARCH_EXAMPLES = ['LoRA fine-tuning', 'diffusion model', 'attention mechanism', 'graph neural network', 'retrieval augmented generation']
-const TREND_EXAMPLES = ['large language model', 'vision transformer', 'reinforcement learning', 'multimodal', 'agent']
+const TREND_FALLBACK = ['large language model', 'vision transformer', 'reinforcement learning', 'multimodal', 'agent']
+const DAILY_KEYWORDS_CACHE_KEY = `daily_trend_${new Date().toISOString().slice(0, 10)}`
 
 export default function HomePage() {
   // 페이지 이탈 후 복귀 시 상태를 유지하기 위해 Zustand 스토어 사용
@@ -47,6 +48,24 @@ export default function HomePage() {
 
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 오늘의 트렌드 키워드 — localStorage 캐시 우선, 없으면 API fetch
+  const [trendKeywords, setTrendKeywords] = useState<string[]>(TREND_FALLBACK)
+  useEffect(() => {
+    const cached = localStorage.getItem(DAILY_KEYWORDS_CACHE_KEY)
+    if (cached) {
+      try {
+        setTrendKeywords(JSON.parse(cached))
+        return
+      } catch { /* 파싱 실패 시 API 호출로 이어짐 */ }
+    }
+    fetchDailyKeywords()
+      .then((keywords) => {
+        setTrendKeywords(keywords)
+        localStorage.setItem(DAILY_KEYWORDS_CACHE_KEY, JSON.stringify(keywords))
+      })
+      .catch(() => { /* 실패 시 폴백 유지 */ })
+  }, [])
 
   // 논문 분석 결과 캐시 — 같은 논문 재클릭 시 스트림 없이 바로 표시
   const analyzeCacheRef = useRef<Map<string, AgentResult>>(new Map())
@@ -236,7 +255,7 @@ export default function HomePage() {
               disabled={activeStream.isRunning}
             />
             <div className="flex flex-wrap gap-1.5">
-              {TREND_EXAMPLES.map((ex) => (
+              {trendKeywords.map((ex) => (
                 <button
                   key={ex}
                   onClick={() => setTopic(ex)}

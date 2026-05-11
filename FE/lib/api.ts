@@ -167,6 +167,14 @@ export function runAnalyzeAgent(paper: ArxivPaper, query: string, signal?: Abort
   })
 }
 
+/** 오늘 날짜 기준 AI 트렌드 키워드 5개 반환 */
+export async function fetchDailyKeywords(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/papers/daily-keywords`)
+  if (!res.ok) throw new Error('daily-keywords fetch failed')
+  const data: { keywords: string[] } = await res.json()
+  return data.keywords
+}
+
 export interface SearchHistoryPaper {
   title: string
   authors: string[]

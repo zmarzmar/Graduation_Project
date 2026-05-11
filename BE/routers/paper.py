@@ -1,13 +1,25 @@
 import logging
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel
 
 from schemas.paper import SearchResponse
-from services import arxiv_service, semantic_scholar_service
+from services import arxiv_service, semantic_scholar_service, keyword_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["papers"])
+
+
+class DailyKeywordsResponse(BaseModel):
+    keywords: list[str]
+
+
+@router.get("/papers/daily-keywords", response_model=DailyKeywordsResponse)
+async def get_daily_keywords() -> DailyKeywordsResponse:
+    """오늘 날짜 기준 AI 트렌드 키워드 5개 반환 (당일 캐시)"""
+    keywords = await keyword_service.get_daily_keywords()
+    return DailyKeywordsResponse(keywords=keywords)
 
 
 @router.get("/papers/search", response_model=SearchResponse)
