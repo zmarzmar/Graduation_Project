@@ -49,16 +49,18 @@ export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 오늘의 트렌드 키워드 — localStorage 캐시 우선, 없으면 API fetch
-  const [trendKeywords, setTrendKeywords] = useState<string[]>(TREND_FALLBACK)
+  // 오늘의 트렌드 키워드 — lazy initializer로 localStorage 우선 읽기, 없으면 API fetch
+  const [trendKeywords, setTrendKeywords] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return TREND_FALLBACK
+    try {
+      const cached = localStorage.getItem(DAILY_KEYWORDS_CACHE_KEY)
+      if (cached) return JSON.parse(cached)
+    } catch { /* 파싱 실패 시 폴백 */ }
+    return TREND_FALLBACK
+  })
   useEffect(() => {
-    const cached = localStorage.getItem(DAILY_KEYWORDS_CACHE_KEY)
-    if (cached) {
-      try {
-        setTrendKeywords(JSON.parse(cached))
-        return
-      } catch { /* 파싱 실패 시 API 호출로 이어짐 */ }
-    }
+    // 캐시가 이미 있으면 API 호출 스킵
+    if (localStorage.getItem(DAILY_KEYWORDS_CACHE_KEY)) return
     fetchDailyKeywords()
       .then((keywords) => {
         setTrendKeywords(keywords)
