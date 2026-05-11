@@ -14,9 +14,10 @@ interface ResultsPanelProps {
   result: AgentResult
   searchedPapers?: ArxivPaper[]  // 검색 모드에서 수집된 전체 논문 목록 (분석 후에도 유지)
   onAnalyze?: (paper: ArxivPaper) => void
+  analyzedPaperKeys?: Set<string>  // 이미 분석 완료된 논문 키 집합
 }
 
-function PaperCard({ paper, summary, onAnalyze }: { paper: ArxivPaper; summary?: string; onAnalyze?: (paper: ArxivPaper) => void }) {
+function PaperCard({ paper, summary, onAnalyze, isAnalyzed }: { paper: ArxivPaper; summary?: string; onAnalyze?: (paper: ArxivPaper) => void; isAnalyzed?: boolean }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -84,9 +85,13 @@ function PaperCard({ paper, summary, onAnalyze }: { paper: ArxivPaper; summary?:
         {onAnalyze && (
           <button
             onClick={() => onAnalyze(paper)}
-            className="rounded-md bg-blue-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600"
+            className={`rounded-md px-3 py-1 text-xs font-medium text-white transition-colors ${
+              isAnalyzed
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-blue-500 hover:bg-blue-600'
+            }`}
           >
-            이 논문 분석하기
+            {isAnalyzed ? '분석 다시보기' : '이 논문 분석하기'}
           </button>
         )}
       </div>
@@ -136,7 +141,7 @@ function TrendAnalysisPanel({ analysis }: { analysis: TrendAnalysis }) {
   )
 }
 
-export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanelProps) {
+export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperKeys }: ResultsPanelProps) {
   const isTrend = result.mode === 'trend'
   const hasCoding = !!result.generated_code
   const hasTrendAnalysis = isTrend && !!result.trend_analysis
@@ -239,6 +244,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze }: ResultsPanel
                   paper={paper}
                   summary={summaryMap.get(paper.title)}
                   onAnalyze={onAnalyze}
+                  isAnalyzed={analyzedPaperKeys?.has(paper.arxiv_id || paper.title)}
                 />
               ))
             )}
