@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -262,6 +262,13 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
                   {result.papers[0].authors.slice(0, 3).join(', ')}
                   {result.papers[0].authors.length > 3 && ' 외'}
                 </p>
+              </div>
+            )}
+
+            {result.analysis_source === 'abstract' && (
+              <div className="flex items-start gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>이 분석은 PDF 전문이 아니라 초록을 기반으로 생성되었습니다.</span>
               </div>
             )}
 

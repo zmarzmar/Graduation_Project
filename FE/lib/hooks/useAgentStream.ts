@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/auth-store'
 export function useAgentStream(mode: StreamMode) {
   const { streams, setStreamState, resetStream } = useAnalysisStore()
   const { openModal } = useAuthStore()
-  const { nodeStatuses, nodeLogs, nodeDurations, result, isRunning, cancelled, error } = streams[mode]
+  const { nodeStatuses, nodeLogs, nodeDurations, result, isRunning, cancelled, error, pdfFallbackRequest } = streams[mode]
 
   // abortRef는 컴포넌트 로컬 — 페이지 이탈 후 복귀 시 취소 버튼은 동작 안 하지만 스트림은 계속 실행됨
   const abortRef = useRef<AbortController | null>(null)
@@ -80,6 +80,14 @@ export function useAgentStream(mode: StreamMode) {
                 setStreamState(mode, { result: event.result ?? null, ...(currentError ? {} : { error: null }) })
               } else if (event.event === 'error') {
                 setStreamState(mode, { error: event.message ?? '알 수 없는 오류가 발생했습니다.' })
+              } else if (event.event === 'pdf_fallback_required') {
+                const state = useAnalysisStore.getState().streams[mode]
+                const nextStatuses = { ...state.nodeStatuses, analyzer: 'error' as const }
+                const message = event.message ?? 'PDF를 다운로드하지 못했습니다. 초록만으로 분석을 진행할까요?'
+                setStreamState(mode, {
+                  nodeStatuses: nextStatuses,
+                  pdfFallbackRequest: { message, reason: event.reason },
+                })
               }
             } catch {
               // JSON 파싱 실패 라인은 무시
@@ -109,7 +117,7 @@ export function useAgentStream(mode: StreamMode) {
   const startStream = useCallback(
     async (fetchFn: (signal: AbortSignal) => Promise<Response>) => {
       reset()
-      setStreamState(mode, { isRunning: true })
+      setStreamState(mode, { isRunning: true, pdfFallbackRequest: null })
 
       const controller = new AbortController()
       abortRef.current = controller
@@ -140,5 +148,18 @@ export function useAgentStream(mode: StreamMode) {
     [mode, resetStream, setStreamState],
   )
 
-  return { nodeStatuses, nodeLogs, nodeDurations, result, isRunning, cancelled, error, startStream, cancel, reset, showCachedResult }
+  return {
+    nodeStatuses,
+    nodeLogs,
+    nodeDurations,
+    result,
+    isRunning,
+    cancelled,
+    error,
+    pdfFallbackRequest,
+    startStream,
+    cancel,
+    reset,
+    showCachedResult,
+  }
 }
