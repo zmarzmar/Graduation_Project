@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Search, Upload, TrendingUp, Play, RotateCcw, Square } from 'lucide-react'
+import { AlertTriangle, FileText, RefreshCw, Search, Upload, TrendingUp, Play, RotateCcw, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AgentPipeline } from '@/components/agent/AgentPipeline'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
@@ -44,6 +45,7 @@ export default function HomePage() {
     topic, setTopic,
     searchPipelineMode, setSearchPipelineMode,
     searchedPapers, setSearchedPapers,
+    setStreamState,
   } = useAnalysisStore()
 
   const [file, setFile] = useState<File | null>(null)
@@ -132,6 +134,27 @@ export default function HomePage() {
     searchStream.startStream((signal) => runAnalyzeAgent(paper, query.trim(), signal))
   }
 
+  function handleAnalyzeRetry(allowAbstractFallback: boolean) {
+    const paper = analyzingPaperRef.current
+    if (!paper) {
+      setStreamState('search', { pdfFallbackRequest: null })
+      return
+    }
+
+    setSearchPipelineMode('analyze')
+    searchStream.startStream((signal) =>
+      runAnalyzeAgent(paper, query.trim(), signal, {
+        allowAbstractFallback,
+        consumeGuestUsage: false,
+      }),
+    )
+  }
+
+  function handleAnalyzeCancel() {
+    analyzingPaperRef.current = null
+    setStreamState('search', { pdfFallbackRequest: null })
+  }
+
   // 분석 완료 시 결과를 캐시에 저장
   useEffect(() => {
     if (
@@ -172,6 +195,36 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <Dialog open={mode === 'search' && !!searchStream.pdfFallbackRequest} onOpenChange={(open) => !open && handleAnalyzeCancel()}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-yellow-600">
+              <AlertTriangle className="h-5 w-5" />
+              <DialogTitle>PDF 전문을 가져오지 못했습니다</DialogTitle>
+            </div>
+            <DialogDescription>
+              {searchStream.pdfFallbackRequest?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+            초록 기반 분석은 방법론, 실험 결과, 한계점이 PDF 전문 분석보다 부정확할 수 있습니다.
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleAnalyzeCancel}>
+              취소
+            </Button>
+            <Button variant="outline" onClick={() => handleAnalyzeRetry(false)} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              PDF 다시 시도
+            </Button>
+            <Button onClick={() => handleAnalyzeRetry(true)} className="gap-2">
+              <FileText className="h-4 w-4" />
+              초록으로 계속 분석
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* 타이틀 */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">AI Research Analyst</h1>

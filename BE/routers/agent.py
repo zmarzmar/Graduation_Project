@@ -28,6 +28,10 @@ class TrendRequest(BaseModel):
 class AnalyzeRequest(BaseModel):
     paper: dict = Field(..., description="사용자가 선택한 논문 데이터")
     query: str = Field(..., description="원래 검색 키워드 (컨텍스트용)")
+    allow_abstract_fallback: bool = Field(
+        default=False,
+        description="PDF 전문 확보 실패 시 초록 기반 분석을 허용할지 여부",
+    )
 
 
 # ── 엔드포인트 ────────────────────────────────────────────────────────────────
@@ -104,6 +108,7 @@ async def run_analyze_agent(
         agent_service.stream_analyze(
             paper=request.paper,
             user_query=request.query,
+            allow_abstract_fallback=request.allow_abstract_fallback,
             user_id=user_id,
         ),
         media_type="text/event-stream",

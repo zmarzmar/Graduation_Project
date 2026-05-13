@@ -58,12 +58,18 @@ export interface AgentResult {
   review_passed?: boolean
   iteration_count?: number
   mode?: string
+  analysis_source?: 'pdf' | 'abstract'
   trend_analysis?: TrendAnalysis
+}
+
+export interface PdfFallbackRequest {
+  message: string
+  reason?: string
 }
 
 /** BE SSE 이벤트 구조 */
 export interface AgentEvent {
-  event: 'node_start' | 'node_done' | 'log' | 'complete' | 'error'
+  event: 'node_start' | 'node_done' | 'log' | 'complete' | 'error' | 'pdf_fallback_required'
   node?: NodeName
   elapsed_ms?: number
   plan_summary?: string
@@ -74,6 +80,8 @@ export interface AgentEvent {
   error?: string
   result?: AgentResult
   message?: string
+  reason?: string
+  pdf_url?: string
 }
 
 export type NodeStatuses = Record<NodeName, NodeStatus>

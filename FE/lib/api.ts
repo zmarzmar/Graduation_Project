@@ -156,13 +156,29 @@ export function runTrendAgent(topic: string, signal?: AbortSignal): Promise<Resp
   })
 }
 
+export interface AnalyzeAgentOptions {
+  allowAbstractFallback?: boolean
+  consumeGuestUsage?: boolean
+}
+
 /** 선택한 논문 분석 에이전트 실행 — SSE 스트리밍 응답 반환 */
-export function runAnalyzeAgent(paper: ArxivPaper, query: string, signal?: AbortSignal): Promise<Response> {
-  assertGuestCanUseAgent()
+export function runAnalyzeAgent(
+  paper: ArxivPaper,
+  query: string,
+  signal?: AbortSignal,
+  options: AnalyzeAgentOptions = {},
+): Promise<Response> {
+  if (options.consumeGuestUsage !== false) {
+    assertGuestCanUseAgent()
+  }
   return authFetch(`${API_BASE}/agent/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ paper, query }),
+    body: JSON.stringify({
+      paper,
+      query,
+      allow_abstract_fallback: options.allowAbstractFallback ?? false,
+    }),
     signal,
   })
 }
