@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -16,22 +17,93 @@ logger = logging.getLogger(__name__)
 _HF_PAPERS_URL = "https://huggingface.co/api/daily_papers"
 
 
-def _filter_by_keywords(papers: list[dict], keywords: list[str]) -> list[dict]:
-    """제목/초록에 키워드가 하나 이상 포함된 논문만 반환한다."""
+def _normalize_relevance_text(text: str) -> str:
+    """관련도 계산을 위해 하이픈/기호 차이를 줄인 텍스트로 정규화한다."""
+    normalized = text.lower().replace("-", " ").replace("_", " ")
+    normalized = re.sub(r"[^a-z0-9\s]", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _keyword_tokens(keyword: str) -> set[str]:
+    """짧은 일반 단어를 제외한 키워드 토큰을 반환한다."""
+    stopwords = {"a", "an", "and", "for", "in", "of", "on", "the", "to", "with"}
+    return {
+        _stem_relevance_token(token)
+        for token in _normalize_relevance_text(keyword).split()
+        if len(token) > 2 and token not in stopwords
+    }
+
+
+def _stem_relevance_token(token: str) -> str:
+    """복수형 정도만 가볍게 정리해 transformer/transformers 차이를 줄인다."""
+    if len(token) > 4 and token.endswith("ies"):
+        return f"{token[:-3]}y"
+    if len(token) > 4 and token.endswith("s"):
+        return token[:-1]
+    return token
+
+
+def _build_relevance_text(paper: dict) -> str:
+    """제목, 초록, HF AI 메타데이터를 관련도 계산용 텍스트로 합친다."""
+    ai_keywords = paper.get("ai_keywords") or []
+    if isinstance(ai_keywords, list):
+        ai_keywords_text = " ".join(str(keyword) for keyword in ai_keywords)
+    else:
+        ai_keywords_text = str(ai_keywords)
+
+    parts = [
+        paper.get("title", ""),
+        paper.get("abstract", ""),
+        paper.get("tldr", ""),
+        paper.get("ai_summary", ""),
+        ai_keywords_text,
+    ]
+    return _normalize_relevance_text(" ".join(str(part) for part in parts if part))
+
+
+def _keyword_relevance_score(paper: dict, keywords: list[str]) -> float:
+    """논문 메타데이터와 검색 키워드의 관련도를 계산한다."""
     if not keywords:
-        return papers
-    result = []
-    for p in papers:
-        text = (p.get("title", "") + " " + p.get("abstract", "")).lower()
-        if any(kw.lower() in text for kw in keywords):
-            result.append(p)
-    return result
+        return 0.0
+
+    text = _build_relevance_text(paper)
+    if not text:
+        return 0.0
+
+    text_tokens = {_stem_relevance_token(token) for token in text.split()}
+    score = 0.0
+    for keyword in keywords:
+        normalized_keyword = _normalize_relevance_text(keyword)
+        if not normalized_keyword:
+            continue
+
+        keyword_tokens = _keyword_tokens(keyword)
+        if not keyword_tokens:
+            continue
+
+        if normalized_keyword in text:
+            score += 2.0
+
+        overlap = keyword_tokens & text_tokens
+        if keyword_tokens <= text_tokens:
+            score += 1.5
+        elif len(keyword_tokens) >= 3 and len(overlap) >= 2:
+            score += len(overlap) / len(keyword_tokens)
+
+    return round(score, 3)
+
+
+def _annotate_relevance_scores(papers: list[dict], keywords: list[str]) -> list[dict]:
+    """논문 목록에 keyword relevance score를 추가한다."""
+    return [{**paper, "relevance_score": _keyword_relevance_score(paper, keywords)} for paper in papers]
 
 
 def _trend_score(paper: dict, now: datetime) -> float:
     """트렌드 점수 계산 — upvote, 인용 수, 최신성 가중 합산."""
     score = 0.0
+    score += (paper.get("relevance_score") or 0) * 8
     score += (paper.get("upvotes") or 0) * 3
+    score += min((paper.get("github_stars") or 0), 100) * 0.2
     score += min((paper.get("citation_count") or 0), 100)  # 인용 수는 최대 100점으로 cap
 
     pub = paper.get("published_at")
@@ -98,6 +170,7 @@ async def _fetch_hf_trending(limit: int = 5) -> list[dict]:
     for item in items:
         paper = item.get("paper", {})
         arxiv_id = paper.get("id", "")
+        upvotes = paper.get("upvotes") or item.get("upvotes") or 0
         papers.append({
             "arxiv_id": arxiv_id,
             "title": paper.get("title", ""),
@@ -107,9 +180,13 @@ async def _fetch_hf_trending(limit: int = 5) -> list[dict]:
             "pdf_url": f"https://arxiv.org/pdf/{arxiv_id}" if arxiv_id else "",
             "published_at": paper.get("publishedAt", ""),
             "categories": [],
-            "upvotes": item.get("upvotes", 0),
+            "upvotes": upvotes,
+            "github_stars": paper.get("githubStars", 0),
             "citation_count": None,
             "tldr": None,
+            "ai_summary": paper.get("ai_summary", ""),
+            "ai_keywords": paper.get("ai_keywords", []),
+            "submitted_on_daily_at": paper.get("submittedOnDailyAt", ""),
         })
     return papers
 
@@ -130,13 +207,18 @@ async def researcher_node(state: AgentState) -> dict:
             six_months_ago = now - timedelta(days=180)
             date_from = six_months_ago.strftime("%Y-%m")
 
-            # HF Daily Papers 수집 후 키워드 관련성 필터링
+            # HF Daily Papers 수집 후 키워드 관련성 계산
             emit_log("researcher", "HuggingFace Daily Papers 수집 중...")
             async with log_elapsed(logger, "external_call", node="researcher", external="huggingface"):
                 hf_all = await _fetch_hf_trending(limit=20)
-            hf_papers = _filter_by_keywords(hf_all, keywords[:3])
-            emit_log("researcher", f"HuggingFace 관련 논문 {len(hf_papers)}편 (전체 {len(hf_all)}편 중)")
-            logger.info(f"[Researcher] HF 키워드 필터 — {len(hf_all)}편 → {len(hf_papers)}편")
+            hf_scored = _annotate_relevance_scores(hf_all, keywords[:3])
+            hf_papers = [paper for paper in hf_scored if paper.get("relevance_score", 0) > 0]
+            emit_log("researcher", f"HuggingFace Daily Papers {len(hf_all)}편 수집 완료")
+            if hf_papers:
+                emit_log("researcher", f"HuggingFace 주제 매칭 {len(hf_papers)}편 반영")
+            else:
+                emit_log("researcher", "HuggingFace 주제 직접 매칭 0편 — Semantic Scholar/arXiv 중심으로 진행")
+            logger.info(f"[Researcher] HF 관련도 매칭 — {len(hf_all)}편 → {len(hf_papers)}편")
 
             # S2 최근 6개월 논문 수집
             s2_papers = []
@@ -146,6 +228,7 @@ async def researcher_node(state: AgentState) -> dict:
                     s2_papers = await semantic_scholar_service.search_papers(
                         search_query, max_results=10, date_from=date_from
                     )
+                s2_papers = _annotate_relevance_scores(s2_papers, keywords[:3])
                 emit_log("researcher", f"Semantic Scholar {len(s2_papers)}편 수집 완료")
                 logger.info(f"[Researcher] S2 트렌드 {len(s2_papers)}편 수집")
             except Exception as e:
@@ -161,6 +244,7 @@ async def researcher_node(state: AgentState) -> dict:
                         search_query, max_results=10, recent_months=6
                     )
                 arxiv_papers = [p.model_dump(mode="json") for p in arxiv_results]
+                arxiv_papers = _annotate_relevance_scores(arxiv_papers, keywords[:3])
                 emit_log("researcher", f"arXiv {len(arxiv_papers)}편 수집 완료")
                 logger.info(f"[Researcher] arXiv 트렌드 {len(arxiv_papers)}편 수집")
 
