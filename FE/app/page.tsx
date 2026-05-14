@@ -34,7 +34,7 @@ const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description:
 ]
 
 const SEARCH_EXAMPLES = ['LoRA fine-tuning', 'diffusion model', 'attention mechanism', 'retrieval augmented generation', 'vision language model', 'mixture of experts']
-const TREND_FALLBACK = ['large language model', 'vision transformer', 'reinforcement learning', 'multimodal', 'agent']
+const TREND_FALLBACK = ['large language model', 'vision transformer', 'reinforcement learning', 'multimodal', 'agent', 'mixture of experts']
 const DAILY_KEYWORDS_CACHE_KEY = `daily_trend_${new Date().toISOString().slice(0, 10)}`
 
 export default function HomePage() {
