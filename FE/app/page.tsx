@@ -263,13 +263,13 @@ export default function HomePage() {
               onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
               disabled={activeStream.isRunning}
             />
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {SEARCH_EXAMPLES.map((ex) => (
                 <button
                   key={ex}
                   onClick={() => setQuery(ex)}
                   disabled={activeStream.isRunning}
-                  className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                  className={`rounded-md border px-3 py-1.5 text-center text-xs transition-colors ${
                     query === ex
                       ? 'border-blue-400 bg-blue-50 text-blue-700'
                       : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
@@ -309,13 +309,13 @@ export default function HomePage() {
               onKeyDown={(e) => e.key === 'Enter' && canRun && handleRun()}
               disabled={activeStream.isRunning}
             />
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {trendKeywords.map((ex) => (
                 <button
                   key={ex}
                   onClick={() => setTopic(ex)}
                   disabled={activeStream.isRunning}
-                  className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                  className={`rounded-md border px-3 py-1.5 text-center text-xs transition-colors ${
                     topic === ex
                       ? 'border-blue-400 bg-blue-50 text-blue-700'
                       : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
