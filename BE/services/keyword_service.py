@@ -17,14 +17,15 @@ _FALLBACK_KEYWORDS = [
     "reinforcement learning",
     "multimodal",
     "agent",
+    "mixture of experts",
 ]
 
 _PROMPT = (
     "Today is {date}. "
-    "List exactly 5 trending AI/ML research keywords that are hot right now. "
+    "List exactly 6 trending AI/ML research keywords that are hot right now. "
     "Return a JSON array of strings only, no explanation. "
     "Each keyword must be 2–4 words in English. "
-    'Example: ["mixture of experts", "chain of thought", "diffusion model", "state space model", "RLHF"]'
+    'Example: ["mixture of experts", "chain of thought", "diffusion model", "state space model", "RLHF", "vision language model"]'
 )
 
 
@@ -48,7 +49,7 @@ async def get_daily_keywords() -> list[str]:
         keywords: list[str] = json.loads(raw)
         if not isinstance(keywords, list) or len(keywords) == 0:
             raise ValueError("빈 응답")
-        keywords = [str(k) for k in keywords[:5]]
+        keywords = [str(k) for k in keywords[:6]]
         _cache[today] = keywords
         logger.info(f"[DailyKeywords] 오늘({today}) 키워드 갱신: {keywords}")
         return keywords
