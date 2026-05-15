@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,14 +23,43 @@ class UserInfo(BaseModel):
     email: str
     affiliation: str | None
     preferred_framework: str | None
+    bio: str | None
+    github_url: str | None
+    research_interests: list[str] | None
 
     class Config:
         from_attributes = True
 
 
+class UpdateUserInfo(BaseModel):
+    full_name: str | None = None
+    email: str | None = None
+    affiliation: str | None = None
+    preferred_framework: str | None = None
+    bio: str | None = None
+    github_url: str | None = None
+    research_interests: list[str] | None = None
+
+
 @router.get("/mypage/me", response_model=UserInfo)
 async def get_my_info(current_user: User = Depends(get_current_user)):
     """내 정보 조회"""
+    return current_user
+
+
+@router.patch("/mypage/me", response_model=UserInfo)
+async def update_my_info(
+    body: UpdateUserInfo,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """내 정보 수정 — 전달된 필드만 업데이트"""
+    # 전달된 필드만 업데이트 (None이면 해당 필드를 null로 덮어쓰지 않음)
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+    await db.commit()
+    await db.refresh(current_user)
     return current_user
 
 
