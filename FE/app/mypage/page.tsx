@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink, Pencil, Github, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory, getMyInfo } from '@/lib/api'
+import { getSearchHistory, getAnalysisHistory, getAnalysisDetail, deleteSearchHistory, deleteAllSearchHistory, deleteAnalysisHistory, deleteAllAnalysisHistory, getMyInfo, updateMyInfo } from '@/lib/api'
 import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, SearchHistoryPaper } from '@/lib/api'
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
@@ -256,6 +258,152 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
   )
 }
 
+type EditForm = {
+  full_name: string
+  email: string
+  affiliation: string
+  preferred_framework: string
+  bio: string
+  github_url: string
+  research_interests: string[]
+  interestInput: string
+}
+
+function EditProfileDialog({
+  open,
+  initial,
+  onSave,
+  onClose,
+}: {
+  open: boolean
+  initial: UserInfo
+  onSave: (data: EditForm) => Promise<void>
+  onClose: () => void
+}) {
+  const [form, setForm] = useState<EditForm>({
+    full_name: initial.full_name ?? '',
+    email: initial.email ?? '',
+    affiliation: initial.affiliation ?? '',
+    preferred_framework: initial.preferred_framework ?? '',
+    bio: initial.bio ?? '',
+    github_url: initial.github_url ?? '',
+    research_interests: initial.research_interests ?? [],
+    interestInput: '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function set(field: keyof EditForm, value: string | string[]) {
+    setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function addInterest() {
+    const tag = form.interestInput.trim()
+    if (!tag || form.research_interests.includes(tag)) {
+      set('interestInput', '')
+      return
+    }
+    set('research_interests', [...form.research_interests, tag])
+    set('interestInput', '')
+  }
+
+  function removeInterest(tag: string) {
+    set('research_interests', form.research_interests.filter((t) => t !== tag))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    try {
+      await onSave(form)
+      onClose()
+    } catch {
+      setError('저장에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>내 정보 수정</DialogTitle>
+          <DialogDescription>프로필 정보를 수정합니다.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="full_name">이름</Label>
+              <Input id="full_name" value={form.full_name} onChange={(e) => set('full_name', e.target.value)} placeholder="홍길동" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">이메일</Label>
+              <Input id="email" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="example@email.com" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="affiliation">소속</Label>
+            <Input id="affiliation" value={form.affiliation} onChange={(e) => set('affiliation', e.target.value)} placeholder="서울대학교 컴퓨터공학과" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="preferred_framework">선호 프레임워크</Label>
+            <select
+              id="preferred_framework"
+              value={form.preferred_framework}
+              onChange={(e) => set('preferred_framework', e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">선택 안함</option>
+              <option value="PyTorch">PyTorch</option>
+              <option value="TensorFlow">TensorFlow</option>
+              <option value="JAX">JAX</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bio">한 줄 소개</Label>
+            <Input id="bio" value={form.bio} onChange={(e) => set('bio', e.target.value)} placeholder="AI 연구자, NLP/Vision 관심" maxLength={100} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="github_url">GitHub URL</Label>
+            <Input id="github_url" value={form.github_url} onChange={(e) => set('github_url', e.target.value)} placeholder="https://github.com/username" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>연구 관심 분야</Label>
+            <div className="flex gap-2">
+              <Input
+                value={form.interestInput}
+                onChange={(e) => set('interestInput', e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addInterest() } }}
+                placeholder="NLP, Computer Vision... (Enter로 추가)"
+              />
+              <Button type="button" variant="outline" onClick={addInterest} className="flex-shrink-0">추가</Button>
+            </div>
+            {form.research_interests.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {form.research_interests.map((tag) => (
+                  <span key={tag} className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                    {tag}
+                    <button type="button" onClick={() => removeInterest(tag)} className="text-blue-400 hover:text-blue-600">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>취소</Button>
+            <Button type="submit" disabled={saving}>{saving ? '저장 중...' : '저장'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function MyPage() {
   const { isLoggedIn, isAuthReady, openModal } = useAuth()
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
@@ -264,6 +412,7 @@ export default function MyPage() {
   const [loading, setLoading] = useState(true)
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'search' | 'analysis' } | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
 
   useEffect(() => {
     if (!isAuthReady) return
@@ -304,6 +453,19 @@ export default function MyPage() {
       cancelled = true
     }
   }, [isAuthReady, isLoggedIn, openModal])
+
+  async function handleSaveProfile(form: EditForm) {
+    const updated = await updateMyInfo({
+      full_name: form.full_name || null,
+      email: form.email || null,
+      affiliation: form.affiliation || null,
+      preferred_framework: form.preferred_framework || null,
+      bio: form.bio || null,
+      github_url: form.github_url || null,
+      research_interests: form.research_interests.length > 0 ? form.research_interests : null,
+    })
+    setUserInfo(updated)
+  }
 
   async function handleDeleteSearch(id: number) {
     try {
@@ -355,6 +517,14 @@ export default function MyPage() {
         onConfirm={handleConfirmDelete}
         onCancel={() => setConfirmDialog(null)}
       />
+      {editOpen && userInfo && (
+        <EditProfileDialog
+          open={editOpen}
+          initial={userInfo}
+          onSave={handleSaveProfile}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">마이페이지</h1>
         <p className="mt-1 text-sm text-gray-500">내 정보와 분석 기록을 확인하세요.</p>
@@ -370,34 +540,71 @@ export default function MyPage() {
       {/* 내 정보 */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <User className="h-4 w-4" />
-            내 정보
+          <CardTitle className="flex items-center justify-between text-base">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              내 정보
+            </div>
+            {userInfo && (
+              <button
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                수정
+              </button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-              <User className="h-8 w-8" />
-            </div>
-            {userInfo ? (
-              <div className="space-y-1">
-                <p className="text-base font-semibold text-gray-900">
-                  {userInfo.full_name ?? userInfo.username}
-                  <span className="ml-2 text-sm font-normal text-gray-400">@{userInfo.username}</span>
-                </p>
-                <p className="text-sm text-gray-500">{userInfo.email}</p>
-                {userInfo.affiliation && (
-                  <p className="text-sm text-gray-500">{userInfo.affiliation}</p>
+          {userInfo ? (
+            <div className="flex gap-4">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                <User className="h-8 w-8" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <div>
+                  <p className="text-base font-semibold text-gray-900">
+                    {userInfo.full_name ?? userInfo.username}
+                    <span className="ml-2 text-sm font-normal text-gray-400">@{userInfo.username}</span>
+                  </p>
+                  <p className="text-sm text-gray-500">{userInfo.email}</p>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                  {userInfo.affiliation && <span>{userInfo.affiliation}</span>}
+                  {userInfo.preferred_framework && (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{userInfo.preferred_framework}</span>
+                  )}
+                </div>
+                {userInfo.bio && (
+                  <p className="text-sm text-gray-600 italic">{userInfo.bio}</p>
+                )}
+                {userInfo.github_url && (
+                  <a href={userInfo.github_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+                    <Github className="h-3.5 w-3.5" />
+                    {userInfo.github_url.replace('https://github.com/', '')}
+                  </a>
+                )}
+                {(userInfo.research_interests?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {userInfo.research_interests!.map((tag) => (
+                      <span key={tag} className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">{tag}</span>
+                    ))}
+                  </div>
                 )}
               </div>
-            ) : (
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                <User className="h-8 w-8" />
+              </div>
               <div className="space-y-1 text-sm text-gray-500">
                 <p>로그인 후 이용 가능합니다.</p>
                 <p className="text-xs">회원가입 기능은 추후 지원 예정입니다.</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

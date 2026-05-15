@@ -21,6 +21,10 @@ class User(Base):
     # 코드 생성 / 트렌드 브리핑 설정
     preferred_framework: Mapped[str | None] = mapped_column(String(20), nullable=True)
     preferred_categories: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    # 연구자 프로필 추가 정보
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    github_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    research_interests: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     # 계정 상태
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

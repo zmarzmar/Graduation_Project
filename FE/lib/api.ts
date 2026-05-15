@@ -279,12 +279,36 @@ export interface UserInfo {
   email: string
   affiliation: string | null
   preferred_framework: string | null
+  bio: string | null
+  github_url: string | null
+  research_interests: string[] | null
+}
+
+export interface UpdateUserInfoPayload {
+  full_name?: string | null
+  email?: string | null
+  affiliation?: string | null
+  preferred_framework?: string | null
+  bio?: string | null
+  github_url?: string | null
+  research_interests?: string[] | null
 }
 
 /** 내 정보 조회 */
 export async function getMyInfo(): Promise<UserInfo> {
   const res = await authFetch(`${API_BASE}/mypage/me`)
   if (!res.ok) throw new Error('내 정보 조회 실패')
+  return res.json()
+}
+
+/** 내 정보 수정 */
+export async function updateMyInfo(payload: UpdateUserInfoPayload): Promise<UserInfo> {
+  const res = await authFetch(`${API_BASE}/mypage/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error('내 정보 수정 실패')
   return res.json()
 }
 
