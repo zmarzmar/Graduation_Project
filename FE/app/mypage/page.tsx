@@ -22,6 +22,22 @@ const MODE_LABEL: Record<string, string> = {
   analyze: '논문 선택 분석',
 }
 
+const FRAMEWORK_OPTIONS = [
+  'PyTorch',
+  'TensorFlow',
+  'JAX',
+  'Keras',
+  'scikit-learn',
+  'Hugging Face Transformers',
+  'LangChain',
+  'LangGraph',
+  'LlamaIndex',
+  'ONNX Runtime',
+  'MLflow',
+  'Ray',
+  'Spark MLlib',
+]
+
 function formatDate(iso: string) {
   const d = new Date(iso)
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -345,7 +361,7 @@ function EditProfileDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="affiliation">소속</Label>
-            <Input id="affiliation" value={form.affiliation} onChange={(e) => set('affiliation', e.target.value)} placeholder="서울대학교 컴퓨터공학과" />
+            <Input id="affiliation" value={form.affiliation} onChange={(e) => set('affiliation', e.target.value)} placeholder="OO대학교 컴퓨터공학과" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="preferred_framework">선호 프레임워크</Label>
@@ -356,9 +372,9 @@ function EditProfileDialog({
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
               <option value="">선택 안함</option>
-              <option value="PyTorch">PyTorch</option>
-              <option value="TensorFlow">TensorFlow</option>
-              <option value="JAX">JAX</option>
+              {FRAMEWORK_OPTIONS.map((framework) => (
+                <option key={framework} value={framework}>{framework}</option>
+              ))}
             </select>
           </div>
           <div className="space-y-1.5">
