@@ -276,7 +276,6 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
 
 type EditForm = {
   full_name: string
-  email: string
   affiliation: string
   preferred_frameworks: string[]
   bio: string
@@ -298,7 +297,6 @@ function EditProfileDialog({
 }) {
   const [form, setForm] = useState<EditForm>({
     full_name: initial.full_name ?? '',
-    email: initial.email ?? '',
     affiliation: initial.affiliation ?? '',
     preferred_frameworks: initial.preferred_framework ?? [],
     bio: initial.bio ?? '',
@@ -365,7 +363,7 @@ function EditProfileDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">이메일</Label>
-              <Input id="email" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="example@email.com" />
+              <Input id="email" type="email" value={initial.email} disabled className="bg-gray-50 text-gray-500" />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -511,7 +509,6 @@ export default function MyPage() {
   async function handleSaveProfile(form: EditForm) {
     const updated = await updateMyInfo({
       full_name: form.full_name || null,
-      email: form.email || null,
       affiliation: form.affiliation || null,
       preferred_framework: form.preferred_frameworks.length > 0 ? form.preferred_frameworks : null,
       bio: form.bio || null,
