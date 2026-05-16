@@ -278,7 +278,7 @@ type EditForm = {
   full_name: string
   email: string
   affiliation: string
-  preferred_framework: string
+  preferred_frameworks: string[]
   bio: string
   github_url: string
   research_interests: string[]
@@ -300,7 +300,7 @@ function EditProfileDialog({
     full_name: initial.full_name ?? '',
     email: initial.email ?? '',
     affiliation: initial.affiliation ?? '',
-    preferred_framework: initial.preferred_framework ?? '',
+    preferred_frameworks: initial.preferred_framework ?? [],
     bio: initial.bio ?? '',
     github_url: initial.github_url ?? '',
     research_interests: initial.research_interests ?? [],
@@ -325,6 +325,15 @@ function EditProfileDialog({
 
   function removeInterest(tag: string) {
     set('research_interests', form.research_interests.filter((t) => t !== tag))
+  }
+
+  function toggleFramework(fw: string) {
+    setForm((prev) => ({
+      ...prev,
+      preferred_frameworks: prev.preferred_frameworks.includes(fw)
+        ? prev.preferred_frameworks.filter((f) => f !== fw)
+        : [...prev.preferred_frameworks, fw],
+    }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -364,18 +373,47 @@ function EditProfileDialog({
             <Input id="affiliation" value={form.affiliation} onChange={(e) => set('affiliation', e.target.value)} placeholder="OO대학교 컴퓨터공학과" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="preferred_framework">선호 프레임워크</Label>
-            <select
-              id="preferred_framework"
-              value={form.preferred_framework}
-              onChange={(e) => set('preferred_framework', e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">선택 안함</option>
-              {FRAMEWORK_OPTIONS.map((framework) => (
-                <option key={framework} value={framework}>{framework}</option>
-              ))}
-            </select>
+            <Label>선호 프레임워크 <span className="text-xs font-normal text-gray-400">(복수 선택 가능)</span></Label>
+            <div className="grid grid-cols-2 gap-1.5 rounded-md border border-input bg-background p-3">
+              {FRAMEWORK_OPTIONS.map((fw) => {
+                const checked = form.preferred_frameworks.includes(fw)
+                return (
+                  <button
+                    key={fw}
+                    type="button"
+                    onClick={() => toggleFramework(fw)}
+                    className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-left text-xs transition-colors ${
+                      checked
+                        ? 'bg-blue-50 text-blue-700 font-medium'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded border transition-colors ${
+                      checked ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                    }`}>
+                      {checked && (
+                        <svg viewBox="0 0 10 8" className="h-2 w-2 fill-white">
+                          <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    {fw}
+                  </button>
+                )
+              })}
+            </div>
+            {form.preferred_frameworks.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {form.preferred_frameworks.map((fw) => (
+                  <span key={fw} className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    {fw}
+                    <button type="button" onClick={() => toggleFramework(fw)} className="text-blue-400 hover:text-blue-600">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bio">한 줄 소개</Label>
@@ -475,7 +513,7 @@ export default function MyPage() {
       full_name: form.full_name || null,
       email: form.email || null,
       affiliation: form.affiliation || null,
-      preferred_framework: form.preferred_framework || null,
+      preferred_framework: form.preferred_frameworks.length > 0 ? form.preferred_frameworks : null,
       bio: form.bio || null,
       github_url: form.github_url || null,
       research_interests: form.research_interests.length > 0 ? form.research_interests : null,
@@ -554,70 +592,118 @@ export default function MyPage() {
       )}
 
       {/* 내 정보 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-base">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              내 정보
-            </div>
-            {userInfo && (
-              <button
-                onClick={() => setEditOpen(true)}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                수정
-              </button>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="overflow-hidden">
+        {/* 상단 배너 */}
+        <div className="h-20 bg-gradient-to-r from-blue-500 via-blue-400 to-indigo-400" />
+        <CardContent className="relative px-6 pb-6">
+          {/* 수정 버튼 */}
+          {userInfo && (
+            <button
+              onClick={() => setEditOpen(true)}
+              className="absolute right-4 top-3 flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-800"
+            >
+              <Pencil className="h-3 w-3" />
+              수정
+            </button>
+          )}
+
           {userInfo ? (
-            <div className="flex gap-4">
-              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                <User className="h-8 w-8" />
-              </div>
-              <div className="flex-1 space-y-2">
-                <div>
-                  <p className="text-base font-semibold text-gray-900">
-                    {userInfo.full_name ?? userInfo.username}
-                    <span className="ml-2 text-sm font-normal text-gray-400">@{userInfo.username}</span>
-                  </p>
-                  <p className="text-sm text-gray-500">{userInfo.email}</p>
+            <div>
+              {/* 아바타 + 기본 정보 */}
+              <div className="flex items-end gap-4 -mt-10 mb-4">
+                <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-blue-100 to-blue-200 shadow-md text-blue-600">
+                  <User className="h-9 w-9" />
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                  {userInfo.affiliation && <span>{userInfo.affiliation}</span>}
-                  {userInfo.preferred_framework && (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{userInfo.preferred_framework}</span>
+                <div className="mb-1 min-w-0">
+                  <p className="text-lg font-bold text-gray-900 leading-tight">
+                    {userInfo.full_name ?? userInfo.username}
+                  </p>
+                  <p className="text-sm text-gray-400">@{userInfo.username}</p>
+                </div>
+              </div>
+
+              {/* 상세 정보 그리드 */}
+              <div className="space-y-3">
+                {/* 이메일 + 소속 */}
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-gray-400">✉</span>
+                    {userInfo.email}
+                  </span>
+                  {userInfo.affiliation && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-gray-400">🏛</span>
+                      {userInfo.affiliation}
+                    </span>
+                  )}
+                  {userInfo.github_url && (
+                    <a
+                      href={userInfo.github_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-gray-600 transition-colors hover:text-gray-900"
+                    >
+                      <Github className="h-3.5 w-3.5 text-gray-400" />
+                      {userInfo.github_url.replace('https://github.com/', '')}
+                    </a>
                   )}
                 </div>
+
+                {/* 한 줄 소개 */}
                 {userInfo.bio && (
-                  <p className="text-sm text-gray-600 italic">{userInfo.bio}</p>
+                  <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm italic text-gray-600">
+                    &ldquo;{userInfo.bio}&rdquo;
+                  </p>
                 )}
-                {userInfo.github_url && (
-                  <a href={userInfo.github_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
-                    <Github className="h-3.5 w-3.5" />
-                    {userInfo.github_url.replace('https://github.com/', '')}
-                  </a>
-                )}
-                {(userInfo.research_interests?.length ?? 0) > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {userInfo.research_interests!.map((tag) => (
-                      <span key={tag} className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">{tag}</span>
-                    ))}
+
+                {/* 선호 프레임워크 */}
+                {(userInfo.preferred_framework?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">선호 프레임워크</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {userInfo.preferred_framework!.map((fw) => (
+                        <span
+                          key={fw}
+                          className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                        >
+                          {fw}
+                        </span>
+                      ))}
+                    </div>
                   </div>
+                )}
+
+                {/* 연구 관심 분야 */}
+                {(userInfo.research_interests?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">연구 관심 분야</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {userInfo.research_interests!.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 정보 없을 때 안내 */}
+                {!userInfo.bio && !userInfo.affiliation && !userInfo.preferred_framework?.length && !userInfo.research_interests?.length && (
+                  <p className="text-xs text-gray-400">수정 버튼을 눌러 프로필을 완성해보세요.</p>
                 )}
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <div className="flex items-center gap-4 mt-4">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full border-4 border-white bg-blue-100 shadow-md text-blue-600">
                 <User className="h-8 w-8" />
               </div>
               <div className="space-y-1 text-sm text-gray-500">
-                <p>로그인 후 이용 가능합니다.</p>
-                <p className="text-xs">회원가입 기능은 추후 지원 예정입니다.</p>
+                <p className="font-medium">로그인 후 이용 가능합니다.</p>
+                <p className="text-xs text-gray-400">회원가입 기능은 추후 지원 예정입니다.</p>
               </div>
             </div>
           )}
