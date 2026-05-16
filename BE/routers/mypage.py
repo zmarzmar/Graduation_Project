@@ -33,7 +33,6 @@ class UserInfo(BaseModel):
 
 class UpdateUserInfo(BaseModel):
     full_name: str | None = None
-    email: str | None = None
     affiliation: str | None = None
     preferred_framework: list[str] | None = None
     bio: str | None = None

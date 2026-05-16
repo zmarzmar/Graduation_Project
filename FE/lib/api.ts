@@ -299,7 +299,6 @@ export interface UserInfo {
 
 export interface UpdateUserInfoPayload {
   full_name?: string | null
-  email?: string | null
   affiliation?: string | null
   preferred_framework?: string[] | null
   bio?: string | null
