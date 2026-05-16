@@ -33,7 +33,7 @@ class UserResponse(BaseModel):
     username: str
     full_name: str | None
     affiliation: str | None
-    preferred_framework: str | None
+    preferred_framework: list[str] | None
     is_admin: bool
 
     class Config:

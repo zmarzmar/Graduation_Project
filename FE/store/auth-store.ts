@@ -6,7 +6,7 @@ export interface AuthUser {
   username: string
   full_name: string | null
   affiliation: string | null
-  preferred_framework: string | null
+  preferred_framework: string[] | null
   is_admin: boolean
 }
 
