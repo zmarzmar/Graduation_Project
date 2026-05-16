@@ -64,8 +64,21 @@ export interface AuthUser {
   username: string
   full_name: string | null
   affiliation: string | null
-  preferred_framework: string | null
+  preferred_framework: string[] | null
   is_admin: boolean
+}
+
+/** 구버전 BE 호환: preferred_framework가 string으로 올 경우 배열로 변환 */
+function normalizePreferredFramework<T extends { preferred_framework?: string[] | string | null }>(
+  data: T,
+): Omit<T, 'preferred_framework'> & { preferred_framework: string[] | null } {
+  return {
+    ...data,
+    preferred_framework:
+      typeof data.preferred_framework === 'string'
+        ? data.preferred_framework ? [data.preferred_framework] : null
+        : data.preferred_framework ?? null,
+  }
 }
 
 /** 회원가입 — JWT 즉시 반환 */
@@ -100,7 +113,7 @@ export async function login(identifier: string, password: string): Promise<AuthT
 export async function getMe(): Promise<AuthUser> {
   const res = await authFetch(`${API_BASE}/auth/me`)
   if (!res.ok) throw new Error('인증 만료')
-  return res.json()
+  return normalizePreferredFramework(await res.json()) as AuthUser
 }
 
 export interface PaperSearchResponse {
@@ -294,19 +307,11 @@ export interface UpdateUserInfoPayload {
   research_interests?: string[] | null
 }
 
-/** 구버전 BE 호환: preferred_framework가 string으로 올 경우 배열로 변환 */
-function normalizeUserInfo(data: UserInfo & { preferred_framework?: string[] | string | null }): UserInfo {
-  if (typeof data.preferred_framework === 'string') {
-    data.preferred_framework = data.preferred_framework ? [data.preferred_framework] : null
-  }
-  return data as UserInfo
-}
-
 /** 내 정보 조회 */
 export async function getMyInfo(): Promise<UserInfo> {
   const res = await authFetch(`${API_BASE}/mypage/me`)
   if (!res.ok) throw new Error('내 정보 조회 실패')
-  return normalizeUserInfo(await res.json())
+  return normalizePreferredFramework(await res.json()) as UserInfo
 }
 
 /** 내 정보 수정 */
@@ -317,7 +322,7 @@ export async function updateMyInfo(payload: UpdateUserInfoPayload): Promise<User
     body: JSON.stringify(payload),
   })
   if (!res.ok) throw new Error('내 정보 수정 실패')
-  return normalizeUserInfo(await res.json())
+  return normalizePreferredFramework(await res.json()) as UserInfo
 }
 
 export interface AdminUser {
@@ -326,7 +331,7 @@ export interface AdminUser {
   username: string
   full_name: string | null
   affiliation: string | null
-  preferred_framework: string | null
+  preferred_framework: string[] | null
   is_active: boolean
   is_admin: boolean
   created_at: string
@@ -364,7 +369,8 @@ export interface AdminSystemSummary {
 export async function getAdminUsers(): Promise<AdminUser[]> {
   const res = await authFetch(`${API_BASE}/admin/users`)
   if (!res.ok) throw new Error('관리자 사용자 목록 조회 실패')
-  return res.json()
+  const data: Array<AdminUser & { preferred_framework?: string[] | string | null }> = await res.json()
+  return data.map((user) => normalizePreferredFramework(user) as AdminUser)
 }
 
 /** 관리자 논문 목록 조회 */

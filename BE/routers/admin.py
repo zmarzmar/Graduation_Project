@@ -17,7 +17,7 @@ class AdminUserItem(BaseModel):
     username: str
     full_name: str | None
     affiliation: str | None
-    preferred_framework: str | None
+    preferred_framework: list[str] | None
     is_active: bool
     is_admin: bool
     created_at: datetime
