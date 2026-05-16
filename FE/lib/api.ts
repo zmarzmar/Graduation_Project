@@ -278,7 +278,7 @@ export interface UserInfo {
   full_name: string | null
   email: string
   affiliation: string | null
-  preferred_framework: string | null
+  preferred_framework: string[] | null
   bio: string | null
   github_url: string | null
   research_interests: string[] | null
@@ -288,7 +288,7 @@ export interface UpdateUserInfoPayload {
   full_name?: string | null
   email?: string | null
   affiliation?: string | null
-  preferred_framework?: string | null
+  preferred_framework?: string[] | null
   bio?: string | null
   github_url?: string | null
   research_interests?: string[] | null

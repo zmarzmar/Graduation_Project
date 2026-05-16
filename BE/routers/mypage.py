@@ -22,7 +22,7 @@ class UserInfo(BaseModel):
     full_name: str | None
     email: str
     affiliation: str | None
-    preferred_framework: str | None
+    preferred_framework: list[str] | None
     bio: str | None
     github_url: str | None
     research_interests: list[str] | None
@@ -35,7 +35,7 @@ class UpdateUserInfo(BaseModel):
     full_name: str | None = None
     email: str | None = None
     affiliation: str | None = None
-    preferred_framework: str | None = None
+    preferred_framework: list[str] | None = None
     bio: str | None = None
     github_url: str | None = None
     research_interests: list[str] | None = None
