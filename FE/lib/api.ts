@@ -294,11 +294,19 @@ export interface UpdateUserInfoPayload {
   research_interests?: string[] | null
 }
 
+/** 구버전 BE 호환: preferred_framework가 string으로 올 경우 배열로 변환 */
+function normalizeUserInfo(data: UserInfo & { preferred_framework?: string[] | string | null }): UserInfo {
+  if (typeof data.preferred_framework === 'string') {
+    data.preferred_framework = data.preferred_framework ? [data.preferred_framework] : null
+  }
+  return data as UserInfo
+}
+
 /** 내 정보 조회 */
 export async function getMyInfo(): Promise<UserInfo> {
   const res = await authFetch(`${API_BASE}/mypage/me`)
   if (!res.ok) throw new Error('내 정보 조회 실패')
-  return res.json()
+  return normalizeUserInfo(await res.json())
 }
 
 /** 내 정보 수정 */
@@ -309,7 +317,7 @@ export async function updateMyInfo(payload: UpdateUserInfoPayload): Promise<User
     body: JSON.stringify(payload),
   })
   if (!res.ok) throw new Error('내 정보 수정 실패')
-  return res.json()
+  return normalizeUserInfo(await res.json())
 }
 
 export interface AdminUser {
