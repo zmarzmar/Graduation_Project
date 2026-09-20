@@ -30,6 +30,23 @@ jobs:
     name: Backend Build Check
     runs-on: ubuntu-latest
 
+    # DB 동작(ON CONFLICT, ON DELETE SET NULL)을 검증하는 테스트용 Postgres.
+    # 접속 정보는 config.py의 로컬 개발 기본값과 같다 — DATABASE_URL을 따로 넘기지 않는다.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_research
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     defaults:
       run:
         working-directory: BE
@@ -52,11 +69,17 @@ jobs:
       - name: Compile check
         run: uv run python -m compileall agents core crud models routers schemas services main.py
 
-      - name: Run tests
-        run: uv run python -m unittest discover -s tests -v
-
       - name: Alembic revision graph check
         run: uv run alembic heads
+
+      # 빈 DB에 모든 마이그레이션을 실제로 적용한다 — 테스트가 쓰는 스키마이기도 하다
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: Run tests
+        env:
+          REQUIRE_DB_TESTS: '1'  # DB에 못 붙으면 건너뛰지 않고 실패시킨다
+        run: uv run python -m unittest discover -s tests -v
 
       - name: Build Docker image
         run: docker build -t graduation-project-be:test .

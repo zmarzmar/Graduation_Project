@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AgentPipeline } from '@/components/agent/AgentPipeline'
+import { DocumentStorageNotice } from '@/components/agent/DocumentStorageNotice'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
 import { useAnalysisStore } from '@/store/analysis-store'
@@ -358,6 +359,9 @@ export default function HomePage() {
             </Button>
           )}
         </div>
+
+        {/* 트렌드 모드는 논문 본문을 분석하지 않으므로 원문이 저장되지 않는다 */}
+        {mode !== 'trend' && <DocumentStorageNotice />}
       </div>
 
       {/* Empty State — 분석 시작 전에만 표시 */}
