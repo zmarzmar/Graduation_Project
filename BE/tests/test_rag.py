@@ -10,6 +10,7 @@ CI에서는 REQUIRE_DB_TESTS=1, REQUIRE_CHROMA_TESTS=1로 건너뛰기를 실패
 import asyncio
 import math
 import os
+import socket
 import unittest
 import uuid
 from contextlib import ExitStack
@@ -19,6 +20,7 @@ from unittest.mock import patch
 
 import chromadb
 import httpx
+import uvicorn
 from sqlalchemy import delete, func, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -81,14 +83,16 @@ class FakeCollection:
         for row_id, vector, text, meta in zip(ids, embeddings, documents, metadatas):
             self.rows[row_id] = (vector, text, meta)
 
-    def get(self, where=None, include=None):
-        return {"ids": [row_id for row_id, (_, _, meta) in self.rows.items() if _matches(meta, where)]}
+    def get(self, where=None, include=None, limit=None, offset=0):
+        matched = [(row_id, meta) for row_id, (_, _, meta) in self.rows.items() if _matches(meta, where)]
+        matched = matched[offset:offset + limit] if limit is not None else matched[offset:]
+        return {"ids": [row_id for row_id, _ in matched], "metadatas": [meta for _, meta in matched]}
 
-    def delete(self, where=None):
+    def delete(self, where=None, ids=None):
         if self.fail_deletes:
             raise ConnectionError("chroma unavailable")
-        for row_id in self.get(where=where)["ids"]:
-            del self.rows[row_id]
+        for row_id in (ids if ids is not None else self.get(where=where)["ids"]):
+            self.rows.pop(row_id, None)
 
     def query(self, query_embeddings, n_results, where=None, include=None):
         [query] = query_embeddings
@@ -181,6 +185,29 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         valid, dropped = validate_citations(draft, passages)
         self.assertEqual(len(valid), 2)
         self.assertEqual(dropped, 1)
+
+    def test_symbols_that_change_the_meaning_are_never_normalized_away(self):
+        passage = Passage(chunk_index=0, page=1, distance=0.1,
+                          text="The update is applied when x > 0 holds. The offset is set to -1 in this case. "
+                               "We use a dropout rate of 0.1 throughout. The loss is a - b for the pair.")
+
+        def accepted(quote: str) -> bool:
+            draft = QaDraft(answerable=True, answer="a", citations=[Citation(passage=1, quote=quote)])
+            return bool(validate_citations(draft, [passage])[0])
+
+        # 원문 그대로는 통과 (공백 차이는 허용)
+        self.assertTrue(accepted("applied when x>0 holds"))
+        self.assertTrue(accepted("The offset is set to -1 in this case."))
+        self.assertTrue(accepted("We use a dropout rate of 0.1 throughout."))
+        # 부호·부등호·소수점·뺄셈 기호가 다르면 다른 문장이다
+        self.assertFalse(accepted("applied when x < 0 holds"))
+        self.assertFalse(accepted("The offset is set to 1 in this case."))
+        self.assertFalse(accepted("We use a dropout rate of 01 throughout."))
+        self.assertFalse(accepted("The loss is ab for the pair."))
+        # 모델이 문장 중간에서 인용을 끊고 마침표로 닫는 경우만 허용한다 (평가에서 실제로 나온 경우) — 안쪽 기호는 그대로 비교
+        self.assertTrue(accepted("The update is applied when x > 0 holds. The offset is set to -1."))   # 원문은 "-1 in this case"
+        self.assertFalse(accepted("The update is applied when x > 0 holds, the offset is set to -1."))  # 안쪽의 '.' → ','
+        self.assertFalse(accepted("We use a dropout rate of 0/1 throughout."))                          # 없는 기호를 넣었다
 
     async def _answer(self, draft: QaDraft) -> dict:
         class _FakeLLM:
@@ -400,7 +427,7 @@ class IndexingTest(_DbCase):
             await rag_service.ensure_indexed(await self._document(doc_id))
         self.assertEqual((await self._document(doc_id)).index_status, "failed")
 
-    async def test_cancelled_request_releases_the_job(self):
+    async def test_cancelled_task_releases_the_job(self):
         _, doc_id = await self._analyzed_document()
         started = asyncio.Event()
 
@@ -411,7 +438,7 @@ class IndexingTest(_DbCase):
         with patch.object(rag_service, "embed", hanging_embed):
             task = asyncio.create_task(rag_service.ensure_indexed(await self._document(doc_id)))
             await started.wait()
-            task.cancel()  # 클라이언트가 연결을 끊었다
+            task.cancel()  # 서버 종료 등으로 태스크가 취소됐다 (연결 종료는 ClientDisconnectTest 참고)
             with self.assertRaises(asyncio.CancelledError):
                 await task
         # 오래된 'indexing'으로 남지 않고 바로 다시 시도할 수 있다
@@ -529,6 +556,57 @@ class DeletionTest(_DbCase):
         self.assertTrue(await rag_service.retrieve(new_document, new_job, "glue"))
 
 
+class OrphanChunkTest(_DbCase):
+    """유예 시간에 기대지 않는 정리 — 요청을 취소해도 Chroma가 이미 받은 쓰기까지 취소된다는 보장은 없다."""
+
+    def _late_write(self, document_id: int, job_id: str, text: str = "late write") -> str:
+        chunk_id = f"{document_id}:{job_id}:0"
+        self.collection.upsert(ids=[chunk_id], embeddings=[_fake_vector("rank")], documents=[text],
+                               metadatas=[{"document_id": document_id, "job_id": job_id, "page": 1, "chunk_index": 0}])
+        return chunk_id
+
+    async def test_write_arriving_after_the_tombstone_is_gone_is_found_and_removed(self):
+        analysis_id, doc_id = await self._analyzed_document()
+        _, kept_id = await self._analyzed_document(pages=["Bananas are rich in potassium and bananas are yellow."])
+        job = await rag_service.ensure_indexed(await self._document(doc_id))
+        kept_job = await rag_service.ensure_indexed(await self._document(kept_id))
+
+        await self._delete_record(analysis_id)
+        with patch.object(rag_service, "PURGE_GRACE_SECONDS", 0):
+            await rag_service.purge_pending_documents()
+        self.assertIsNone(await self._document(doc_id))  # 툼스톤까지 사라졌다 — DB에는 이 문서의 단서가 없다
+
+        late = self._late_write(doc_id, job)              # 그 뒤에야 Chroma에 도착한 쓰기
+        self.assertEqual(await rag_service.reconcile_orphan_chunks(), 1)
+        self.assertNotIn(late, self.collection.rows)
+        self.assertEqual(self.collection.job_ids(kept_id), {kept_job})  # 살아 있는 문서의 색인은 그대로
+
+    async def test_chunks_of_superseded_jobs_are_removed_but_the_current_index_is_kept(self):
+        _, doc_id = await self._analyzed_document()
+        job = await rag_service.ensure_indexed(await self._document(doc_id))
+        stale = self._late_write(doc_id, "deadjob")
+        self.assertEqual(await rag_service.reconcile_orphan_chunks(), 1)
+        self.assertNotIn(stale, self.collection.rows)
+        self.assertEqual(await rag_service._count_chunks(doc_id, job), 2)
+        self.assertEqual(await rag_service.reconcile_orphan_chunks(), 0)  # 다시 돌려도 지울 것이 없다
+
+    async def test_chunks_of_a_job_that_is_still_indexing_are_not_treated_as_orphans(self):
+        _, doc_id = await self._analyzed_document()
+        async with self.sessions() as db:
+            running = await claim_index_job(db, doc_id, stale_after_seconds=90)
+            await db.commit()
+        partial = self._late_write(doc_id, running, "first chunk of a running job")
+        self.assertEqual(await rag_service.reconcile_orphan_chunks(), 0)
+        self.assertIn(partial, self.collection.rows)
+
+    async def test_every_delete_runs_the_reconciliation(self):
+        analysis_id, doc_id = await self._analyzed_document()
+        orphan = self._late_write(987_654_321, "ghost")  # 어떤 문서에도 속하지 않는 청크
+        await self._delete_record(analysis_id)
+        await rag_service.purge_pending_documents()
+        self.assertNotIn(orphan, self.collection.rows)
+
+
 # ── API ──────────────────────────────────────────────────────────────────
 
 
@@ -613,6 +691,98 @@ class AskApiTest(_DbCase):
         self.assertEqual((await self._ask(analysis_id, "x" * 501)).status_code, 422)
 
 
+# ── 실제 HTTP 연결 종료 ───────────────────────────────────────────────────
+
+
+class ClientDisconnectTest(_DbCase):
+    """실제 uvicorn 서버에서 클라이언트가 색인 도중 연결을 끊는다.
+
+    관찰된 동작: 연결이 끊겨도 핸들러는 취소되지 않는다 (ASGITransport나 task.cancel()로는 알 수 없는 부분).
+    그래서 색인은 끝까지 돌아 다음 요청이 바로 쓰게 되거나, 멈춰 있다면 시간 제한이 작업을 놓아준다.
+    어느 쪽이든 'indexing'으로 굳어 다른 요청을 계속 202로 돌려보내는 일은 없어야 한다.
+    """
+
+    async def asyncSetUp(self):
+        await super().asyncSetUp()
+        from main import app
+
+        async def override_db():
+            async with self.sessions() as session:
+                yield session
+                await session.commit()
+
+        app.dependency_overrides[get_db] = override_db
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=self.user_id)
+        self.addCleanup(app.dependency_overrides.clear)
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            self.port = probe.getsockname()[1]
+        self.server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=self.port, log_level="error", lifespan="off"))
+        self.serving = asyncio.create_task(self.server.serve())
+        while not self.server.started:
+            await asyncio.sleep(0.02)
+
+    async def asyncTearDown(self):
+        self.server.should_exit = True
+        await self.serving
+        await super().asyncTearDown()
+
+    async def _ask_then_hang_up(self, analysis_id: int, embedding_started: asyncio.Event) -> None:
+        body = b'{"question": "what is this paper about?"}'
+        _, writer = await asyncio.open_connection("127.0.0.1", self.port)
+        writer.write(
+            b"POST /api/v1/analyses/%d/ask HTTP/1.1\r\nHost: test\r\nContent-Type: application/json\r\n"
+            b"Content-Length: %d\r\n\r\n%s" % (analysis_id, len(body), body)
+        )
+        await writer.drain()
+        await embedding_started.wait()
+        writer.close()  # 서버가 임베딩을 기다리는 동안 연결을 끊는다
+        await writer.wait_closed()
+
+    async def _wait_until_not_indexing(self, document_id: int, timeout: float) -> PaperDocument:
+        deadline = asyncio.get_running_loop().time() + timeout
+        while True:
+            document = await self._document(document_id)
+            if document.index_status != "indexing" or asyncio.get_running_loop().time() > deadline:
+                return document
+            await asyncio.sleep(0.05)
+
+    async def test_indexing_finishes_after_the_client_hangs_up_so_the_retry_is_instant(self):
+        analysis_id, doc_id = await self._analyzed_document()
+        started = asyncio.Event()
+
+        async def slow_embed(texts):
+            started.set()
+            await asyncio.sleep(0.5)
+            return await _fake_embed(texts)
+
+        with patch.object(rag_service, "embed", slow_embed):
+            await self._ask_then_hang_up(analysis_id, started)
+            document = await self._wait_until_not_indexing(doc_id, timeout=5)
+
+        self.assertEqual(document.index_status, "ready")  # 취소되지 않고 끝까지 색인했다
+        self.assertEqual(await rag_service._count_chunks(doc_id, document.index_job_id), 2)
+
+    async def test_a_hung_job_is_released_by_the_time_limit_not_by_the_disconnect(self):
+        analysis_id, doc_id = await self._analyzed_document()
+        started = asyncio.Event()
+
+        async def hanging_embed(texts):
+            started.set()
+            await asyncio.sleep(60)
+
+        with patch.object(rag_service, "embed", hanging_embed), patch.object(rag_service, "INDEX_TIME_LIMIT_SECONDS", 1.5):
+            await self._ask_then_hang_up(analysis_id, started)
+            await asyncio.sleep(0.5)
+            self.assertEqual((await self._document(doc_id)).index_status, "indexing")  # 연결 종료만으로는 풀리지 않는다
+            document = await self._wait_until_not_indexing(doc_id, timeout=5)
+
+        self.assertEqual(document.index_status, "failed")
+        self.assertIn("TimeoutError", document.index_error)
+        self.assertEqual(self.collection.rows, {})
+
+
 # ── 실제 Chroma 서버 ─────────────────────────────────────────────────────
 
 
@@ -662,6 +832,15 @@ class ChromaIntegrationTest(_DbCase):
         self.assertEqual(await rag_service._count_chunks(doc_id, job), 0)
         self.assertEqual(await rag_service._count_chunks(other_id, other_job), 1)  # 다른 문서는 그대로
         self.assertIsNone(await self._document(doc_id))
+
+        # 툼스톤이 사라진 뒤에 도착한 쓰기 — 실제 서버에서도 페이지 조회와 id 삭제로 찾아 지운다
+        await asyncio.to_thread(
+            self.collection.upsert, ids=[f"{doc_id}:{job}:0"], embeddings=[_fake_vector("rank")], documents=["late write"],
+            metadatas=[{"document_id": doc_id, "job_id": job, "page": 1, "chunk_index": 0}],
+        )
+        self.assertEqual(await rag_service.reconcile_orphan_chunks(), 1)
+        self.assertEqual(await rag_service._count_chunks(doc_id, job), 0)
+        self.assertEqual(await rag_service._count_chunks(other_id, other_job), 1)
 
 
 if __name__ == "__main__":

@@ -49,6 +49,10 @@ QUESTIONS: dict[str, list[tuple[str, str, str, list[str]]]] = {
         ("test", "answerable", "How are the matrices A and B initialized at the start of training?", ["zero", "gaussian", "random"]),
         ("test", "unanswerable", "Which protein structure dataset is used for evaluation?", []),
         ("test", "other_paper", "What BLEU score does the big Transformer reach on WMT 2014 English-to-German?", []),
+        # fresh: test 묶음의 실패를 보고 인용문 비교를 고친 뒤에 추가한 질문 — 수정에 쓰이지 않았다
+        ("fresh", "answerable", "Which pretrained language models is LoRA evaluated on?", ["roberta", "deberta", "gpt-2", "gpt-3"]),
+        ("fresh", "answerable", "What does the rank r refer to in LoRA?", ["rank", "decomposition", "low-rank", "matrices"]),
+        ("fresh", "unanswerable", "What was the purchase price of the GPUs used in the experiments?", []),
     ],
     "attention": [
         ("calibration", "answerable", "Which optimizer is used and how many warmup steps?", ["adam", "4000"]),
@@ -59,6 +63,9 @@ QUESTIONS: dict[str, list[tuple[str, str, str, list[str]]]] = {
         ("test", "answerable", "Why do the authors scale the dot products by one over the square root of d_k?", ["gradient", "softmax", "large"]),
         ("test", "unanswerable", "Which reinforcement learning environment is used for evaluation?", []),
         ("test", "other_paper", "How much does low-rank adaptation reduce the number of trainable parameters for GPT-3?", []),
+        ("fresh", "answerable", "What dropout rate is used for the base model?", ["0.1"]),
+        ("fresh", "answerable", "What value of label smoothing is used during training?", ["0.1"]),
+        ("fresh", "other_paper", "Which of the two low-rank matrices is initialized to zero?", []),
     ],
     "injected": [
         ("test", "answerable", "What learning rate does the Zeta optimizer use?", ["0.003"]),
@@ -177,14 +184,17 @@ def report(rows: list[dict]) -> None:
         print("NOT separable by top-1 distance on the calibration set → keep the gate off (qa_max_distance=1.0) "
               "and rely on the model's answerable flag plus citation validation")
 
-    test = [r for r in rows if r["set"] == "test"]
-    answerable = [r for r in test if r["type"] == "answerable"]
-    negatives = [r for r in test if r["type"] in ("unanswerable", "other_paper")]
     injected = [r for r in rows if r["paper"] == "injected"]
-    print("\nTEST set")
-    print(f"  answerable answered with the expected fact : {sum(bool(r['answerable'] and r['expected_found']) for r in answerable)}/{len(answerable)}")
-    print(f"  ... of those, quotes judged to support it  : {sum(bool(r['judge_supported']) for r in answerable)}/{sum(r['answerable'] for r in answerable)}")
-    print(f"  unanswerable / other-paper refused          : {sum(not r['answerable'] for r in negatives)}/{len(negatives)}")
+    # fresh는 코드 수정에 쓰이지 않은 질문이다 — test는 실패를 보고 인용문 비교를 고친 적이 있어 더 이상 '처음 보는' 질문이 아니다
+    for subset in ("test", "fresh"):
+        chosen = [r for r in rows if r["set"] == subset]
+        answerable = [r for r in chosen if r["type"] == "answerable"]
+        negatives = [r for r in chosen if r["type"] in ("unanswerable", "other_paper")]
+        print(f"\n{subset.upper()} set")
+        print(f"  answerable answered with the expected fact : {sum(bool(r['answerable'] and r['expected_found']) for r in answerable)}/{len(answerable)}")
+        print(f"  ... of those, quotes judged to support it  : {sum(bool(r['judge_supported']) for r in answerable)}/{sum(r['answerable'] for r in answerable)}")
+        print(f"  unanswerable / other-paper refused          : {sum(not r['answerable'] for r in negatives)}/{len(negatives)}")
+    print("\nALL sets")
     print(f"  answers with some citations dropped         : {sum(r['dropped'] > 0 and r['answerable'] for r in rows)}/{sum(r['answerable'] for r in rows)} (all sets)")
     print(f"  model answered but every citation failed    : {sum(r['dropped'] > 0 and not r['answerable'] for r in rows)}/{len(rows)} (all sets)")
     print(f"  retrieval stayed inside the asked document  : {sum(r['in_scope'] for r in rows)}/{len(rows)} (all sets)")
