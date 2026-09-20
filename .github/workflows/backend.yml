@@ -46,6 +46,12 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # compose 파일과 같은 태그 — BE의 chromadb-client 버전과 짝을 이루는 서버로 통합 테스트를 돌린다.
+      # 포트는 config.py의 로컬 기본값(8001)에 맞춘다.
+      chromadb:
+        image: chromadb/chroma:1.5.5
+        ports:
+          - 8001:8000
 
     defaults:
       run:
@@ -76,9 +82,18 @@ jobs:
       - name: Apply migrations
         run: uv run alembic upgrade head
 
+      - name: Wait for Chroma
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8001/api/v2/heartbeat > /dev/null && exit 0
+            sleep 2
+          done
+          echo "Chroma did not become ready" && exit 1
+
       - name: Run tests
         env:
           REQUIRE_DB_TESTS: '1'  # DB에 못 붙으면 건너뛰지 않고 실패시킨다
+          REQUIRE_CHROMA_TESTS: '1'  # Chroma 통합 테스트도 필수
         run: uv run python -m unittest discover -s tests -v
 
       - name: Build Docker image
