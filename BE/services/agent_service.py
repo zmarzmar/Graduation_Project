@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 # SSE 이벤트를 전송할 노드 목록 (LangGraph 내부 노드 제외)
 _AGENT_NODES = {"planner", "researcher", "trend_analyzer", "analyzer", "coder", "reviewer"}
 _PDF_HEADERS = {"User-Agent": "arxiv-analyst/0.1 (graduation-project; contact@example.com)"}
+# ponytail: 고정된 허용 호스트라 DNS → 내부 IP 검사는 생략. 임의 도메인을 허용하게 되면
+# 해석된 IP의 사설/루프백/링크로컬 대역 차단을 추가해야 한다.
+_ALLOWED_PDF_HOSTS = frozenset({"arxiv.org", "www.arxiv.org", "export.arxiv.org"})
+_MAX_PDF_REDIRECTS = 3
 
 
 async def _cancel_task(task: asyncio.Task[None]) -> None:
@@ -42,10 +46,43 @@ def extract_pdf_text(file_bytes: bytes) -> str:
     return "\n".join(pages)
 
 
+def _validate_pdf_url(url: str) -> str:
+    """서버가 직접 방문해도 되는 PDF URL인지 검증한다. (SSRF 방지)
+
+    의도적인 기능 축소: arXiv 외 출처(출판사·대학 저장소 등)의 PDF는 받지 않는다.
+    해당 논문은 호출부의 초록 기반 분석 폴백으로 넘어간다.
+    """
+    # 실제 요청을 보내는 httpx와 같은 파서를 써서 파서 간 해석 차이를 없앤다.
+    try:
+        parsed = httpx.URL(url)
+    except httpx.InvalidURL as e:
+        raise ValueError(f"잘못된 PDF URL: {e}") from e
+
+    if parsed.scheme != "https":
+        raise ValueError(f"허용되지 않은 스킴: {parsed.scheme or '(없음)'}")
+    if parsed.userinfo:
+        raise ValueError("userinfo가 포함된 URL은 허용되지 않습니다.")
+    # 부분 일치가 아닌 정확 일치 — evilarxiv.org, arxiv.org.evil.com 차단
+    if parsed.host not in _ALLOWED_PDF_HOSTS:
+        raise ValueError(f"허용되지 않은 PDF 출처: {parsed.host or '(없음)'}")
+    if parsed.port not in (None, 443):
+        raise ValueError(f"허용되지 않은 포트: {parsed.port}")
+    return str(parsed)
+
+
 async def download_pdf_text(pdf_url: str) -> str:
     """arXiv PDF URL에서 PDF를 다운로드하고 전체 텍스트를 추출한다."""
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-        response = await client.get(pdf_url, headers=_PDF_HEADERS)
+    url = _validate_pdf_url(pdf_url)
+    # 자동 리다이렉트를 끄고 매 홉마다 목적지를 재검증한다.
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
+        for _ in range(_MAX_PDF_REDIRECTS + 1):
+            response = await client.get(url, headers=_PDF_HEADERS)
+            if not response.is_redirect:
+                break
+            # 상대 경로 Location은 현재 URL 기준으로 풀어서 검증한다.
+            url = _validate_pdf_url(str(response.url.join(response.headers["location"])))
+        else:
+            raise ValueError(f"리다이렉트 {_MAX_PDF_REDIRECTS}회 초과")
         response.raise_for_status()
 
     content_type = response.headers.get("content-type", "").lower()
@@ -85,7 +122,7 @@ def _build_pdf_url_candidates(paper: dict) -> list[str]:
             continue
 
         parsed = urlparse(raw_url)
-        if parsed.netloc.endswith("arxiv.org") and parsed.path.startswith("/abs/"):
+        if parsed.hostname in _ALLOWED_PDF_HOSTS and parsed.path.startswith("/abs/"):
             abs_id = _normalize_arxiv_id(parsed.path.removeprefix("/abs/"))
             if abs_id:
                 _add_pdf_candidate(candidates, f"https://arxiv.org/pdf/{abs_id}")
