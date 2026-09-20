@@ -1,27 +1,28 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import { GUEST_LOGIN_MESSAGE, isGuestUsageLimitError } from '@/lib/api'
 import type { AgentEvent, NodeName } from '../types/agent-run'
 import type { StreamMode } from '@/store/analysis-store'
 import { useAnalysisStore } from '@/store/analysis-store'
 import { useAuthStore } from '@/store/auth-store'
 
+// 실행 상태(isRunning)는 store에 있어 페이지를 나가도 유지된다. 취소 핸들도 같은 수명(모듈)에 두어
+// 페이지 복귀 후에도 진행 중인 스트림을 취소할 수 있게 한다. (직렬화 불가 객체라 store에는 넣지 않는다)
+const controllers = new Map<StreamMode, AbortController>()
+
 export function useAgentStream(mode: StreamMode) {
   const { streams, setStreamState, resetStream } = useAnalysisStore()
   const { openModal } = useAuthStore()
   const { nodeStatuses, nodeLogs, nodeDurations, result, isRunning, cancelled, error, pdfFallbackRequest } = streams[mode]
-
-  // abortRef는 컴포넌트 로컬 — 페이지 이탈 후 복귀 시 취소 버튼은 동작 안 하지만 스트림은 계속 실행됨
-  const abortRef = useRef<AbortController | null>(null)
 
   const reset = useCallback(() => {
     resetStream(mode)
   }, [mode, resetStream])
 
   const cancel = useCallback(() => {
-    abortRef.current?.abort()
-  }, [])
+    controllers.get(mode)?.abort()
+  }, [mode])
 
   const processStream = useCallback(
     async (response: Response) => {
@@ -116,11 +117,14 @@ export function useAgentStream(mode: StreamMode) {
 
   const startStream = useCallback(
     async (fetchFn: (signal: AbortSignal) => Promise<Response>) => {
-      reset()
-      setStreamState(mode, { isRunning: true, pdfFallbackRequest: null })
+      // 같은 모드가 이미 실행 중이면 시작하지 않는다 — 덮어쓰면 기존 요청의 취소 핸들을 잃는다.
+      if (controllers.has(mode)) return
 
       const controller = new AbortController()
-      abortRef.current = controller
+      controllers.set(mode, controller)
+
+      reset()
+      setStreamState(mode, { isRunning: true, pdfFallbackRequest: null })
 
       try {
         const response = await fetchFn(controller.signal)
@@ -134,6 +138,9 @@ export function useAgentStream(mode: StreamMode) {
         } else {
           setStreamState(mode, { error: e instanceof Error ? e.message : '네트워크 오류가 발생했습니다.', isRunning: false })
         }
+      } finally {
+        // 응답 전에 실패한 경우까지 정리한다. 현재 실행의 컨트롤러만 지운다.
+        if (controllers.get(mode) === controller) controllers.delete(mode)
       }
     },
     [reset, processStream, openModal, mode, setStreamState],
