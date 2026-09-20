@@ -1,6 +1,7 @@
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from crud.paper_document import purge_unreferenced_documents
 from models.analysis import AnalysisResult
 
 
@@ -17,10 +18,12 @@ async def create_analysis_result(
     paper_review: dict | None = None,
     key_formulas: list | None = None,
     user_id: int | None = None,
+    document_id: int | None = None,
 ) -> AnalysisResult:
     """분석 결과 저장"""
     result = AnalysisResult(
         paper_id=paper_id,
+        document_id=document_id,
         mode=mode,
         query=query,
         generated_code=generated_code,
@@ -63,6 +66,10 @@ async def delete_analysis_result_by_id(db: AsyncSession, result_id: int, user_id
     if not obj:
         return False
     obj.is_deleted = True
+    # 소프트 삭제를 먼저 반영해야 아래 정리 쿼리가 이 기록을 '삭제됨'으로 본다
+    await db.flush()
+    # 이 기록이 문서를 가리키던 마지막 활성 기록이었다면 원문도 함께 지운다
+    await purge_unreferenced_documents(db, user_id)
     return True
 
 
@@ -76,4 +83,6 @@ async def delete_all_analysis_results(db: AsyncSession, user_id: int) -> int:
         )
         .values(is_deleted=True)
     )
+    # 활성 기록이 없어졌으므로 사용자의 원문도 모두 지운다
+    await purge_unreferenced_documents(db, user_id)
     return result.rowcount

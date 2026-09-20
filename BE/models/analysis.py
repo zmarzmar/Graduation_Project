@@ -16,6 +16,11 @@ class AnalysisResult(Base):
     paper_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("papers.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # 분석에 사용한 원문 (논문 Q&A용). 게스트·초록 기반 분석·이 컬럼 추가 전의 기록은 NULL.
+    # 문서가 지워지면 분석 기록은 남기고 연결만 해제한다 (소프트 삭제된 기록 포함).
+    document_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("paper_documents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     mode: Mapped[str] = mapped_column(String(20), nullable=False)  # pdf | search | trend
     query: Mapped[str] = mapped_column(Text, nullable=False, default="")
     generated_code: Mapped[str] = mapped_column(Text, nullable=False, default="")

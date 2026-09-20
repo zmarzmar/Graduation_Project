@@ -82,6 +82,8 @@ class AnalysisHistoryItem(BaseModel):
     paper_authors: list[str] | None
     review_passed: bool
     has_code: bool
+    # 원문이 보관돼 있어 논문 Q&A가 가능한지 — False면 재분석이 필요하다 (이전 기록·게스트·초록 기반 분석)
+    has_document: bool
     created_at: datetime
 
 
@@ -98,6 +100,7 @@ class AnalysisDetail(BaseModel):
     review_feedback: str
     review_passed: bool
     iteration_count: int
+    has_document: bool
     created_at: datetime
 
 
@@ -135,6 +138,7 @@ async def get_analysis_detail(
         review_feedback=analysis.review_feedback,
         review_passed=analysis.review_passed,
         iteration_count=analysis.iteration_count,
+        has_document=analysis.document_id is not None,
         created_at=analysis.created_at,
     )
 
@@ -225,6 +229,7 @@ async def get_analysis_history(
             paper_authors=paper.authors if paper else None,
             review_passed=analysis.review_passed,
             has_code=bool(analysis.generated_code),
+            has_document=analysis.document_id is not None,
             created_at=analysis.created_at,
         ))
     return items

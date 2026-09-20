@@ -1,0 +1,190 @@
+"""논문 원문 보관·중복 제거·삭제 규칙 테스트 — 실제 Postgres를 사용한다.
+
+ON CONFLICT, ON DELETE SET NULL 같은 DB 동작은 mock으로 검증할 수 없어서 실제 DB에 붙는다.
+모든 테스트는 바깥 트랜잭션 안에서 실행하고 끝나면 롤백한다 — 개발 DB에 흔적을 남기지 않는다.
+
+실행: cd BE && uv run alembic upgrade head && uv run python -m unittest discover -s tests -v
+DB에 붙을 수 없으면 건너뛴다. CI에서는 REQUIRE_DB_TESTS=1로 건너뛰기를 실패로 바꾼다.
+"""
+
+import os
+import unittest
+import uuid
+from unittest.mock import patch
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
+
+from core.config import settings
+from crud import analysis as crud_analysis
+from crud.paper_document import get_or_create_document, hash_pages
+from models.analysis import AnalysisResult
+from models.paper_document import PaperDocument
+from models.user import User
+from services import agent_service
+
+PAGES = ["first page", "", "third page"]  # 가운데는 빈 페이지
+
+
+class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        # 테스트마다 이벤트 루프가 새로 생기므로 엔진도 새로 만든다
+        self.engine = create_async_engine(settings.database_url, poolclass=NullPool)
+        try:
+            self.conn = await self.engine.connect()
+        except Exception as e:
+            await self.engine.dispose()
+            if os.environ.get("REQUIRE_DB_TESTS"):
+                raise
+            self.skipTest(f"database unavailable: {e}")
+        self.outer = await self.conn.begin()
+        # 안쪽의 commit은 세이브포인트로 처리돼 바깥 트랜잭션을 끝내지 못한다 → 마지막에 전부 롤백
+        self.sessions = async_sessionmaker(
+            bind=self.conn, join_transaction_mode="create_savepoint", expire_on_commit=False
+        )
+        self.db: AsyncSession = self.sessions()
+
+    async def asyncTearDown(self):
+        await self.db.close()
+        await self.outer.rollback()
+        await self.conn.close()
+        await self.engine.dispose()
+
+    async def _user(self) -> int:
+        tag = uuid.uuid4().hex[:12]
+        user = User(email=f"doc-test-{tag}@example.com", username=f"doc-test-{tag}", password_hash="x")
+        self.db.add(user)
+        await self.db.flush()
+        return user.id
+
+    async def _analysis(self, user_id: int, document_id: int | None) -> AnalysisResult:
+        return await crud_analysis.create_analysis_result(
+            self.db, mode="pdf", query="paper.pdf", generated_code="", review_feedback="",
+            review_passed=True, iteration_count=1, user_id=user_id, document_id=document_id,
+        )
+
+    async def _document_ids(self, user_id: int) -> list[int]:
+        rows = await self.db.execute(select(PaperDocument.id).where(PaperDocument.user_id == user_id))
+        return list(rows.scalars())
+
+    # ── 보관·중복 제거 ────────────────────────────────────────────────────
+
+    async def test_pages_are_stored_with_blank_pages_in_order(self):
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="paper.pdf")
+        doc = await self.db.get(PaperDocument, document_id)
+        self.assertEqual(doc.pages, PAGES)
+        self.assertEqual(doc.page_count, 3)
+        self.assertEqual(doc.doc_hash, hash_pages(PAGES))
+
+    async def test_same_user_same_text_reuses_the_document(self):
+        user_id = await self._user()
+        first = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="a.pdf")
+        second = await get_or_create_document(self.db, user_id, list(PAGES), source="upload", title="renamed.pdf")
+        self.assertEqual(first, second)
+        self.assertEqual(await self._document_ids(user_id), [first])
+
+    async def test_documents_are_not_shared_between_users(self):
+        alice, bob = await self._user(), await self._user()
+        a = await get_or_create_document(self.db, alice, PAGES, source="upload", title="p.pdf")
+        b = await get_or_create_document(self.db, bob, PAGES, source="upload", title="p.pdf")
+        self.assertNotEqual(a, b)
+
+    async def test_different_page_layout_is_a_different_document(self):
+        self.assertNotEqual(hash_pages(["ab", "c"]), hash_pages(["a", "bc"]))
+
+    async def test_nul_characters_do_not_break_storage(self):
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, ["bad\x00text"], source="upload", title="p.pdf")
+        self.assertEqual((await self.db.get(PaperDocument, document_id)).pages, ["badtext"])
+
+    # ── 삭제 규칙 ─────────────────────────────────────────────────────────
+
+    async def test_deleting_one_record_keeps_the_document_used_by_another(self):
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
+        first = await self._analysis(user_id, document_id)
+        second = await self._analysis(user_id, document_id)
+
+        self.assertTrue(await crud_analysis.delete_analysis_result_by_id(self.db, first.id, user_id))
+
+        self.assertEqual(await self._document_ids(user_id), [document_id])
+        await self.db.refresh(second)
+        self.assertEqual(second.document_id, document_id)
+
+    async def test_deleting_the_last_active_record_removes_the_document_and_unlinks_only(self):
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
+        first = await self._analysis(user_id, document_id)
+        second = await self._analysis(user_id, document_id)
+
+        await crud_analysis.delete_analysis_result_by_id(self.db, first.id, user_id)
+        await crud_analysis.delete_analysis_result_by_id(self.db, second.id, user_id)
+
+        self.assertEqual(await self._document_ids(user_id), [])
+        # 분석 기록 행은 남고(소프트 삭제), 문서 연결만 해제된다
+        for record in (first, second):
+            await self.db.refresh(record)
+            self.assertTrue(record.is_deleted)
+            self.assertIsNone(record.document_id)
+
+    async def test_delete_all_removes_only_that_users_documents(self):
+        alice, bob = await self._user(), await self._user()
+        a = await get_or_create_document(self.db, alice, PAGES, source="upload", title="p.pdf")
+        b = await get_or_create_document(self.db, bob, PAGES, source="upload", title="p.pdf")
+        await self._analysis(alice, a)
+        await self._analysis(bob, b)
+
+        await crud_analysis.delete_all_analysis_results(self.db, alice)
+
+        self.assertEqual(await self._document_ids(alice), [])
+        self.assertEqual(await self._document_ids(bob), [b])
+
+    # ── 저장 경로 연결 ────────────────────────────────────────────────────
+
+    async def _save_pdf_run(self, user_id: int | None, pages: list[str]) -> AnalysisResult:
+        accumulated = {"pdf_pages": pages, "paper_summary": "요약"}
+        with patch.object(agent_service, "AsyncSessionLocal", self.sessions):
+            await agent_service._save_to_db("pdf", "paper.pdf", accumulated, user_id=user_id)
+        rows = await self.db.execute(
+            select(AnalysisResult).where(AnalysisResult.query == "paper.pdf").order_by(AnalysisResult.id.desc())
+        )
+        return rows.scalars().first()
+
+    async def test_upload_run_links_the_stored_document(self):
+        user_id = await self._user()
+        record = await self._save_pdf_run(user_id, PAGES)
+        doc = await self.db.get(PaperDocument, record.document_id)
+        self.assertEqual((doc.user_id, doc.source, doc.title, doc.pages), (user_id, "upload", "paper.pdf", PAGES))
+
+    async def test_download_run_links_the_stored_document(self):
+        user_id = await self._user()
+        paper = {
+            "arxiv_id": f"test.{uuid.uuid4().hex[:8]}", "title": "Attention Is All You Need",
+            "authors": ["A. Vaswani"], "abstract": "abs", "url": "https://arxiv.org/abs/1706.03762",
+            "pdf_url": "https://arxiv.org/pdf/1706.03762", "published_at": "2017-06-12T00:00:00Z", "categories": ["cs.CL"],
+        }
+        with patch.object(agent_service, "AsyncSessionLocal", self.sessions):
+            await agent_service._save_analyze_to_db("q", paper, {"pdf_pages": PAGES}, user_id=user_id)
+        doc = (await self.db.execute(select(PaperDocument).where(PaperDocument.user_id == user_id))).scalar_one()
+        self.assertEqual((doc.source, doc.arxiv_id, doc.title), ("arxiv", paper["arxiv_id"], paper["title"]))
+        record = (await self.db.execute(select(AnalysisResult).where(AnalysisResult.user_id == user_id))).scalar_one()
+        self.assertEqual(record.document_id, doc.id)
+        self.assertIsNotNone(record.paper_id)  # 논문 upsert와 원문 보관이 같은 트랜잭션에서 함께 성공한다
+
+    async def test_guest_run_stores_no_document(self):
+        before = (await self.db.execute(select(PaperDocument.id))).all()
+        record = await self._save_pdf_run(None, PAGES)
+        self.assertIsNone(record.document_id)
+        self.assertEqual((await self.db.execute(select(PaperDocument.id))).all(), before)
+
+    async def test_abstract_only_run_stores_no_document(self):
+        user_id = await self._user()
+        record = await self._save_pdf_run(user_id, [])
+        self.assertIsNone(record.document_id)
+        self.assertEqual(await self._document_ids(user_id), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

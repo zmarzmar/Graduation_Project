@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 import fitz
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.graph import agent_graph, analyze_graph
 from agents.log_stream import set_log_queue
@@ -18,6 +19,7 @@ from core.config import settings
 from core.dependencies import AsyncSessionLocal
 from crud import analysis as crud_analysis
 from crud import paper as crud_paper
+from crud import paper_document as crud_paper_document
 from crud import search_history as crud_search_history
 from schemas.paper import PaperResult
 
@@ -341,6 +343,34 @@ async def stream_agent(
     yield _sse({"event": "complete", "result": final_result})
 
 
+async def _store_document(
+    db: AsyncSession,
+    user_id: int | None,
+    accumulated: dict,
+    source: str,
+    title: str,
+    arxiv_id: str | None = None,
+) -> int | None:
+    """분석에 쓴 원문(페이지별)을 보관하고 document_id를 반환한다. 논문 Q&A가 분석 상태가 사라진 뒤에도 동작하게 한다.
+
+    보관하지 않는 경우(None 반환):
+    - 게스트: 서버에 게스트를 구분할 수단이 없어 보관하면 모든 게스트가 같은 범위를 공유하게 된다.
+    - 초록 기반 분석: 보관할 원문이 없다.
+    """
+    pages: list[str] = accumulated.get("pdf_pages") or []
+    if user_id is None or not pages:
+        return None
+    try:
+        # 세이브포인트 — 원문 보관이 실패해도 분석 결과 저장은 계속한다
+        async with db.begin_nested():
+            return await crud_paper_document.get_or_create_document(
+                db, user_id=user_id, pages=pages, source=source, title=title, arxiv_id=arxiv_id
+            )
+    except Exception as e:
+        logger.error(f"원문 보관 실패 (분석 결과는 저장): {e}")
+        return None
+
+
 async def _save_to_db(
     mode: str,
     user_query: str,
@@ -369,8 +399,10 @@ async def _save_to_db(
         # PDF 모드는 업로드된 본문을 분석하므로 연결할 Paper 행이 없다(paper_id=None).
         # 업로드된 논문의 식별은 user_query(파일명)와 paper_summary로 충분하고,
         # 향후 PDF 본문에서 arxiv_id를 추출할 수 있게 되면 그때 정확 매칭을 붙인다.
+        document_id = await _store_document(db, user_id, accumulated, source="upload", title=user_query)
         await crud_analysis.create_analysis_result(
             db,
+            document_id=document_id,
             mode=mode,
             query=user_query,
             generated_code=accumulated.get("generated_code", ""),
@@ -527,9 +559,15 @@ async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict, u
         except Exception as e:
             logger.warning(f"논문 저장 실패 (무시): {e}")
 
+        document_id = await _store_document(
+            db, user_id, accumulated, source="arxiv",
+            title=str(paper.get("title") or ""), arxiv_id=str(paper.get("arxiv_id") or "") or None,
+        )
+
         # 분석 결과 저장
         await crud_analysis.create_analysis_result(
             db,
+            document_id=document_id,
             mode="analyze",
             query=user_query,
             generated_code=accumulated.get("generated_code", ""),
