@@ -8,14 +8,17 @@ from langchain_openai import ChatOpenAI
 from agents.log_stream import emit_log
 from agents.perf import log_elapsed
 from agents.state import AgentState
+from agents.token_budget import ANALYZER_OUTPUT_BUDGET, ensure_complete, ensure_request_fits
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # gpt-4o-mini: 요약/분석 작업
+_MODEL = "gpt-4o-mini"
 _llm = ChatOpenAI(
-    model="gpt-4o-mini",
+    model=_MODEL,
     api_key=settings.openai_api_key,
+    max_tokens=ANALYZER_OUTPUT_BUDGET,  # 출력 예산 (gpt-4o-mini 최대 출력)
     model_kwargs={"response_format": {"type": "json_object"}},
 )
 
@@ -92,10 +95,14 @@ async def analyzer_node(state: AgentState) -> dict:
     try:
         emit_log("analyzer", "요약 및 리뷰 생성 중...")
         async with log_elapsed(logger, "external_call", node="analyzer", external="openai"):
-            response = await _llm.ainvoke([
+            messages = [
                 SystemMessage(content=_SYSTEM_PROMPT),
                 HumanMessage(content=f"다음 논문을 분석해주세요:\n\n{paper_text}"),
-            ])
+            ]
+            # 이전 코드·피드백까지 합친 전체 입력 + 출력 예산이 한도 안인지 호출 직전에 확인한다
+            ensure_request_fits(_MODEL, messages, ANALYZER_OUTPUT_BUDGET)
+            response = await _llm.ainvoke(messages)
+            ensure_complete(response, ANALYZER_OUTPUT_BUDGET)
     except Exception as e:
         logger.error(f"[Analyzer] LLM API 호출 실패: {e}")
         return {

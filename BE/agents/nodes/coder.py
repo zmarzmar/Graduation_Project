@@ -7,14 +7,17 @@ from agents.log_stream import emit_log
 from agents.paper_context import paper_source_context
 from agents.perf import log_elapsed
 from agents.state import AgentState
+from agents.token_budget import REASONING_OUTPUT_BUDGET, ensure_complete, ensure_request_fits
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # o4-mini: 코드 추론 특화 모델 — temperature 파라미터 미지정
+_MODEL = "o4-mini"
 _llm = ChatOpenAI(
-    model="o4-mini",
+    model=_MODEL,
     api_key=settings.openai_api_key,
+    max_tokens=REASONING_OUTPUT_BUDGET,  # 출력 예산 (o4-mini는 추론 토큰 포함)
 )
 
 _SYSTEM_PROMPT = """당신은 AI 논문을 PyTorch 코드로 구현하는 전문가입니다.
@@ -85,10 +88,14 @@ async def coder_node(state: AgentState) -> dict:
             emit_log("coder", f"리뷰어 피드백 반영 ({iteration}회차 수정)")
         emit_log("coder", "PyTorch 코드 생성 중...")
         async with log_elapsed(logger, "external_call", node="coder", external="openai"):
-            response = await _llm.ainvoke([
+            messages = [
                 SystemMessage(content=_SYSTEM_PROMPT),
                 HumanMessage(content=user_content),
-            ])
+            ]
+            # 이전 코드·피드백까지 합친 전체 입력 + 출력 예산이 한도 안인지 호출 직전에 확인한다
+            ensure_request_fits(_MODEL, messages, REASONING_OUTPUT_BUDGET)
+            response = await _llm.ainvoke(messages)
+            ensure_complete(response, REASONING_OUTPUT_BUDGET)
         generated_code = _extract_code(response.content)
         emit_log("coder", f"코드 생성 완료 ({len(generated_code)}자)")
         logger.info(f"[Coder] 완료 — 코드 {len(generated_code)}자 생성")

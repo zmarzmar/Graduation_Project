@@ -65,6 +65,9 @@ async def run_pdf_agent(
     except agent_service.PaperTooLongError as e:
         # 추출은 성공했지만 모델 입력 한도 초과 — 추출 실패와 구분해서 알린다.
         raise HTTPException(status_code=413, detail=str(e))
+    except agent_service.TokenizerUnavailableError as e:
+        # 길이를 검증할 수 없으면 부정확한 추정으로 진행하지 않는다.
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"PDF 텍스트 추출 실패: {str(e)}")
 

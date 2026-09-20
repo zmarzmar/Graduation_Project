@@ -4,17 +4,16 @@ import json
 import logging
 import time
 from contextlib import suppress
-from functools import lru_cache
 from typing import AsyncGenerator
 from urllib.parse import urlparse
 
 import fitz
 import httpx
-import tiktoken
 
 from agents.graph import agent_graph, analyze_graph
 from agents.log_stream import set_log_queue
 from agents.perf import log_elapsed
+from agents.token_budget import TokenizerUnavailableError, count_tokens
 from core.config import settings
 from core.dependencies import AsyncSessionLocal
 from crud import analysis as crud_analysis
@@ -49,23 +48,6 @@ class PaperTooLongError(ValueError):
 def join_pages(pages: list[str]) -> str:
     """페이지 목록을 노드에 전달할 전문 텍스트로 합친다."""
     return "\n".join(pages).strip()
-
-
-@lru_cache(maxsize=1)
-def _token_encoding() -> tiktoken.Encoding:
-    # gpt-4o-mini·o4-mini 공용 인코딩. 최초 1회 파일을 받아 캐시한다 (Docker 이미지에는 빌드 시 미리 받아둔다).
-    return tiktoken.get_encoding("o200k_base")
-
-
-def count_tokens(text: str) -> int:
-    """본문 토큰 수를 실제 토크나이저로 센다."""
-    try:
-        return len(_token_encoding().encode(text, disallowed_special=()))
-    except Exception as e:
-        # ponytail: 인코딩 파일을 못 받으면 UTF-8 바이트 / 3 근사로 대체한다. 일반 문장은 실제보다 많게 잡지만
-        # 수식 기호·숫자 표는 절반 수준으로 적게 잡으므로(실측 0.54배) 이 경로에서는 한도를 보장하지 못한다.
-        logger.warning(f"토크나이저 사용 불가 — 바이트 근사로 대체: {e}")
-        return len(text.encode("utf-8")) // 3
 
 
 def extract_pdf_pages(file_bytes: bytes) -> list[str]:
@@ -186,8 +168,8 @@ async def _download_first_available_pdf_pages(paper: dict) -> tuple[list[str], s
     for pdf_url in candidates:
         try:
             return await download_pdf_pages(pdf_url), pdf_url
-        except PaperTooLongError:
-            # 다운로드는 성공했다 — 다른 후보를 시도해도 같은 논문이므로 그대로 알린다.
+        except (PaperTooLongError, TokenizerUnavailableError):
+            # 다운로드는 성공했다 — 다른 후보를 시도해도 결과가 같으므로 그대로 알린다.
             raise
         except Exception as e:
             errors.append(f"{pdf_url}: {e}")
@@ -426,6 +408,11 @@ async def stream_analyze(
             "message": f"PDF 전체 텍스트 추출 완료 ({len(pdf_pages)}쪽, {len(join_pages(pdf_pages))}자)",
             "pdf_url": used_pdf_url,
         })
+    except TokenizerUnavailableError as e:
+        # 길이를 검증할 수 없으면 초록 폴백을 권하지 않고 그대로 알린다 — 다운로드 실패가 아니다.
+        logger.error(f"토크나이저 사용 불가: {e}")
+        yield _sse({"event": "error", "message": str(e)})
+        return
     except Exception as e:
         # 너무 긴 논문은 다운로드 실패와 구분해서 알린다 — 잘라서 분석하지 않는다.
         too_long = isinstance(e, PaperTooLongError)

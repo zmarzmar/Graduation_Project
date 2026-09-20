@@ -11,8 +11,10 @@ from unittest.mock import AsyncMock, patch
 import fitz
 import httpx
 from fastapi.testclient import TestClient
+from langchain_core.messages import HumanMessage, SystemMessage
 
-from agents.nodes import coder, reviewer
+from agents import token_budget
+from agents.nodes import analyzer, coder, reviewer
 from agents.paper_context import paper_source_context
 from services import agent_service
 from services.agent_service import PaperTooLongError, extract_pdf_pages, join_pages, stream_agent, stream_analyze
@@ -94,20 +96,82 @@ class SharedFullTextTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn(source, reviewer_llm.user_message)
 
 
-class CountTokensTest(unittest.TestCase):
+class TokenBudgetTest(unittest.IsolatedAsyncioTestCase):
     # 바이트 / 3 근사가 실제의 절반 수준으로 적게 잡던 종류의 텍스트
     SYMBOLS = "∑ᵢ αᵢ·xᵢ ≤ ‖W‖₂ ∀θ∈Θ ⊗ 0.137 42.5 | " * 50
 
     def test_symbol_heavy_text_is_counted_with_the_real_tokenizer(self):
-        try:
-            agent_service._token_encoding()
-        except Exception as e:  # 인코딩 파일을 받을 수 없는 환경
-            self.skipTest(f"tokenizer unavailable: {e}")
-        self.assertGreater(agent_service.count_tokens(self.SYMBOLS), len(self.SYMBOLS.encode()) // 3)
+        self.assertGreater(token_budget.count_tokens(self.SYMBOLS), len(self.SYMBOLS.encode()) // 3)
 
-    def test_falls_back_to_byte_estimate_when_tokenizer_is_unavailable(self):
-        with patch.object(agent_service, "_token_encoding", side_effect=OSError("no network")):
-            self.assertEqual(agent_service.count_tokens(self.SYMBOLS), len(self.SYMBOLS.encode()) // 3)
+    def test_output_limit_is_sent_to_the_api(self):
+        self.assertEqual(coder._llm.max_tokens, token_budget.REASONING_OUTPUT_BUDGET)
+        self.assertEqual(reviewer._llm.max_tokens, token_budget.REASONING_OUTPUT_BUDGET)
+        self.assertEqual(analyzer._llm.max_tokens, token_budget.ANALYZER_OUTPUT_BUDGET)
+
+    def test_body_limit_leaves_room_for_the_analyzer_output(self):
+        # 본문 한도 + 시스템 프롬프트 등 여유 2,000 + 출력 예산이 가장 좁은 모델의 한도 안에 있어야 한다
+        worst = agent_service.settings.max_paper_tokens + 2_000 + token_budget.ANALYZER_OUTPUT_BUDGET
+        self.assertLessEqual(worst, token_budget.CONTEXT_WINDOW["gpt-4o-mini"])
+
+    def test_request_check_counts_the_whole_input_plus_output_budget(self):
+        messages = [SystemMessage(content="s"), HumanMessage(content="word " * 1000)]
+        used = token_budget.ensure_request_fits("o4-mini", messages, token_budget.REASONING_OUTPUT_BUDGET)
+        self.assertGreater(used, 1000)
+        with patch.dict(token_budget.CONTEXT_WINDOW, {"o4-mini": used + token_budget.REASONING_OUTPUT_BUDGET - 1}):
+            with self.assertRaises(token_budget.TokenBudgetError):
+                token_budget.ensure_request_fits("o4-mini", messages, token_budget.REASONING_OUTPUT_BUDGET)
+
+    async def test_coder_does_not_call_the_model_when_previous_code_and_feedback_overflow(self):
+        llm = _FakeLLM("```python\nx\n```")
+        state = {"pdf_text": "paper", "papers": [], "iteration_count": 1,
+                 "generated_code": "x = 1\n" * 3000, "review_feedback": "fix " * 3000}
+        with patch.object(coder, "_llm", llm), patch.dict(token_budget.CONTEXT_WINDOW, {"o4-mini": 40_000}):
+            result = await coder.coder_node(state)
+        self.assertEqual(llm.user_message, "")  # 호출하지 않았다
+        self.assertIn("입력이 너무 깁니다", result["error"])
+
+    async def test_truncated_response_is_an_error_not_a_result(self):
+        class _Truncated(_FakeLLM):
+            async def ainvoke(self, messages):
+                return SimpleNamespace(content="```python\nimport tor", response_metadata={"finish_reason": "length"})
+
+        with patch.object(coder, "_llm", _Truncated("")):
+            result = await coder.coder_node({"pdf_text": "paper", "papers": [], "iteration_count": 0})
+        self.assertEqual(result["generated_code"], "")
+        self.assertIn("출력 예산", result["error"])
+
+
+class TokenizerUnavailableTest(unittest.IsolatedAsyncioTestCase):
+    """토크나이저를 쓸 수 없으면 부정확한 추정으로 진행하지 않고 명확한 오류를 낸다."""
+
+    def setUp(self):
+        broken = patch.object(token_budget, "_encoding", side_effect=OSError("no encoding file"))
+        broken.start()
+        self.addCleanup(broken.stop)
+        self.pdf = _pdf(["a normal paper body"])
+
+    def test_count_raises(self):
+        with self.assertRaises(token_budget.TokenizerUnavailableError):
+            token_budget.count_tokens("text")
+
+    def test_upload_returns_503_without_starting_the_pipeline(self):
+        from main import app
+
+        with patch.object(agent_service, "stream_agent") as stream:
+            response = TestClient(app).post(
+                "/api/v1/agent/pdf", files={"file": ("paper.pdf", self.pdf, "application/pdf")}
+            )
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("토크나이저", response.json()["detail"])
+        stream.assert_not_called()
+
+    async def test_download_path_reports_the_error_and_offers_no_fallback(self):
+        graph = _CapturingGraph()
+        with _serve_pdf(self.pdf), patch.object(agent_service, "analyze_graph", graph):
+            events = await _events(stream_analyze({"arxiv_id": "1706.03762", "abstract": "abs"}, "q"))
+        self.assertIn("토크나이저", next(e for e in events if e["event"] == "error")["message"])
+        self.assertFalse([e for e in events if e["event"] == "pdf_fallback_required"])
+        self.assertIsNone(graph.state)
 
 
 class PaperTooLongTest(unittest.IsolatedAsyncioTestCase):

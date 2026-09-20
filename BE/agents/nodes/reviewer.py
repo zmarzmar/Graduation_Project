@@ -9,14 +9,17 @@ from agents.log_stream import emit_log
 from agents.paper_context import paper_source_context
 from agents.perf import log_elapsed
 from agents.state import AgentState
+from agents.token_budget import REASONING_OUTPUT_BUDGET, ensure_complete, ensure_request_fits
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # o4-mini: 코드 추론 및 논문 대조 검증 특화
+_MODEL = "o4-mini"
 _llm = ChatOpenAI(
-    model="o4-mini",
+    model=_MODEL,
     api_key=settings.openai_api_key,
+    max_tokens=REASONING_OUTPUT_BUDGET,  # 출력 예산 (o4-mini는 추론 토큰 포함)
 )
 
 _SYSTEM_PROMPT = """당신은 AI 논문 구현 코드를 검토하는 전문 리뷰어입니다.
@@ -113,10 +116,14 @@ async def reviewer_node(state: AgentState) -> dict:
         emit_log("reviewer", f"{iteration}회차 코드 검증 중...")
         emit_log("reviewer", "논문 이론과 코드 대조 분석 중...")
         async with log_elapsed(logger, "external_call", node="reviewer", external="openai"):
-            response = await _llm.ainvoke([
+            messages = [
                 SystemMessage(content=_SYSTEM_PROMPT),
                 HumanMessage(content=user_content),
-            ])
+            ]
+            # 이전 코드·피드백까지 합친 전체 입력 + 출력 예산이 한도 안인지 호출 직전에 확인한다
+            ensure_request_fits(_MODEL, messages, REASONING_OUTPUT_BUDGET)
+            response = await _llm.ainvoke(messages)
+            ensure_complete(response, REASONING_OUTPUT_BUDGET)
         result = _extract_json(response.content)
     except Exception as e:
         logger.error(f"[Reviewer] LLM 호출 실패: {e}")
