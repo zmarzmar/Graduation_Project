@@ -42,14 +42,11 @@ _SYSTEM_PROMPT = """당신은 AI 논문 분석 시스템의 플래너입니다.
 
 {
   "summary": "실행 계획 요약 (한국어, 2-3문장)",
-  "search_keywords": ["영어 키워드1", "영어 키워드2", "영어 키워드3"],
-  "focus_area": "분석 초점 (예: transformer architecture, LoRA fine-tuning)",
-  "framework": "pytorch 또는 tensorflow"
+  "search_keywords": ["영어 키워드1", "영어 키워드2", "영어 키워드3"]
 }
 
 규칙:
 - search_keywords는 arXiv 검색에 최적화된 영어 키워드로 작성
-- framework는 논문에서 사용한 것으로 추정하고, 불명확하면 "pytorch" 사용
 - trend 모드면 최신 트렌드를 반영한 영어 키워드 포함"""
 
 
@@ -58,19 +55,8 @@ async def planner_node(state: AgentState) -> dict:
     mode = state["mode"]
     logger.info(f"[Planner] 시작 — mode={mode}, query=\"{state['user_query']}\"")
 
-    if mode == "analyze":
-        # 사용자가 선택한 논문 1편 분석 — pdf_text 또는 초록으로 키워드 추출
-        pdf_text = state.get("pdf_text", "")
-        papers = state.get("papers", [])
-        if pdf_text:
-            context = f"PDF 내용 (앞 3000자):\n{pdf_text[:3000]}"
-        elif papers:
-            first = papers[0]
-            context = f"논문 제목: {first.get('title', '')}\n초록: {first.get('abstract', '')[:1000]}"
-        else:
-            context = f"검색어: {state['user_query']}"
-        user_content = f"모드: 논문 선택 분석\n\n{context}"
-    elif mode == "search":
+    # Planner는 검색 그래프(search / trend)에서만 실행된다 — pdf·analyze는 analyze_graph로 바로 간다.
+    if mode == "search":
         user_content = f"모드: 키워드 검색\n\n검색어: {state['user_query']}"
     else:  # trend
         user_content = f"모드: 트렌드 브리핑\n\n관심 분야: {state['user_query']}"
@@ -79,8 +65,6 @@ async def planner_node(state: AgentState) -> dict:
     _fallback_plan = {
         "summary": f"{state['user_query']} 관련 논문을 분석합니다.",
         "search_keywords": [state["user_query"]],
-        "focus_area": state["user_query"],
-        "framework": "pytorch",
     }
 
     try:
