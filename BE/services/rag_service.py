@@ -28,6 +28,7 @@ CHUNK_TOKENS = 500            # 청크 목표 크기
 _HARD_SPLIT_OVERLAP = 50      # 문장 하나가 청크보다 길어 토큰 단위로 자를 때의 겹침
 _RETOKENIZE_MARGIN = 8
 _EMBED_BATCH = 96
+_RECONCILE_PAGE = 1000
 
 INDEX_TIME_LIMIT_SECONDS = 60   # 첫 질문 요청 안에서 색인에 쓸 수 있는 시간
 INDEX_STALE_AFTER_SECONDS = 90  # 이보다 오래된 'indexing'은 죽은 작업으로 보고 다시 선점 (시간 제한보다 길게)
@@ -194,7 +195,9 @@ async def ensure_indexed(document: PaperDocument) -> str:
         async with AsyncSessionLocal() as db:
             finished = await crud_paper_document.finish_index_job(db, document.id, job_id, chunk_count)
             await db.commit()
-    except BaseException as e:  # 요청 취소(CancelledError)에도 뒷정리를 한다
+    # 태스크 취소(CancelledError — 서버 종료 등)에도 뒷정리를 한다. 클라이언트가 연결을 끊는 것만으로는
+    # 핸들러가 취소되지 않는다(실측): 색인은 끝까지 돌아 다음 요청이 쓰거나, 멈췄다면 위의 시간 제한이 놓아준다.
+    except BaseException as e:
         await asyncio.shield(_abandon_job(document.id, job_id, f"{type(e).__name__}: {e}"))
         raise
 
@@ -276,3 +279,49 @@ async def purge_pending_documents() -> None:
             async with AsyncSessionLocal() as db:
                 await crud_paper_document.delete_purged_document(db, document_id)
                 await db.commit()
+
+    # 유예 시간은 늦은 쓰기를 '대부분' 걸러낼 뿐이다 — 요청을 취소해도 Chroma가 이미 받은 쓰기까지 취소된다는
+    # 보장은 없다. 툼스톤이 사라진 뒤에 도착한 청크는 아래 대조 정리가 찾아서 지운다.
+    try:
+        await reconcile_orphan_chunks()
+    except Exception as e:
+        logger.error(f"[RAG] 고아 청크 정리 실패 (다음에 다시 시도): {e}")
+
+
+async def reconcile_orphan_chunks() -> int:
+    """벡터 색인을 Postgres와 대조해 주인 없는 청크를 지우고, 지운 개수를 반환한다. 시간 기준에 기대지 않는다.
+
+    고아 청크 = 문서 행이 없거나(삭제가 끝난 문서에 늦게 도착한 쓰기) 삭제 대기 중이거나,
+    그 문서의 현재 index_job_id가 아닌 작업이 쓴 청크(대체되거나 죽은 작업의 잔여물).
+
+    순서가 중요하다: Chroma를 먼저 훑고 '그 다음에' Postgres를 읽는다. 색인 작업은 선점을 커밋한 뒤에야
+    청크를 쓰므로, 훑을 때 보인 청크의 작업은 그 뒤에 읽은 Postgres에 반드시 있다 — 진행 중인 색인의 청크를
+    고아로 오판하지 않는다.
+
+    ponytail: 컬렉션 전체를 훑는다(O(전체 청크 수)). 삭제·서버 기동 때만 돌아서 지금 규모에선 충분하다.
+    느려지면 문서별 청크 수를 Postgres에 두고 달라진 문서만 확인하는 방식으로 바꾼다.
+    """
+    seen: list[tuple[str, int | None, str | None]] = []
+    offset = 0
+    while True:
+        page = await asyncio.to_thread(_collection().get, include=["metadatas"], limit=_RECONCILE_PAGE, offset=offset)
+        if not page["ids"]:
+            break
+        seen.extend(
+            (chunk_id, meta.get("document_id"), meta.get("job_id"))
+            for chunk_id, meta in zip(page["ids"], page["metadatas"])
+        )
+        offset += len(page["ids"])
+
+    async with AsyncSessionLocal() as db:
+        live_jobs = await crud_paper_document.list_live_index_jobs(db)
+
+    orphans = [
+        chunk_id for chunk_id, document_id, job_id in seen
+        if document_id not in live_jobs or live_jobs[document_id] != job_id
+    ]
+    for start in range(0, len(orphans), _RECONCILE_PAGE):
+        await asyncio.to_thread(_collection().delete, ids=orphans[start:start + _RECONCILE_PAGE])
+    if orphans:
+        logger.warning(f"[RAG] 고아 청크 {len(orphans)}개 정리")
+    return len(orphans)

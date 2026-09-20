@@ -121,6 +121,14 @@ async def list_purge_pending(db: AsyncSession) -> list[tuple[int, datetime]]:
     return [(row.id, row.purge_pending_at) for row in rows.all()]
 
 
+async def list_live_index_jobs(db: AsyncSession) -> dict[int, str | None]:
+    """삭제 대기가 아닌 모든 문서의 {document_id: 현재 index_job_id}. 벡터 색인의 고아 청크를 가려내는 기준이다."""
+    rows = await db.execute(
+        select(PaperDocument.id, PaperDocument.index_job_id).where(PaperDocument.purge_pending_at.is_(None))
+    )
+    return {row.id: row.index_job_id for row in rows.all()}
+
+
 async def delete_purged_document(db: AsyncSession, document_id: int) -> None:
     """벡터 색인 삭제가 끝난 툼스톤 행을 지운다. 툼스톤이 아닌 문서는 절대 지우지 않는다.
 
