@@ -42,8 +42,11 @@ async def _cancel_task(task: asyncio.Task[None]) -> None:
 def extract_pdf_text(file_bytes: bytes) -> str:
     """PDF 바이트에서 전체 텍스트를 추출한다. (pymupdf 사용)"""
     doc = fitz.open(stream=file_bytes, filetype="pdf")
-    pages = [page.get_text() for page in doc]
-    return "\n".join(pages)
+    text = "\n".join(page.get_text() for page in doc).strip()
+    # 스캔본 등 텍스트 레이어가 없는 PDF — 빈 본문으로 분석을 시작하지 않도록 여기서 막는다.
+    if not text:
+        raise ValueError("PDF에서 텍스트를 추출하지 못했습니다. (스캔 이미지 PDF는 지원하지 않습니다)")
+    return text
 
 
 def _validate_pdf_url(url: str) -> str:
@@ -90,10 +93,7 @@ async def download_pdf_text(pdf_url: str) -> str:
     if "pdf" not in content_type and not content.startswith(b"%PDF"):
         raise ValueError(f"PDF 응답이 아닙니다. content-type={content_type or 'unknown'}")
 
-    text = extract_pdf_text(content).strip()
-    if not text:
-        raise ValueError("PDF에서 텍스트를 추출하지 못했습니다.")
-    return text
+    return extract_pdf_text(content)
 
 
 def _normalize_arxiv_id(arxiv_id: str) -> str:
@@ -232,10 +232,13 @@ async def stream_agent(
     queue: asyncio.Queue = asyncio.Queue()
     set_log_queue(queue)
 
+    # PDF 모드는 본문이 이미 있으므로 Planner·Researcher(관련 논문 검색)를 거치지 않는다.
+    graph = analyze_graph if mode == "pdf" else agent_graph
+
     async def _run_graph() -> None:
         """그래프를 실행하며 완료 청크를 queue에 넣는다."""
         try:
-            async for chunk in agent_graph.astream(initial_state, stream_mode="updates"):
+            async for chunk in graph.astream(initial_state, stream_mode="updates"):
                 for node_name, updates in chunk.items():
                     if node_name in _AGENT_NODES:
                         await queue.put(("node", node_name, updates))
@@ -296,6 +299,9 @@ async def stream_agent(
         "review_feedback": accumulated.get("review_feedback", ""),
         "mode": mode,
     })
+    if mode == "pdf":
+        # 분석 대상은 업로드한 파일 — papers(검색 결과)와 구분해서 전달한다.
+        final_result["uploaded_filename"] = user_query
 
     # DB 저장 — search/trend 모드는 검색 기록만, pdf는 전체 저장
     try:
@@ -321,20 +327,19 @@ async def _save_to_db(
     papers: list[dict] = accumulated.get("papers", [])
 
     async with AsyncSessionLocal() as db:
-        # 검색 기록 저장 (항상)
-        await crud_search_history.create_search_history(
-            db, query=user_query, mode=mode, result_count=len(papers), papers=papers, user_id=user_id
-        )
+        # 검색 기록 저장 — PDF 모드는 검색을 하지 않으므로 분석 이력만 남긴다.
+        if mode != "pdf":
+            await crud_search_history.create_search_history(
+                db, query=user_query, mode=mode, result_count=len(papers), papers=papers, user_id=user_id
+            )
 
         if search_only:
             await db.commit()
             return
 
-        # PDF 모드는 analyzer가 업로드된 PDF 본문을 기반으로 분석하지만,
-        # researcher가 수집한 papers[0]은 키워드 검색 1위 결과(다른 논문일 수 있음)라
-        # paper_id를 연결하지 않는다. 업로드된 논문의 식별은 user_query(파일명)와
-        # paper_summary로 충분하고, 향후 PDF 본문에서 arxiv_id를 추출할 수 있게 되면
-        # 그때 정확 매칭을 붙인다.
+        # PDF 모드는 업로드된 본문을 분석하므로 연결할 Paper 행이 없다(paper_id=None).
+        # 업로드된 논문의 식별은 user_query(파일명)와 paper_summary로 충분하고,
+        # 향후 PDF 본문에서 arxiv_id를 추출할 수 있게 되면 그때 정확 매칭을 붙인다.
         await crud_analysis.create_analysis_result(
             db,
             mode=mode,

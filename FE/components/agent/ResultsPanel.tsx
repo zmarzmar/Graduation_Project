@@ -151,9 +151,20 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
     result.key_formulas?.length
   )
 
+  // pdf 모드의 분석 대상은 업로드한 파일이다 — papers(검색 결과)를 분석 대상으로 표시하지 않는다.
+  const isPdf = result.mode === 'pdf'
+  const analysisTarget = isPdf
+    ? result.uploaded_filename
+      ? { label: '업로드한 PDF', title: result.uploaded_filename, authors: [] as string[] }
+      : null
+    : result.papers[0]
+      ? { label: '분석 논문', title: result.papers[0].title, authors: result.papers[0].authors }
+      : null
+
   type TabId = 'papers' | 'analysis' | 'trend' | 'code' | 'review'
   const tabs: TabId[] = [
-    'papers',
+    // pdf 모드는 논문 검색을 하지 않으므로 빈 '참고 논문' 탭을 숨긴다.
+    ...(isPdf && result.papers.length === 0 ? [] : ['papers' as TabId]),
     ...(hasAnalysis ? ['analysis' as TabId] : []),
     ...(hasTrendAnalysis ? ['trend' as TabId] : []),
     ...(hasCoding ? ['code' as TabId, 'review' as TabId] : []),
@@ -254,14 +265,16 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
         {activeTab === 'analysis' && (
           <div className="space-y-5">
             {/* 분석 대상 논문 */}
-            {result.papers[0] && (
+            {analysisTarget && (
               <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
-                <p className="text-xs font-medium text-blue-500 mb-0.5">분석 논문</p>
-                <p className="text-sm font-semibold text-blue-900 leading-snug">{result.papers[0].title}</p>
-                <p className="mt-1 text-xs text-blue-600">
-                  {result.papers[0].authors.slice(0, 3).join(', ')}
-                  {result.papers[0].authors.length > 3 && ' 외'}
-                </p>
+                <p className="text-xs font-medium text-blue-500 mb-0.5">{analysisTarget.label}</p>
+                <p className="text-sm font-semibold text-blue-900 leading-snug break-all">{analysisTarget.title}</p>
+                {analysisTarget.authors.length > 0 && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    {analysisTarget.authors.slice(0, 3).join(', ')}
+                    {analysisTarget.authors.length > 3 && ' 외'}
+                  </p>
+                )}
               </div>
             )}
 

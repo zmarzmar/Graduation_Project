@@ -59,6 +59,8 @@ export interface AgentResult {
   iteration_count?: number
   mode?: string
   analysis_source?: 'pdf' | 'abstract'
+  /** pdf 모드 전용 — 분석 대상인 업로드 파일명 (papers는 분석 대상이 아님) */
+  uploaded_filename?: string
   trend_analysis?: TrendAnalysis
 }
 
