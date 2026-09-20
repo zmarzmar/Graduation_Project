@@ -4,11 +4,13 @@ import json
 import logging
 import time
 from contextlib import suppress
+from functools import lru_cache
 from typing import AsyncGenerator
 from urllib.parse import urlparse
 
 import fitz
 import httpx
+import tiktoken
 
 from agents.graph import agent_graph, analyze_graph
 from agents.log_stream import set_log_queue
@@ -49,10 +51,21 @@ def join_pages(pages: list[str]) -> str:
     return "\n".join(pages).strip()
 
 
-def _estimate_tokens(text: str) -> int:
-    # ponytail: UTF-8 바이트 / 3 근사 — 영문(~4자/토큰)·한글(~1자/토큰) 모두 실제보다 많게 잡는 보수적 추정.
-    # 한도 근처의 정확도가 필요해지면 tiktoken으로 교체한다.
-    return len(text.encode("utf-8")) // 3
+@lru_cache(maxsize=1)
+def _token_encoding() -> tiktoken.Encoding:
+    # gpt-4o-mini·o4-mini 공용 인코딩. 최초 1회 파일을 받아 캐시한다 (Docker 이미지에는 빌드 시 미리 받아둔다).
+    return tiktoken.get_encoding("o200k_base")
+
+
+def count_tokens(text: str) -> int:
+    """본문 토큰 수를 실제 토크나이저로 센다."""
+    try:
+        return len(_token_encoding().encode(text, disallowed_special=()))
+    except Exception as e:
+        # ponytail: 인코딩 파일을 못 받으면 UTF-8 바이트 / 3 근사로 대체한다. 일반 문장은 실제보다 많게 잡지만
+        # 수식 기호·숫자 표는 절반 수준으로 적게 잡으므로(실측 0.54배) 이 경로에서는 한도를 보장하지 못한다.
+        logger.warning(f"토크나이저 사용 불가 — 바이트 근사로 대체: {e}")
+        return len(text.encode("utf-8")) // 3
 
 
 def extract_pdf_pages(file_bytes: bytes) -> list[str]:
@@ -69,10 +82,10 @@ def extract_pdf_pages(file_bytes: bytes) -> list[str]:
     if not text:
         raise ValueError("PDF에서 텍스트를 추출하지 못했습니다. (스캔 이미지 PDF는 지원하지 않습니다)")
 
-    tokens = _estimate_tokens(text)
+    tokens = count_tokens(text)
     if tokens > settings.max_paper_tokens:
         raise PaperTooLongError(
-            f"논문이 너무 깁니다 ({len(pages)}쪽, 약 {tokens:,} 토큰 — 한도 {settings.max_paper_tokens:,} 토큰). "
+            f"논문이 너무 깁니다 ({len(pages)}쪽, {tokens:,} 토큰 — 한도 {settings.max_paper_tokens:,} 토큰). "
             "본문을 잘라서 분석하면 Methods·부록이 빠질 수 있어 전문 분석을 진행하지 않습니다."
         )
     return pages

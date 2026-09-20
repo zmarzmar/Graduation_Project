@@ -94,6 +94,22 @@ class SharedFullTextTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn(source, reviewer_llm.user_message)
 
 
+class CountTokensTest(unittest.TestCase):
+    # 바이트 / 3 근사가 실제의 절반 수준으로 적게 잡던 종류의 텍스트
+    SYMBOLS = "∑ᵢ αᵢ·xᵢ ≤ ‖W‖₂ ∀θ∈Θ ⊗ 0.137 42.5 | " * 50
+
+    def test_symbol_heavy_text_is_counted_with_the_real_tokenizer(self):
+        try:
+            agent_service._token_encoding()
+        except Exception as e:  # 인코딩 파일을 받을 수 없는 환경
+            self.skipTest(f"tokenizer unavailable: {e}")
+        self.assertGreater(agent_service.count_tokens(self.SYMBOLS), len(self.SYMBOLS.encode()) // 3)
+
+    def test_falls_back_to_byte_estimate_when_tokenizer_is_unavailable(self):
+        with patch.object(agent_service, "_token_encoding", side_effect=OSError("no network")):
+            self.assertEqual(agent_service.count_tokens(self.SYMBOLS), len(self.SYMBOLS.encode()) // 3)
+
+
 class PaperTooLongTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         # 한도를 낮춰 작은 PDF로 초과 상황을 만든다
