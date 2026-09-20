@@ -1,7 +1,9 @@
 import hashlib
 import json
+import uuid
+from datetime import datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import String, and_, cast, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,12 +74,18 @@ async def get_or_create_document(
     return existing.scalar_one()
 
 
-async def purge_unreferenced_documents(db: AsyncSession, user_id: int) -> list[tuple[int, str]]:
-    """사용자의 '삭제되지 않은' 분석 기록이 하나도 가리키지 않는 문서를 지운다.
+async def mark_unreferenced_documents_for_purge(db: AsyncSession, user_id: int) -> list[int]:
+    """사용자의 '삭제되지 않은' 분석 기록이 하나도 가리키지 않는 문서를 툼스톤으로 만든다. 툼스톤이 된 id를 반환한다.
 
     기록 하나를 지워도 같은 문서를 쓰는 다른 기록이 남아 있으면 문서는 유지된다.
-    분석 기록 행은 지우지 않는다 — FK의 ON DELETE SET NULL이 소프트 삭제된 기록까지 연결만 해제한다.
-    지운 문서의 (id, doc_hash)를 반환한다.
+
+    행을 바로 지우지 않는 이유: 벡터 색인(Chroma) 삭제는 이 트랜잭션에 포함되지 않아 따로 실패할 수 있다.
+    재시도에 필요한 id를 DB에 남기되, 툼스톤으로 만드는 순간
+    - pages를 비운다 → 원문은 이 커밋과 함께 사라진다
+    - index_job_id를 지운다 → 진행 중이던 색인 작업은 더 이상 완료를 기록할 수 없다
+    - doc_hash를 바꾼다 → 같은 본문을 다시 분석하면 '새 id의 새 문서'가 만들어진다.
+      삭제 중인 문서는 복구하지 않는다 — 진행 중인 정리 작업이 되살린 문서를 지우는 충돌을 피한다.
+    활성 분석 기록은 툼스톤을 가리키지 않으므로(가리키는 활성 기록이 없어야 툼스톤이 된다) 접근은 즉시 막힌다.
     """
     await _lock_user_documents(db, user_id)
     still_referenced = select(AnalysisResult.document_id).where(
@@ -85,9 +93,127 @@ async def purge_unreferenced_documents(db: AsyncSession, user_id: int) -> list[t
         AnalysisResult.is_deleted == False,  # noqa: E712
         AnalysisResult.document_id.is_not(None),
     )
-    purged = await db.execute(
-        delete(PaperDocument)
-        .where(PaperDocument.user_id == user_id, PaperDocument.id.not_in(still_referenced))
-        .returning(PaperDocument.id, PaperDocument.doc_hash)
+    marked = await db.execute(
+        update(PaperDocument)
+        .where(
+            PaperDocument.user_id == user_id,
+            PaperDocument.purge_pending_at.is_(None),
+            PaperDocument.id.not_in(still_referenced),
+        )
+        .values(
+            purge_pending_at=func.now(),
+            pages=[],
+            doc_hash=func.concat("purged:", cast(PaperDocument.id, String)),
+            index_status="none",
+            index_job_id=None,
+            indexed_chunk_count=None,
+        )
+        .returning(PaperDocument.id)
     )
-    return [(row.id, row.doc_hash) for row in purged.all()]
+    return list(marked.scalars())
+
+
+async def list_purge_pending(db: AsyncSession) -> list[tuple[int, datetime]]:
+    """정리할 툼스톤의 (id, purge_pending_at) 목록."""
+    rows = await db.execute(
+        select(PaperDocument.id, PaperDocument.purge_pending_at).where(PaperDocument.purge_pending_at.is_not(None))
+    )
+    return [(row.id, row.purge_pending_at) for row in rows.all()]
+
+
+async def delete_purged_document(db: AsyncSession, document_id: int) -> None:
+    """벡터 색인 삭제가 끝난 툼스톤 행을 지운다. 툼스톤이 아닌 문서는 절대 지우지 않는다.
+
+    분석 기록 행은 남는다 — FK의 ON DELETE SET NULL이 소프트 삭제된 기록까지 연결만 해제한다.
+    """
+    await db.execute(
+        delete(PaperDocument).where(PaperDocument.id == document_id, PaperDocument.purge_pending_at.is_not(None))
+    )
+
+
+async def get_document_for_analysis(db: AsyncSession, analysis_id: int, user_id: int) -> PaperDocument | None:
+    """분석 기록을 통해 문서에 접근한다 — 접근 권한 판정은 여기 한 곳에서만 한다.
+
+    본인 소유이고 삭제되지 않은 분석 기록이 가리키는, 삭제 중이 아닌 문서만 반환한다.
+    """
+    row = await db.execute(
+        select(PaperDocument)
+        .join(AnalysisResult, AnalysisResult.document_id == PaperDocument.id)
+        .where(
+            AnalysisResult.id == analysis_id,
+            AnalysisResult.user_id == user_id,
+            AnalysisResult.is_deleted == False,  # noqa: E712
+            PaperDocument.user_id == user_id,
+            PaperDocument.purge_pending_at.is_(None),
+        )
+    )
+    return row.scalar_one_or_none()
+
+
+# ── 색인 작업 ─────────────────────────────────────────────────────────────
+
+
+async def claim_index_job(db: AsyncSession, document_id: int, stale_after_seconds: int) -> str | None:
+    """색인 작업을 원자적으로 선점하고 새 job_id를 반환한다. 다른 작업이 진행 중이면 None.
+
+    UPDATE 한 문장이라 동시에 들어온 첫 질문 중 하나만 성공한다 → 임베딩 호출이 중복되지 않는다.
+    오래된 'indexing'은 작업이 죽은 것으로 보고 다시 선점하지만, 그 작업이 아직 살아 있어도 안전하다:
+    job_id가 달라져서 옛 작업은 완료를 기록할 수 없고, 옛 작업의 청크는 검색 대상이 아니다.
+    """
+    job_id = uuid.uuid4().hex
+    stale_before = func.now() - timedelta(seconds=stale_after_seconds)
+    claimed = await db.execute(
+        update(PaperDocument)
+        .where(
+            PaperDocument.id == document_id,
+            PaperDocument.purge_pending_at.is_(None),
+            or_(
+                PaperDocument.index_status.in_(("none", "failed")),
+                and_(PaperDocument.index_status == "indexing", PaperDocument.index_started_at < stale_before),
+            ),
+        )
+        .values(index_status="indexing", index_job_id=job_id, index_started_at=func.now(), index_error=None)
+        .returning(PaperDocument.id)
+    )
+    return job_id if claimed.scalar_one_or_none() is not None else None
+
+
+async def finish_index_job(db: AsyncSession, document_id: int, job_id: str, chunk_count: int) -> bool:
+    """색인 완료를 기록한다. 이 작업이 여전히 현재 작업이고 문서가 삭제 중이 아닐 때만 성공한다."""
+    finished = await db.execute(
+        update(PaperDocument)
+        .where(
+            PaperDocument.id == document_id,
+            PaperDocument.index_job_id == job_id,
+            PaperDocument.purge_pending_at.is_(None),
+        )
+        .values(index_status="ready", indexed_chunk_count=chunk_count)
+        .returning(PaperDocument.id)
+    )
+    return finished.scalar_one_or_none() is not None
+
+
+async def fail_index_job(db: AsyncSession, document_id: int, job_id: str, error: str) -> bool:
+    """색인 실패를 기록한다. 현재 작업만 기록할 수 있다 — 오래된 작업의 실패가 새 색인을 failed로 만들지 않는다."""
+    failed = await db.execute(
+        update(PaperDocument)
+        .where(PaperDocument.id == document_id, PaperDocument.index_job_id == job_id)
+        .values(index_status="failed", index_error=error[:1000])
+        .returning(PaperDocument.id)
+    )
+    return failed.scalar_one_or_none() is not None
+
+
+async def reset_lost_index(db: AsyncSession, document_id: int, job_id: str) -> bool:
+    """ready인데 벡터 색인에 청크가 없을 때(색인 유실) 다시 색인하도록 되돌린다. 확인한 그 작업일 때만 되돌린다."""
+    reset = await db.execute(
+        update(PaperDocument)
+        .where(
+            PaperDocument.id == document_id,
+            PaperDocument.index_job_id == job_id,
+            PaperDocument.index_status == "ready",
+        )
+        .values(index_status="none", index_job_id=None, indexed_chunk_count=None)
+        .returning(PaperDocument.id)
+    )
+    return reset.scalar_one_or_none() is not None
