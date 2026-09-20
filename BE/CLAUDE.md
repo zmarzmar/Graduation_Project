@@ -1,157 +1,46 @@
 # BE/CLAUDE.md
 
-This file provides backend-specific guidance for the AI-arXiv Analyst project.
+백엔드 전용 안내. 프로젝트 구조, 현재 상태와 이어서 할 일, 설계 원칙, Git 규칙은 **루트 `CLAUDE.md`** 에 있다 — 여기에는 BE에서만 필요한 것만 적는다.
 
 ---
 
-## Overview
+## 어디에 무엇을 쓰는가
 
-FastAPI 기반 백엔드. LangGraph 에이전트를 실행하고 결과를 SSE로 프론트에 스트리밍. 논문 데이터 수집 및 DB 연동 담당.
-
----
-
-## Tech Stack
-
-- **Framework**: FastAPI (Python 3.11)
-- **Package Manager**: uv
-- **AI Core**: LangGraph (agents/ 폴더)
-- **Vector DB**: ChromaDB
-- **Relational DB**: PostgreSQL (SQLAlchemy)
-- **HTTP Client**: httpx (비동기)
+| 위치 | 내용 |
+|------|------|
+| `routers/` | 요청·응답 형식, 상태 코드 매핑만. 쿼리와 로직을 직접 쓰지 않는다 |
+| `services/` | 비즈니스 로직, 외부 API 호출, SSE 스트림 구성 |
+| `agents/` | LLM을 쓰는 모든 로직 (노드, 그래프, 프롬프트, 토큰 예산, Q&A) |
+| `crud/` | DB 쿼리. **commit하지 않는다** — 트랜잭션 경계는 호출자가 정한다 |
+| `models/` | SQLAlchemy 테이블. 새 모델은 `models/__init__.py`에 등록해야 alembic이 본다 |
+| `alembic/versions/` | 번호를 이어서 직접 작성 (`0009_…`). 추가만 하는 변경으로 만들고 `downgrade`도 쓴다 |
+| `tests/` | `unittest` (pytest 아님) |
 
 ---
 
-## Folder Structure
+## 규칙
 
-```
-BE/
-├── main.py                         # FastAPI 앱 진입점, 라우터 등록
-├── pyproject.toml                  # uv 의존성 관리
-├── .env                            # 환경변수
-├── core/
-│   ├── config.py                   # 환경변수 로드 (pydantic-settings)
-│   └── dependencies.py             # 공통 의존성 (DB 세션 등)
-├── routers/
-│   ├── paper.py                    # 논문 검색/조회 API
-│   └── agent.py                    # 에이전트 실행 API (SSE 스트리밍)
-├── services/
-│   ├── arxiv_service.py            # arXiv API 연동
-│   ├── semantic_scholar_service.py # Semantic Scholar API 연동
-│   ├── agent_service.py            # LangGraph 에이전트 실행
-│   └── vector_service.py           # ChromaDB 벡터 저장/검색
-├── agents/
-│   ├── graph.py                    # LangGraph 전체 그래프 정의
-│   ├── state.py                    # 에이전트 공유 상태 정의
-│   └── nodes/
-│       ├── planner.py
-│       ├── researcher.py
-│       ├── coder.py
-│       ├── reviewer.py
-│       └── router.py
-└── models/
-    └── paper.py                    # Pydantic 모델 (DB 붙이면 schemas/로 분리)
-```
+- 모든 함수에 타입 힌트, DB·외부 호출은 async/await
+- 유저 데이터의 조회·삭제는 `user_id == current_user.id` + `is_deleted == False`. 분석 기록 삭제는 소프트 삭제다
+- **DB 트랜잭션이나 advisory lock을 쥔 채로 LLM·임베딩·Chroma를 호출하지 않는다.** 상태 변경을 짧게 커밋한 뒤 호출한다
+- SSE 엔드포인트는 DB 세션을 스트림 수명과 묶지 않는다 — `AsyncSessionLocal()`을 짧게 열고 닫는다
+- 서버가 URL을 직접 방문하는 코드는 `_validate_pdf_url` 수준의 검증(허용 호스트, 매 홉 재검증)을 붙인다
+- LLM에 논문 본문을 넣는 호출은 `agents/token_budget.py`의 `ensure_request_fits` / `ensure_complete`를 거친다. 본문을 조용히 자르지 않는다
+- 모델 이름·한도 같은 조정값은 `core/config.py`에 둔다
 
 ---
 
-## Dev Commands
+## 테스트
 
 ```bash
-uv sync                                  # 의존성 설치 (pull 후 항상 실행)
-uv run uvicorn main:app --reload         # 개발 서버 실행 (localhost:8000)
-uv add <패키지명>                         # 패키지 추가
+uv run alembic upgrade head
+uv run python -m unittest discover -s tests -v
+REQUIRE_DB_TESTS=1 REQUIRE_CHROMA_TESTS=1 uv run python -m unittest discover -s tests   # CI와 같은 조건
 ```
 
----
-
-## API Endpoints
-
-```
-GET  /health                        # 서버 상태 확인
-GET  /api/v1/papers/search          # 논문 검색 (arXiv + Semantic Scholar)
-POST /api/v1/agent/pdf              # PDF 업로드 모드 (SSE 스트리밍)
-POST /api/v1/agent/search           # 키워드 검색 모드 (SSE 스트리밍)
-POST /api/v1/agent/trend            # 트렌드 브리핑 모드 (SSE 스트리밍)
-```
-
-모든 라우터는 `/api/v1` prefix 사용.
-
----
-
-## Agent Pipeline
-
-```
-Planner → Researcher → Coder → Reviewer → Router
-                                    ↑           |
-                                    |___ 낙제 __|
-```
-
-- **Planner**: gpt-4o-mini 사용 (간단한 계획 수립)
-- **Researcher**: gpt-4o-mini 사용 (논문 검색 및 수집)
-- **Coder**: o4-mini 사용 (코드 생성, 추론 능력 중요)
-- **Reviewer**: o4-mini 사용 (코드 검증, 추론 능력 중요)
-- **Router**: 조건부 분기 (통과/낙제 판단)
-
----
-
-## SSE 스트리밍 방식
-
-에이전트 각 노드 실행 시 진행 상황을 실시간으로 프론트에 전송.
-
-```python
-# routers/agent.py
-from fastapi.responses import StreamingResponse
-
-@router.post("/agent/search")
-async def run_search_agent(request: SearchRequest):
-    return StreamingResponse(
-        agent_service.stream_agent(request),
-        media_type="text/event-stream"
-    )
-```
-
----
-
-## Coding Conventions
-
-- **타입 힌트**: 모든 함수에 필수
-- **비동기**: DB 조회, API 호출은 항상 async/await 사용
-- **비즈니스 로직**: 반드시 services/에만 작성. routers/에서 직접 작성 금지
-- **에이전트 로직**: 반드시 agents/에만 작성. services/에서 직접 작성 금지
-- **변수명**: snake_case
-- **주석**: 한국어로 작성
-- **소유권 검증**: 유저 데이터를 다루는 단건 조회·삭제 엔드포인트(및 대응 CRUD)는 반드시 `user_id == current_user.id` + `is_deleted == False` 필터를 기본 적용한다
-
----
-
-## DB 관련 (추후 추가 예정)
-
-DB 붙일 때 아래 구조로 확장:
-```
-models/   → SQLAlchemy @Entity (DB 테이블)
-schemas/  → Pydantic DTO (현재 models/에 있는 것 이동)
-crud/     → DB 쿼리 함수 (@Repository 역할)
-alembic/  → DB 마이그레이션 (Flyway 역할)
-```
-
----
-
-## Environment Variables
-
-```
-OPENAI_API_KEY=
-DATABASE_URL=
-CHROMA_HOST=localhost
-CHROMA_PORT=8001
-HUGGINGFACE_TOKEN=
-```
-
----
-
-## Important Rules
-
-- CORS 설정 필수 — 없으면 FE(localhost:3000)에서 호출 불가
-- 비즈니스 로직은 services/에서만
-- 에이전트 노드는 agents/nodes/에서만
-- RAG/ 폴더는 레거시 — 참고만 하고 BE/agents/에 새로 구현할 것
-- API 키는 절대 하드코딩 금지
+- `ON CONFLICT`, `ON DELETE SET NULL`, 락처럼 mock으로 검증할 수 없는 동작은 **실제 Postgres**로 테스트한다
+- 한 연결로 충분한 테스트는 바깥 트랜잭션에서 돌리고 롤백한다 (이때 `now()`는 트랜잭션 시작 시각으로 고정)
+- 여러 연결이 필요한 동시 실행 테스트는 커밋한 뒤 직접 지운다 (`doc-test-…@example.com`)
+- 테스트마다 `NullPool` 엔진을 만들고 서비스의 `AsyncSessionLocal`을 patch한다 — 전역 커넥션 풀은 이벤트 루프가 바뀌면 깨진다
+- 실제 Chroma를 쓰는 테스트는 전용 컬렉션을 만들고 끝나면 지운다 (가짜 임베딩으로 `paper_chunks`에 쓰면 차원이 굳는다)
+- 실제 OpenAI API를 쓰는 검증은 `evals/`에 두고 CI에서 돌리지 않는다
