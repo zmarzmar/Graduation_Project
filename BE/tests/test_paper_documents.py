@@ -7,12 +7,13 @@ ON CONFLICT, ON DELETE SET NULL 같은 DB 동작은 mock으로 검증할 수 없
 DB에 붙을 수 없으면 건너뛴다. CI에서는 REQUIRE_DB_TESTS=1로 건너뛰기를 실패로 바꾼다.
 """
 
+import asyncio
 import os
 import unittest
 import uuid
 from unittest.mock import patch
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -84,6 +85,20 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         second = await get_or_create_document(self.db, user_id, list(PAGES), source="upload", title="renamed.pdf")
         self.assertEqual(first, second)
         self.assertEqual(await self._document_ids(user_id), [first])
+        # 재사용은 기존 문서의 정보를 덮어쓰지 않는다 — 분석별 정보는 각 분석 기록(query 등)에 남는다
+        self.assertEqual((await self.db.get(PaperDocument, first)).title, "a.pdf")
+
+    async def test_hash_is_computed_from_the_pages_actually_stored(self):
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, ["bad\x00text"], source="upload", title="p.pdf")
+        doc = await self.db.get(PaperDocument, document_id)
+        self.assertEqual(doc.doc_hash, hash_pages(doc.pages))
+        # NUL 유무만 다른 본문은 저장되는 내용이 같으므로 같은 문서다
+        self.assertEqual(await get_or_create_document(self.db, user_id, ["badtext"], source="upload", title="p.pdf"), document_id)
+
+    async def test_page_boundaries_are_unambiguous_even_with_separator_characters(self):
+        self.assertNotEqual(hash_pages(["a\f", "b"]), hash_pages(["a", "\fb"]))
+        self.assertNotEqual(hash_pages(['a", "b']), hash_pages(["a", "b"]))
 
     async def test_documents_are_not_shared_between_users(self):
         alice, bob = await self._user(), await self._user()
@@ -184,6 +199,92 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         record = await self._save_pdf_run(user_id, [])
         self.assertIsNone(record.document_id)
         self.assertEqual(await self._document_ids(user_id), [])
+
+
+class PaperDocumentConcurrencyTest(unittest.IsolatedAsyncioTestCase):
+    """서로 다른 연결에서 동시에 실행되는 저장·삭제. 두 연결이 서로의 데이터를 봐야 하므로 실제로 커밋하고, 끝나면 직접 지운다."""
+
+    async def asyncSetUp(self):
+        self.engine = create_async_engine(settings.database_url, poolclass=NullPool)
+        self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
+        try:
+            async with self.sessions() as db:
+                tag = uuid.uuid4().hex[:12]
+                user = User(email=f"doc-test-{tag}@example.com", username=f"doc-test-{tag}", password_hash="x")
+                db.add(user)
+                await db.commit()
+                self.user_id = user.id
+        except Exception as e:
+            await self.engine.dispose()
+            if os.environ.get("REQUIRE_DB_TESTS"):
+                raise
+            self.skipTest(f"database unavailable: {e}")
+
+    async def asyncTearDown(self):
+        async with self.sessions() as db:
+            # analysis_results.user_id는 SET NULL이라 사용자만 지우면 행이 남는다 — 먼저 지운다
+            await db.execute(delete(AnalysisResult).where(AnalysisResult.user_id == self.user_id))
+            await db.execute(delete(User).where(User.id == self.user_id))  # paper_documents는 CASCADE
+            await db.commit()
+        await self.engine.dispose()
+
+    async def _new_analysis(self, db: AsyncSession, document_id: int) -> AnalysisResult:
+        return await crud_analysis.create_analysis_result(
+            db, mode="pdf", query="paper.pdf", generated_code="", review_feedback="",
+            review_passed=True, iteration_count=1, user_id=self.user_id, document_id=document_id,
+        )
+
+    async def test_concurrent_saves_of_the_same_text_create_one_document(self):
+        async def save() -> int:
+            async with self.sessions() as db:
+                document_id = await get_or_create_document(db, self.user_id, PAGES, source="upload", title="p.pdf")
+                await asyncio.sleep(0.2)  # 트랜잭션을 열어둔 채 겹치게 한다
+                await self._new_analysis(db, document_id)
+                await db.commit()
+                return document_id
+
+        ids = await asyncio.gather(save(), save(), save())
+
+        self.assertEqual(len(set(ids)), 1)
+        async with self.sessions() as db:
+            count = await db.scalar(
+                select(func.count()).select_from(PaperDocument).where(PaperDocument.user_id == self.user_id)
+            )
+        self.assertEqual(count, 1)
+
+    async def test_deleting_the_last_record_waits_for_a_save_that_is_linking_the_document(self):
+        async with self.sessions() as db:
+            document_id = await get_or_create_document(db, self.user_id, PAGES, source="upload", title="p.pdf")
+            old = await self._new_analysis(db, document_id)
+            await db.commit()
+
+        saver = self.sessions()
+        try:
+            # 저장 쪽: 기존 문서를 찾았지만 아직 새 분석 기록을 커밋하지 않았다
+            self.assertEqual(
+                await get_or_create_document(saver, self.user_id, PAGES, source="upload", title="p.pdf"), document_id
+            )
+
+            async def delete_last_record() -> None:
+                async with self.sessions() as db:
+                    await crud_analysis.delete_analysis_result_by_id(db, old.id, self.user_id)
+                    await db.commit()
+
+            deleter = asyncio.create_task(delete_last_record())
+            # 삭제 쪽은 저장이 끝날 때까지 기다려야 한다 — 기다리지 않으면 문서를 지워버린다
+            done, _ = await asyncio.wait({deleter}, timeout=0.5)
+            self.assertFalse(done, "delete did not wait for the in-flight save")
+
+            new = await self._new_analysis(saver, document_id)
+            await saver.commit()
+            await deleter
+        finally:
+            await saver.close()
+
+        async with self.sessions() as db:
+            self.assertIsNotNone(await db.get(PaperDocument, document_id))  # 새 기록이 쓰므로 남는다
+            self.assertEqual((await db.get(AnalysisResult, new.id)).document_id, document_id)
+            self.assertTrue((await db.get(AnalysisResult, old.id)).is_deleted)
 
 
 if __name__ == "__main__":
