@@ -11,9 +11,9 @@ import httpx
 
 from services import agent_service
 from services.agent_service import (
-    _download_first_available_pdf_text,
+    _download_first_available_pdf_pages,
     _validate_pdf_url,
-    download_pdf_text,
+    download_pdf_pages,
 )
 
 _BLOCKED_URLS = [
@@ -93,21 +93,21 @@ class DownloadPdfTextTest(unittest.IsolatedAsyncioTestCase):
         with rec.patch_client():
             for url in _BLOCKED_URLS:
                 with self.subTest(url=url), self.assertRaises(ValueError):
-                    await download_pdf_text(url)
+                    await download_pdf_pages(url)
         self.assertEqual(rec.requested, [])
 
     async def test_downloads_allowed_pdf(self):
         rec = _Recorder({"https://arxiv.org/pdf/1": httpx.Response(200, content=_pdf_bytes())})
         with rec.patch_client():
-            text = await download_pdf_text("https://arxiv.org/pdf/1")
-        self.assertIn("attention", text)
+            pages = await download_pdf_pages("https://arxiv.org/pdf/1")
+        self.assertIn("attention", pages[0])
 
     async def test_redirect_to_disallowed_host_is_never_requested(self):
         for target in ("https://evil.com/x.pdf", "http://169.254.169.254/", "http://localhost:8000/health"):
             rec = _Recorder({"https://arxiv.org/pdf/1": _redirect(target)})
             with self.subTest(target=target), rec.patch_client():
                 with self.assertRaises(ValueError):
-                    await download_pdf_text("https://arxiv.org/pdf/1")
+                    await download_pdf_pages("https://arxiv.org/pdf/1")
                 self.assertEqual(rec.requested, ["https://arxiv.org/pdf/1"])
 
     async def test_relative_redirect_is_resolved_and_followed(self):
@@ -116,14 +116,14 @@ class DownloadPdfTextTest(unittest.IsolatedAsyncioTestCase):
             "https://arxiv.org/pdf/1v2": httpx.Response(200, content=_pdf_bytes()),
         })
         with rec.patch_client():
-            text = await download_pdf_text("https://arxiv.org/pdf/1")
-        self.assertIn("attention", text)
+            pages = await download_pdf_pages("https://arxiv.org/pdf/1")
+        self.assertIn("attention", pages[0])
         self.assertEqual(rec.requested, ["https://arxiv.org/pdf/1", "https://arxiv.org/pdf/1v2"])
 
     async def test_scheme_relative_redirect_to_other_host_is_blocked(self):
         rec = _Recorder({"https://arxiv.org/pdf/1": _redirect("//evil.com/x.pdf")})
         with rec.patch_client(), self.assertRaises(ValueError):
-            await download_pdf_text("https://arxiv.org/pdf/1")
+            await download_pdf_pages("https://arxiv.org/pdf/1")
         self.assertEqual(rec.requested, ["https://arxiv.org/pdf/1"])
 
     async def test_three_redirects_are_followed(self):
@@ -134,20 +134,20 @@ class DownloadPdfTextTest(unittest.IsolatedAsyncioTestCase):
             "https://export.arxiv.org/pdf/3": httpx.Response(200, content=_pdf_bytes()),
         })
         with rec.patch_client():
-            await download_pdf_text("https://arxiv.org/pdf/0")
+            await download_pdf_pages("https://arxiv.org/pdf/0")
         self.assertEqual(len(rec.requested), 4)
 
     async def test_fourth_redirect_is_not_followed(self):
         rec = _Recorder({f"https://arxiv.org/pdf/{i}": _redirect(f"/pdf/{i + 1}") for i in range(10)})
         with rec.patch_client(), self.assertRaises(ValueError):
-            await download_pdf_text("https://arxiv.org/pdf/0")
+            await download_pdf_pages("https://arxiv.org/pdf/0")
         self.assertEqual(len(rec.requested), 4)
 
     async def test_paper_with_only_disallowed_urls_sends_no_request(self):
         rec = _Recorder({})
         paper = {"pdf_url": "https://evilarxiv.org/abs/1706.03762", "url": "http://localhost:8000/health"}
         with rec.patch_client(), self.assertRaises(ValueError):
-            await _download_first_available_pdf_text(paper)
+            await _download_first_available_pdf_pages(paper)
         self.assertEqual(rec.requested, [])
 
 

@@ -23,4 +23,5 @@ dependencies = [
     "bcrypt>=5.0.0",
     "pyjwt>=2.12.1",
     "email-validator>=2.2.0",
+    "tiktoken>=0.12.0",
 ]

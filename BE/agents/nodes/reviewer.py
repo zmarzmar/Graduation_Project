@@ -6,16 +6,20 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from agents.log_stream import emit_log
+from agents.paper_context import paper_source_context
 from agents.perf import log_elapsed
 from agents.state import AgentState
+from agents.token_budget import REASONING_OUTPUT_BUDGET, ensure_complete, ensure_request_fits
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # o4-mini: 코드 추론 및 논문 대조 검증 특화
+_MODEL = "o4-mini"
 _llm = ChatOpenAI(
-    model="o4-mini",
+    model=_MODEL,
     api_key=settings.openai_api_key,
+    max_tokens=REASONING_OUTPUT_BUDGET,  # 출력 예산 (o4-mini는 추론 토큰 포함)
 )
 
 _SYSTEM_PROMPT = """당신은 AI 논문 구현 코드를 검토하는 전문 리뷰어입니다.
@@ -100,22 +104,8 @@ async def reviewer_node(state: AgentState) -> dict:
             "error": "generated_code가 비어 있습니다.",
         }
 
-    # 논문 컨텍스트 — pdf_text가 있으면 전문 우선 사용 (Coder와 동일한 컨텍스트 보장)
-    papers = state.get("papers", [])
-    pdf_text = state.get("pdf_text", "")
-
-    if pdf_text:
-        # PDF 전문 앞 8000자 사용 — 토큰 한도를 고려하되 핵심 Methods 섹션 포함
-        paper_context = f"[논문 전문 (앞 8000자)]\n{pdf_text[:8000]}"
-    else:
-        paper_lines = []
-        for i, paper in enumerate(papers[:2], 1):
-            paper_lines.append(f"### 논문 {i}: {paper.get('title', 'N/A')}")
-            if tldr := paper.get("tldr"):
-                paper_lines.append(f"요약: {tldr}")
-            paper_lines.append(f"초록:\n{paper.get('abstract', '')[:600]}")
-            paper_lines.append("")
-        paper_context = "\n".join(paper_lines) or "논문 정보 없음"
+    # 논문 원문 부분은 Coder와 같은 함수로 만든다 — 생성기와 검토기가 같은 근거를 본다
+    paper_context = paper_source_context(state)
 
     user_content = (
         f"### 참고 논문:\n{paper_context}\n\n"
@@ -126,10 +116,14 @@ async def reviewer_node(state: AgentState) -> dict:
         emit_log("reviewer", f"{iteration}회차 코드 검증 중...")
         emit_log("reviewer", "논문 이론과 코드 대조 분석 중...")
         async with log_elapsed(logger, "external_call", node="reviewer", external="openai"):
-            response = await _llm.ainvoke([
+            messages = [
                 SystemMessage(content=_SYSTEM_PROMPT),
                 HumanMessage(content=user_content),
-            ])
+            ]
+            # 이전 코드·피드백까지 합친 전체 입력 + 출력 예산이 한도 안인지 호출 직전에 확인한다
+            ensure_request_fits(_MODEL, messages, REASONING_OUTPUT_BUDGET)
+            response = await _llm.ainvoke(messages)
+            ensure_complete(response, REASONING_OUTPUT_BUDGET)
         result = _extract_json(response.content)
     except Exception as e:
         logger.error(f"[Reviewer] LLM 호출 실패: {e}")
@@ -162,7 +156,7 @@ async def reviewer_node(state: AgentState) -> dict:
 
     # 최종 결과물 구성
     final_result = {
-        "papers": papers,
+        "papers": state.get("papers", []),
         "generated_code": generated_code,
         "review_feedback": feedback,
         "review_passed": passed,
