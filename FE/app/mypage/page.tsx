@@ -90,7 +90,8 @@ function SearchAccordion({ item, onDelete }: { item: SearchHistoryItem; onDelete
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setOpen((v) => !v)}>
           <p className="truncate text-sm font-medium text-gray-800">{item.query}</p>
           <p className="mt-0.5 text-xs text-gray-400">
-            {MODE_LABEL[item.mode] ?? item.mode} · 논문 {item.result_count}편
+            {/* 예전 pdf 기록의 papers는 분석 대상이 아니라 함께 검색된 참고 논문이다 */}
+            {MODE_LABEL[item.mode] ?? item.mode} · {item.mode === 'pdf' ? '참고 논문' : '논문'} {item.result_count}편
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2 cursor-pointer" onClick={() => setOpen((v) => !v)}>

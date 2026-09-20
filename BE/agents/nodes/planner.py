@@ -58,12 +58,7 @@ async def planner_node(state: AgentState) -> dict:
     mode = state["mode"]
     logger.info(f"[Planner] 시작 — mode={mode}, query=\"{state['user_query']}\"")
 
-    if mode == "pdf":
-        user_content = (
-            "모드: PDF 업로드\n\n"
-            f"PDF 내용 (앞 3000자):\n{state.get('pdf_text', '')[:3000]}"
-        )
-    elif mode == "analyze":
+    if mode == "analyze":
         # 사용자가 선택한 논문 1편 분석 — pdf_text 또는 초록으로 키워드 추출
         pdf_text = state.get("pdf_text", "")
         papers = state.get("papers", [])
