@@ -20,9 +20,17 @@ class Settings(BaseSettings):
     # 데이터베이스 — postgresql+asyncpg:// 형식 사용
     database_url: str = _LOCAL_DB_URL
 
-    # ChromaDB
+    # ChromaDB — 논문 Q&A의 벡터 색인. Postgres(paper_documents)에서 다시 만들 수 있는 파생 데이터다.
     chroma_host: str = "localhost"
     chroma_port: int = 8001
+
+    # 논문 Q&A (RAG)
+    embedding_model: str = "text-embedding-3-small"
+    qa_model: str = "gpt-4o-mini"
+    qa_top_k: int = 6
+    # 가장 가까운 청크의 코사인 거리가 이 값을 넘으면 LLM을 부르지 않고 '근거를 확인하지 못함'으로 답한다.
+    # 평가(evals/qa_eval.py)의 보정용 질문으로 정하는 값이다 — 1.0은 사실상 게이트를 끈 상태.
+    qa_max_distance: float = 1.0
 
     # CORS
     cors_origins: str = "http://localhost:3000,https://paperpilot.cloud,https://www.paperpilot.cloud"

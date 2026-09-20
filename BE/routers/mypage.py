@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,7 +13,9 @@ from models.analysis import AnalysisResult
 from models.paper import Paper
 from models.search_history import SearchHistory
 from models.user import User
+from services import rag_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["mypage"])
 
 
@@ -181,6 +184,18 @@ async def delete_search_history(
         raise HTTPException(status_code=404, detail="검색 기록을 찾을 수 없습니다.")
 
 
+async def _clean_up_deleted_documents(db: AsyncSession) -> None:
+    """삭제를 먼저 커밋해 접근을 즉시 막은 뒤, 트랜잭션·락 밖에서 벡터 색인을 정리한다.
+
+    정리가 실패해도 삭제 요청은 성공이다 — 원문은 이미 비워졌고, 삭제 대기 표시가 남아 다음 삭제나 서버 기동 때 다시 시도된다.
+    """
+    await db.commit()
+    try:
+        await rag_service.purge_pending_documents()
+    except Exception as e:
+        logger.error(f"삭제된 문서의 색인 정리 실패 (다음에 다시 시도): {e}")
+
+
 @router.delete("/mypage/analysis-history", status_code=204)
 async def delete_all_analysis_history(
     db: AsyncSession = Depends(get_db),
@@ -188,6 +203,7 @@ async def delete_all_analysis_history(
 ):
     """본인 분석 히스토리 전체 삭제"""
     await crud_analysis.delete_all_analysis_results(db, user_id=current_user.id)
+    await _clean_up_deleted_documents(db)
 
 
 @router.delete("/mypage/analysis-history/{analysis_id}", status_code=204)
@@ -202,6 +218,7 @@ async def delete_analysis_history(
     )
     if not deleted:
         raise HTTPException(status_code=404, detail="분석 기록을 찾을 수 없습니다.")
+    await _clean_up_deleted_documents(db)
 
 
 @router.get("/mypage/analysis-history", response_model=list[AnalysisHistoryItem])
