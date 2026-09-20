@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from agents.log_stream import emit_log
+from agents.paper_context import paper_source_context
 from agents.perf import log_elapsed
 from agents.state import AgentState
 from core.config import settings
@@ -40,22 +41,6 @@ def _extract_code(text: str) -> str:
     return text.strip()
 
 
-def _build_paper_context(papers: list[dict]) -> str:
-    """논문 목록을 프롬프트용 컨텍스트 텍스트로 변환한다. 최대 3편만 사용."""
-    if not papers:
-        return "수집된 논문 없음"
-
-    lines = []
-    for i, paper in enumerate(papers[:3], 1):
-        lines.append(f"## 논문 {i}: {paper.get('title', 'N/A')}")
-        lines.append(f"저자: {', '.join(paper.get('authors', [])[:3])}")
-        if tldr := paper.get("tldr"):
-            lines.append(f"요약: {tldr}")
-        lines.append(f"초록:\n{paper.get('abstract', '')[:800]}")
-        lines.append("")
-    return "\n".join(lines)
-
-
 async def coder_node(state: AgentState) -> dict:
     """논문 내용을 분석해 PyTorch 코드 스켈레톤을 생성한다.
     2회차 이상에서는 review_feedback를 반영해 코드를 수정한다.
@@ -64,12 +49,8 @@ async def coder_node(state: AgentState) -> dict:
     label = "최초 생성" if iteration == 0 else f"피드백 반영 ({iteration}회차 → {iteration + 1}회차)"
     logger.info(f"[Coder] 시작 — {label}")
 
-    # pdf_text 우선 사용, 없으면 초록 기반 컨텍스트 사용
-    pdf_text = state.get("pdf_text", "")
-    if pdf_text:
-        paper_context = f"[논문 전문]\n{pdf_text}"
-    else:
-        paper_context = _build_paper_context(state.get("papers", []))
+    # 논문 원문 부분은 Reviewer와 같은 함수로 만든다
+    paper_context = paper_source_context(state)
 
     # Analyzer 결과 컨텍스트 추가
     summary = state.get("paper_summary", "")

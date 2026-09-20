@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from agents.log_stream import emit_log
+from agents.paper_context import paper_source_context
 from agents.perf import log_elapsed
 from agents.state import AgentState
 from core.config import settings
@@ -100,22 +101,8 @@ async def reviewer_node(state: AgentState) -> dict:
             "error": "generated_code가 비어 있습니다.",
         }
 
-    # 논문 컨텍스트 — pdf_text가 있으면 전문 우선 사용 (Coder와 동일한 컨텍스트 보장)
-    papers = state.get("papers", [])
-    pdf_text = state.get("pdf_text", "")
-
-    if pdf_text:
-        # PDF 전문 앞 8000자 사용 — 토큰 한도를 고려하되 핵심 Methods 섹션 포함
-        paper_context = f"[논문 전문 (앞 8000자)]\n{pdf_text[:8000]}"
-    else:
-        paper_lines = []
-        for i, paper in enumerate(papers[:2], 1):
-            paper_lines.append(f"### 논문 {i}: {paper.get('title', 'N/A')}")
-            if tldr := paper.get("tldr"):
-                paper_lines.append(f"요약: {tldr}")
-            paper_lines.append(f"초록:\n{paper.get('abstract', '')[:600]}")
-            paper_lines.append("")
-        paper_context = "\n".join(paper_lines) or "논문 정보 없음"
+    # 논문 원문 부분은 Coder와 같은 함수로 만든다 — 생성기와 검토기가 같은 근거를 본다
+    paper_context = paper_source_context(state)
 
     user_content = (
         f"### 참고 논문:\n{paper_context}\n\n"
@@ -162,7 +149,7 @@ async def reviewer_node(state: AgentState) -> dict:
 
     # 최종 결과물 구성
     final_result = {
-        "papers": papers,
+        "papers": state.get("papers", []),
         "generated_code": generated_code,
         "review_feedback": feedback,
         "review_passed": passed,
