@@ -168,6 +168,20 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(valid, [{"page": 2, "chunk_index": 4, "quote": "freezes the pretrained model weights"}])
         self.assertEqual(dropped, 5)
 
+    def test_pdf_extraction_artifacts_do_not_make_a_real_quote_look_fake(self):
+        # 평가에서 실제로 나온 실패: 추출 텍스트는 "pre-\ntrained"인데 모델은 "pre-trained"로 이어서 인용한다
+        passages = [Passage(chunk_index=0, page=1, distance=0.1,
+                            text="LoRA, which freezes the pre-\ntrained model weights and injects trainable rank decom-\nposition "
+                                 "matrices. The ﬁne-tuned model is efﬁcient for large values of\ndk.")]
+        draft = QaDraft(answerable=True, answer="a", citations=[
+            Citation(passage=1, quote="freezes the pre-trained model weights and injects trainable rank decomposition matrices"),
+            Citation(passage=1, quote="The fine-tuned model is efficient for large values of dk."),  # 합자(ﬁ)와 줄바꿈
+            Citation(passage=1, quote="freezes the pre-trained optimizer states"),                   # 여전히 없는 문장은 거부
+        ])
+        valid, dropped = validate_citations(draft, passages)
+        self.assertEqual(len(valid), 2)
+        self.assertEqual(dropped, 1)
+
     async def _answer(self, draft: QaDraft) -> dict:
         class _FakeLLM:
             messages: list = []
@@ -185,6 +199,7 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result["answerable"])
         self.assertEqual(result["answer"], qa.NO_EVIDENCE_MESSAGE)
         self.assertEqual(result["citations"], [])
+        self.assertEqual(result["dropped_citations"], 1)  # 모델이 거부한 것이 아니라 검증에서 막혔다는 것이 드러난다
 
     async def test_partially_dropped_citations_are_reported(self):
         result = await self._answer(self._draft((1, "injects trainable matrices"), (2, "not in the passage at all")))

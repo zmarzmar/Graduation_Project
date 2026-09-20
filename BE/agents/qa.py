@@ -1,6 +1,7 @@
 """논문 Q&A — 검색된 구절만 근거로 답하고, 출처를 서버에서 검증한다."""
 
 import re
+import unicodedata
 from typing import Protocol
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -53,8 +54,13 @@ _llm = ChatOpenAI(
 
 
 def _normalize(text: str) -> str:
-    # PDF 추출 텍스트는 줄바꿈 위치가 제각각이라 공백을 하나로 합치고 대소문자를 무시해서 비교한다
-    return re.sub(r"\s+", " ", text).strip().casefold()
+    """인용문과 구절을 '글자·숫자의 나열'로 바꿔 비교한다.
+
+    PDF 추출 텍스트에는 줄 끝 하이픈("pre-\\ntrained"), 제각각인 줄바꿈, 합자(ﬁ)·전각 문자 같은 흔적이 남는데,
+    모델은 이를 자연스럽게 이어 붙여 인용한다("pre-trained"). 공백만 맞추면 진짜 인용문이 가짜로 판정된다
+    (평가에서 답이 있는 질문 9개 중 3개가 이 때문에 거부됐다).
+    """
+    return re.sub(r"[\W_]+", "", unicodedata.normalize("NFKC", text).casefold())
 
 
 def validate_citations(draft: QaDraft, passages: list[_Passage]) -> tuple[list[dict], int]:
@@ -70,9 +76,10 @@ def validate_citations(draft: QaDraft, passages: list[_Passage]) -> tuple[list[d
             continue  # 검색되지 않은 구절 번호
         passage = passages[citation.passage - 1]
         quote = citation.quote.strip()
-        if len(quote) < _MIN_QUOTE_CHARS or _normalize(quote) not in _normalize(passage.text):
+        normalized = _normalize(quote)
+        if len(normalized) < _MIN_QUOTE_CHARS or normalized not in _normalize(passage.text):
             continue  # 빈 인용문이거나 그 구절에 없는 문장
-        key = (passage.chunk_index, _normalize(quote))
+        key = (passage.chunk_index, normalized)
         if key not in seen:
             seen.add(key)
             valid.append({"page": passage.page, "chunk_index": passage.chunk_index, "quote": quote})
@@ -104,7 +111,8 @@ async def answer_question(question: str, passages: list[_Passage]) -> dict:
         return no_evidence()
     citations, dropped = validate_citations(draft, passages)
     if not citations:
-        return no_evidence()
+        # 모델은 답했지만 출처가 하나도 검증되지 않았다 — 제거된 수를 남겨 '모델의 거부'와 구분할 수 있게 한다
+        return {**no_evidence(), "dropped_citations": dropped}
     # ponytail: 일부 인용만 제거된 경우 답변에는 그 인용이 받치던 문장이 남을 수 있다.
     # dropped_citations로 드러내고 평가에서 빈도를 본다 — 문제가 되면 문장 단위 근거 연결로 바꾼다.
     return {"answerable": True, "answer": draft.answer.strip(), "citations": citations, "dropped_citations": dropped}
