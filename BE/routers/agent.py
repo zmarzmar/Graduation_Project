@@ -61,7 +61,10 @@ async def run_pdf_agent(
 
     try:
         async with log_elapsed(logger, "pdf_extract", endpoint="agent_pdf"):
-            pdf_text = agent_service.extract_pdf_text(file_bytes)
+            pdf_pages = agent_service.extract_pdf_pages(file_bytes)
+    except agent_service.PaperTooLongError as e:
+        # 추출은 성공했지만 모델 입력 한도 초과 — 추출 실패와 구분해서 알린다.
+        raise HTTPException(status_code=413, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"PDF 텍스트 추출 실패: {str(e)}")
 
@@ -69,7 +72,7 @@ async def run_pdf_agent(
         agent_service.stream_agent(
             mode="pdf",
             user_query=file.filename,
-            pdf_text=pdf_text,
+            pdf_pages=pdf_pages,
             user_id=user_id,
         ),
         media_type="text/event-stream",

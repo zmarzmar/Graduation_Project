@@ -7,7 +7,8 @@ class AgentState(TypedDict):
     # ── 입력 ──────────────────────────────────────────────────────────────
     mode: str           # "pdf" | "search" | "trend" | "analyze"
     user_query: str     # 사용자 입력 (키워드 또는 설명)
-    pdf_text: str       # PDF 추출 텍스트 (mode == "pdf" 전용)
+    pdf_pages: list[str]  # PDF 페이지별 텍스트 — 빈 페이지 포함, 인덱스 + 1 = 원본 페이지 번호
+    pdf_text: str       # pdf_pages를 합친 전문 (pdf·analyze 모드, 없으면 초록 기반 분석)
 
     # ── 노드별 산출물 ──────────────────────────────────────────────────────
     plan: str           # Planner 실행 계획 (JSON 문자열)

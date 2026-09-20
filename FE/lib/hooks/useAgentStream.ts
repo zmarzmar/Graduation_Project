@@ -28,7 +28,15 @@ export function useAgentStream(mode: StreamMode) {
     async (response: Response) => {
       if (!response.ok) {
         const text = await response.text()
-        setStreamState(mode, { error: `요청 실패 (${response.status}): ${text}`, isRunning: false })
+        // FastAPI 오류는 {"detail": "..."} 형식 — 사용자에게는 메시지만 보여준다
+        let detail = text
+        try {
+          const parsed = JSON.parse(text)
+          if (typeof parsed?.detail === 'string') detail = parsed.detail
+        } catch {
+          // JSON이 아니면 원문 그대로 표시
+        }
+        setStreamState(mode, { error: `요청 실패 (${response.status}): ${detail}`, isRunning: false })
         return
       }
 

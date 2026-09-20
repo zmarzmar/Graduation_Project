@@ -13,6 +13,7 @@ import httpx
 from agents.graph import agent_graph, analyze_graph
 from agents.log_stream import set_log_queue
 from agents.perf import log_elapsed
+from core.config import settings
 from core.dependencies import AsyncSessionLocal
 from crud import analysis as crud_analysis
 from crud import paper as crud_paper
@@ -39,14 +40,42 @@ async def _cancel_task(task: asyncio.Task[None]) -> None:
         await task
 
 
-def extract_pdf_text(file_bytes: bytes) -> str:
-    """PDF 바이트에서 전체 텍스트를 추출한다. (pymupdf 사용)"""
+class PaperTooLongError(ValueError):
+    """논문 본문이 모델 입력 한도를 넘는다. 자르지 않고 사용자에게 알린다."""
+
+
+def join_pages(pages: list[str]) -> str:
+    """페이지 목록을 노드에 전달할 전문 텍스트로 합친다."""
+    return "\n".join(pages).strip()
+
+
+def _estimate_tokens(text: str) -> int:
+    # ponytail: UTF-8 바이트 / 3 근사 — 영문(~4자/토큰)·한글(~1자/토큰) 모두 실제보다 많게 잡는 보수적 추정.
+    # 한도 근처의 정확도가 필요해지면 tiktoken으로 교체한다.
+    return len(text.encode("utf-8")) // 3
+
+
+def extract_pdf_pages(file_bytes: bytes) -> list[str]:
+    """PDF 바이트에서 페이지별 텍스트를 추출한다. (pymupdf 사용)
+
+    빈 페이지도 그대로 둔다 — 인덱스 + 1이 원본 PDF 페이지 번호와 일치해야 출처 표시가 맞는다.
+    업로드·다운로드 양쪽 경로가 모두 이 함수를 지나므로 본문 검증도 여기서 한다.
+    """
     doc = fitz.open(stream=file_bytes, filetype="pdf")
-    text = "\n".join(page.get_text() for page in doc).strip()
+    pages = [page.get_text() for page in doc]
+    text = join_pages(pages)
+
     # 스캔본 등 텍스트 레이어가 없는 PDF — 빈 본문으로 분석을 시작하지 않도록 여기서 막는다.
     if not text:
         raise ValueError("PDF에서 텍스트를 추출하지 못했습니다. (스캔 이미지 PDF는 지원하지 않습니다)")
-    return text
+
+    tokens = _estimate_tokens(text)
+    if tokens > settings.max_paper_tokens:
+        raise PaperTooLongError(
+            f"논문이 너무 깁니다 ({len(pages)}쪽, 약 {tokens:,} 토큰 — 한도 {settings.max_paper_tokens:,} 토큰). "
+            "본문을 잘라서 분석하면 Methods·부록이 빠질 수 있어 전문 분석을 진행하지 않습니다."
+        )
+    return pages
 
 
 def _validate_pdf_url(url: str) -> str:
@@ -73,8 +102,8 @@ def _validate_pdf_url(url: str) -> str:
     return str(parsed)
 
 
-async def download_pdf_text(pdf_url: str) -> str:
-    """arXiv PDF URL에서 PDF를 다운로드하고 전체 텍스트를 추출한다."""
+async def download_pdf_pages(pdf_url: str) -> list[str]:
+    """arXiv PDF URL에서 PDF를 다운로드하고 페이지별 텍스트를 추출한다."""
     url = _validate_pdf_url(pdf_url)
     # 자동 리다이렉트를 끄고 매 홉마다 목적지를 재검증한다.
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
@@ -93,7 +122,7 @@ async def download_pdf_text(pdf_url: str) -> str:
     if "pdf" not in content_type and not content.startswith(b"%PDF"):
         raise ValueError(f"PDF 응답이 아닙니다. content-type={content_type or 'unknown'}")
 
-    return extract_pdf_text(content)
+    return extract_pdf_pages(content)
 
 
 def _normalize_arxiv_id(arxiv_id: str) -> str:
@@ -134,8 +163,8 @@ def _build_pdf_url_candidates(paper: dict) -> list[str]:
     return candidates
 
 
-async def _download_first_available_pdf_text(paper: dict) -> tuple[str, str]:
-    """PDF 후보 URL을 순서대로 시도하고 성공한 텍스트와 URL을 반환한다."""
+async def _download_first_available_pdf_pages(paper: dict) -> tuple[list[str], str]:
+    """PDF 후보 URL을 순서대로 시도하고 성공한 페이지 목록과 URL을 반환한다."""
     errors: list[str] = []
     candidates = _build_pdf_url_candidates(paper)
     if not candidates:
@@ -143,7 +172,10 @@ async def _download_first_available_pdf_text(paper: dict) -> tuple[str, str]:
 
     for pdf_url in candidates:
         try:
-            return await download_pdf_text(pdf_url), pdf_url
+            return await download_pdf_pages(pdf_url), pdf_url
+        except PaperTooLongError:
+            # 다운로드는 성공했다 — 다른 후보를 시도해도 같은 논문이므로 그대로 알린다.
+            raise
         except Exception as e:
             errors.append(f"{pdf_url}: {e}")
 
@@ -153,13 +185,15 @@ async def _download_first_available_pdf_text(paper: dict) -> tuple[str, str]:
 def _make_initial_state(
     mode: str,
     user_query: str,
-    pdf_text: str = "",
+    pdf_pages: list[str] | None = None,
 ) -> dict:
-    """에이전트 초기 상태를 생성한다."""
+    """에이전트 초기 상태를 생성한다. pdf_text는 pdf_pages에서 파생한다 (PDF는 한 번만 파싱)."""
+    pdf_pages = pdf_pages or []
     return {
         "mode": mode,
         "user_query": user_query,
-        "pdf_text": pdf_text,
+        "pdf_pages": pdf_pages,
+        "pdf_text": join_pages(pdf_pages),
         "plan": "",
         "papers": [],
         "paper_summary": "",
@@ -213,7 +247,7 @@ def _build_node_done_event(node_name: str, updates: dict) -> dict:
 async def stream_agent(
     mode: str,
     user_query: str,
-    pdf_text: str = "",
+    pdf_pages: list[str] | None = None,
     user_id: int | None = None,
 ) -> AsyncGenerator[str, None]:
     """LangGraph 그래프를 실행하고 노드 로그 및 완료 이벤트를 실시간 SSE로 스트리밍한다.
@@ -225,7 +259,7 @@ async def stream_agent(
         파이프라인 완료: {"event": "complete", "result": {...}}
         오류        : {"event": "error",     "message": "..."}
     """
-    initial_state = _make_initial_state(mode, user_query, pdf_text)
+    initial_state = _make_initial_state(mode, user_query, pdf_pages)
     accumulated: dict = dict(initial_state)
 
     # 로그 메시지와 노드 완료 청크를 하나의 채널로 합친다
@@ -366,38 +400,41 @@ async def stream_analyze(
     """사용자가 선택한 논문 1편을 Analyzer → Coder → Reviewer로 분석한다.
     pdf_url이 있으면 arXiv PDF 전체 텍스트를 다운로드해서 분석에 사용한다.
     """
-    pdf_text = ""
+    pdf_pages: list[str] = []
     analysis_source = "pdf"
 
     try:
         yield _sse({"event": "log", "node": "analyzer", "message": "arXiv PDF 다운로드 중..."})
         async with log_elapsed(logger, "external_call", node="analyze", external="pdf_download"):
-            pdf_text, used_pdf_url = await _download_first_available_pdf_text(paper)
+            pdf_pages, used_pdf_url = await _download_first_available_pdf_pages(paper)
         yield _sse({
             "event": "log",
             "node": "analyzer",
-            "message": f"PDF 전체 텍스트 추출 완료 ({len(pdf_text)}자)",
+            "message": f"PDF 전체 텍스트 추출 완료 ({len(pdf_pages)}쪽, {len(join_pages(pdf_pages))}자)",
             "pdf_url": used_pdf_url,
         })
     except Exception as e:
-        logger.warning(f"PDF 다운로드 실패: {e}")
+        # 너무 긴 논문은 다운로드 실패와 구분해서 알린다 — 잘라서 분석하지 않는다.
+        too_long = isinstance(e, PaperTooLongError)
+        problem = str(e) if too_long else "PDF를 다운로드하지 못했습니다."
+        logger.warning(f"PDF 전문 사용 불가: {e}")
         if not allow_abstract_fallback:
             yield _sse({
                 "event": "pdf_fallback_required",
                 "node": "analyzer",
-                "message": "PDF를 다운로드하지 못했습니다. 초록만으로 분석을 진행할까요?",
-                "reason": "download_failed",
+                "message": f"{problem} 초록만으로 분석을 진행할까요?",
+                "reason": "paper_too_long" if too_long else "download_failed",
             })
             return
 
         if not paper.get("abstract"):
-            yield _sse({"event": "error", "message": "PDF를 다운로드하지 못했고 초록도 없어 분석을 진행할 수 없습니다."})
+            yield _sse({"event": "error", "message": f"{problem} 초록도 없어 분석을 진행할 수 없습니다."})
             return
 
         analysis_source = "abstract"
         yield _sse({"event": "log", "node": "analyzer", "message": "사용자 동의에 따라 초록으로 분석 진행"})
 
-    initial_state = _make_initial_state("analyze", user_query, pdf_text=pdf_text)
+    initial_state = _make_initial_state("analyze", user_query, pdf_pages=pdf_pages)
     initial_state["papers"] = [paper]
     initial_state["analysis_source"] = analysis_source
     accumulated: dict = dict(initial_state)

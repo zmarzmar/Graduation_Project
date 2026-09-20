@@ -11,7 +11,7 @@ import fitz
 
 from agents.graph import agent_graph, analyze_graph
 from services import agent_service
-from services.agent_service import extract_pdf_text, stream_agent
+from services.agent_service import extract_pdf_pages, stream_agent
 
 
 class _FakeGraph:
@@ -35,7 +35,7 @@ async def _run(mode: str, query: str, search_graph: _FakeGraph, analysis_graph: 
         patch.object(agent_service, "analyze_graph", analysis_graph),
         patch.object(agent_service, "_save_to_db", save),
     ):
-        events = [json.loads(line.removeprefix("data: ")) async for line in stream_agent(mode, query, pdf_text="본문")]
+        events = [json.loads(line.removeprefix("data: ")) async for line in stream_agent(mode, query, pdf_pages=["본문"])]
     complete = next(e for e in events if e["event"] == "complete")
     return complete["result"], save
 
@@ -45,12 +45,12 @@ class ExtractPdfTextTest(unittest.TestCase):
         doc = fitz.open()
         doc.new_page()  # 텍스트 없는 빈 페이지 (스캔본과 같은 상황)
         with self.assertRaises(ValueError):
-            extract_pdf_text(doc.tobytes())
+            extract_pdf_pages(doc.tobytes())
 
     def test_pdf_with_text_is_extracted(self):
         doc = fitz.open()
         doc.new_page().insert_text((72, 72), "attention")
-        self.assertEqual(extract_pdf_text(doc.tobytes()), "attention")
+        self.assertEqual([p.strip() for p in extract_pdf_pages(doc.tobytes())], ["attention"])
 
 
 class GraphShapeTest(unittest.TestCase):
