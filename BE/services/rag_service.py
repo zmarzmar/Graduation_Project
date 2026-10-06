@@ -36,6 +36,11 @@ RETRY_AFTER_SECONDS = 3         # 색인 중일 때 클라이언트에 알려주
 # 툼스톤 행은 이 시간이 지난 뒤에야 지운다. 색인 중에 삭제된 문서는 늦게 도착한 upsert가 청크를 다시 만들 수 있어서,
 # 색인 시간 제한보다 길게 기다린 뒤 한 번 더 지우고 나서 행을 없앤다.
 PURGE_GRACE_SECONDS = 120
+# 관련 원문 요청 하나가 만드는 검색의 상한 (Analyzer는 요약 3~5문장, 수식 최대 3개를 만든다)
+RELATED_MAX_SUMMARY_SENTENCES = 8
+RELATED_MAX_FORMULAS = 5
+RELATED_MAX_QUERY_CHARS = 500
+RELATED_PASSAGES_PER_ITEM = 2
 # 삭제 정리를 다시 시도하는 주기. 청크가 남아 있는 시간의 상한이 아니다 — 정리가 실패하거나(Chroma·DB 장애),
 # 한 번 도는 데 오래 걸리거나, 서버가 내려가 있으면 늦게 도착한 청크는 이보다 오래 남는다.
 # 삭제 요청은 접근만 즉시 막는다. Chroma의 청크가 실제로 없어지는 것은 그 뒤다.
@@ -230,29 +235,37 @@ async def ensure_indexed(document: PaperDocument) -> str:
 # ── 검색 ─────────────────────────────────────────────────────────────────
 
 
-async def retrieve(document: PaperDocument, job_id: str, question: str) -> list[Passage]:
-    """질문과 가까운 청크를 '이 문서의 현재 색인' 안에서만 찾는다. 범위 필터는 서버가 정한다."""
-    [vector] = await embed([question])
+async def _search(document: PaperDocument, job_id: str, queries: list[str], n_results: int) -> list[list[Passage]]:
+    """질의마다 가까운 청크를 '이 문서의 현재 색인' 안에서만 찾는다. 범위 필터는 서버가 정한다. 질의 순서대로 반환한다."""
     found = await _chroma(
         "query",
-        query_embeddings=[vector],
-        n_results=settings.qa_top_k,
+        query_embeddings=await embed(queries),
+        n_results=n_results,
         where=_job_filter(document.id, job_id),
         include=["documents", "metadatas", "distances"],
     )
-    passages = [
-        Passage(chunk_index=meta["chunk_index"], page=meta["page"], text=text, distance=distance)
-        for text, meta, distance in zip(found["documents"][0], found["metadatas"][0], found["distances"][0])
+    results = [
+        [
+            Passage(chunk_index=meta["chunk_index"], page=meta["page"], text=text, distance=distance)
+            for text, meta, distance in zip(texts, metas, distances)
+        ]
+        for texts, metas, distances in zip(found["documents"], found["metadatas"], found["distances"])
     ]
 
     # 색인 유실과 '근거 없음'을 구분한다: 거리 기준을 적용하기 전인데도 아무것도 안 나왔고,
     # 있어야 할 청크가 실제로 없을 때만 다시 색인하게 되돌린다. 근거가 부족한 질문 때문에 재색인하지 않는다.
-    if not passages and (document.indexed_chunk_count or 0) > 0 and await _count_chunks(document.id, job_id) == 0:
+    if not any(results) and (document.indexed_chunk_count or 0) > 0 and await _count_chunks(document.id, job_id) == 0:
         async with AsyncSessionLocal() as db:
             await crud_paper_document.reset_lost_index(db, document.id, job_id)
             await db.commit()
         logger.warning(f"[RAG] 색인 유실 감지 → 재색인 예정 doc={document.id}")
         raise IndexingInProgress()
+    return results
+
+
+async def retrieve(document: PaperDocument, job_id: str, question: str) -> list[Passage]:
+    """질문과 가까운 청크를 찾는다."""
+    [passages] = await _search(document, job_id, [question], settings.qa_top_k)
     return passages
 
 
@@ -267,6 +280,57 @@ async def ask(document: PaperDocument, question: str) -> dict:
     if not passages or passages[0].distance > settings.qa_max_distance:
         return no_evidence()
     return await answer_question(question, passages)
+
+
+# ── 분석 결과의 관련 원문 ──────────────────────────────────────────────────
+
+
+def related_items(summary: str, formulas: list) -> list[dict]:
+    """저장된 분석 결과에서 관련 원문을 찾을 항목을 만든다: 요약 문장과 핵심 수식. 같은 입력은 같은 id를 만든다.
+
+    질의는 클라이언트가 보내지 않는다 — 서버에 저장된 분석에서만 만들어 검색 범위와 비용이 정해져 있다.
+    요약은 문장 끝 부호 뒤에 공백이 있을 때만 끊는다 ("0.1", "10,000배", "GPT-3"은 끊기지 않는다).
+    수식은 LaTeX가 아니라 이름과 설명으로 찾는다 — 모델이 쓴 LaTeX는 PDF 추출 텍스트의 표기와 다르다.
+    """
+    items: list[dict] = []
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?。])\s+", summary or "") if part.strip()]
+    for index, sentence in enumerate(sentences[:RELATED_MAX_SUMMARY_SENTENCES]):
+        items.append({"id": f"summary-{index}", "kind": "summary", "label": sentence, "query": sentence})
+    for index, formula in enumerate((formulas or [])[:RELATED_MAX_FORMULAS]):
+        if not isinstance(formula, dict):
+            continue
+        name = str(formula.get("name") or "").strip()
+        query = " ".join(part for part in (name, str(formula.get("description") or "").strip()) if part)
+        if query:
+            # id는 저장된 목록에서의 순번이다 — 건너뛴 항목이 있어도 화면의 수식 순번과 어긋나지 않는다
+            items.append({"id": f"formula-{index}", "kind": "formula", "label": name or query, "query": query})
+    for item in items:
+        item["query"] = item["query"][:RELATED_MAX_QUERY_CHARS]
+    return items
+
+
+async def find_related(document: PaperDocument, job_id: str, summary: str, formulas: list) -> list[dict]:
+    """항목마다 가장 가까운 구절을 찾는다. 유사도 검색 결과일 뿐이다 — 구절이 항목을 뒷받침하는지는 확인하지 않는다.
+
+    거리 임계값으로 거르지 않는다: 평가로 정한 기준이 없고, 임의의 값은 품질 기준처럼 보이기만 한다.
+    """
+    items = related_items(summary, formulas)
+    if not items:
+        return []
+    found = await _search(document, job_id, [item["query"] for item in items], RELATED_PASSAGES_PER_ITEM)
+    return [
+        {
+            "id": item["id"], "kind": item["kind"], "label": item["label"],
+            "passages": [{"page": p.page, "chunk_index": p.chunk_index, "text": p.text} for p in passages],
+        }
+        for item, passages in zip(items, found)
+    ]
+
+
+async def related_passages(document: PaperDocument, summary: str, formulas: list) -> list[dict]:
+    """분석 결과의 요약 문장·수식마다 관련 원문 구절을 찾는다. 색인이 없으면 이 요청 안에서 만든다."""
+    job_id = await ensure_indexed(document)
+    return await find_related(document, job_id, summary, formulas)
 
 
 # ── 삭제된 문서의 색인 정리 ────────────────────────────────────────────────

@@ -53,16 +53,20 @@ async def get_recent_analysis_results(
     return list(result.scalars().all())
 
 
-async def user_has_active_analysis(db: AsyncSession, result_id: int, user_id: int) -> bool:
-    """본인 소유의 삭제되지 않은 분석 기록인지 확인한다."""
-    found = await db.scalar(
-        select(AnalysisResult.id).where(
+async def get_active_analysis(db: AsyncSession, result_id: int, user_id: int) -> AnalysisResult | None:
+    """본인 소유의 삭제되지 않은 분석 기록을 반환한다."""
+    return await db.scalar(
+        select(AnalysisResult).where(
             AnalysisResult.id == result_id,
             AnalysisResult.user_id == user_id,
             AnalysisResult.is_deleted == False,  # noqa: E712
         )
     )
-    return found is not None
+
+
+async def user_has_active_analysis(db: AsyncSession, result_id: int, user_id: int) -> bool:
+    """본인 소유의 삭제되지 않은 분석 기록인지 확인한다."""
+    return await get_active_analysis(db, result_id, user_id) is not None
 
 
 async def delete_analysis_result_by_id(db: AsyncSession, result_id: int, user_id: int) -> bool:

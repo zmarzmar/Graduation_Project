@@ -22,7 +22,7 @@ from unittest.mock import patch
 import chromadb
 import httpx
 import uvicorn
-from sqlalchemy import delete, func, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -96,20 +96,21 @@ class FakeCollection:
             self.rows.pop(row_id, None)
 
     def query(self, query_embeddings, n_results, where=None, include=None):
-        [query] = query_embeddings
+        def hits_for(query: list[float]) -> list[tuple[float, str, dict]]:
+            def distance(vector: list[float]) -> float:
+                dot = sum(a * b for a, b in zip(query, vector))
+                return 1 - dot / (math.hypot(*query) * math.hypot(*vector))
 
-        def distance(vector: list[float]) -> float:
-            dot = sum(a * b for a, b in zip(query, vector))
-            return 1 - dot / (math.hypot(*query) * math.hypot(*vector))
+            return sorted(
+                ((distance(vector), text, meta) for vector, text, meta in self.rows.values() if _matches(meta, where)),
+                key=lambda hit: hit[0],
+            )[:n_results]
 
-        hits = sorted(
-            ((distance(vector), text, meta) for vector, text, meta in self.rows.values() if _matches(meta, where)),
-            key=lambda hit: hit[0],
-        )[:n_results]
+        results = [hits_for(query) for query in query_embeddings]
         return {
-            "documents": [[text for _, text, _ in hits]],
-            "metadatas": [[meta for _, _, meta in hits]],
-            "distances": [[dist for dist, _, _ in hits]],
+            "documents": [[text for _, text, _ in hits] for hits in results],
+            "metadatas": [[meta for _, _, meta in hits] for hits in results],
+            "distances": [[dist for dist, _, _ in hits] for hits in results],
         }
 
     def job_ids(self, document_id: int) -> set[str]:
@@ -764,6 +765,126 @@ class AskApiTest(_DbCase):
     async def test_question_length_is_limited(self):
         analysis_id, _ = await self._analyzed_document()
         self.assertEqual((await self._ask(analysis_id, "x" * 501)).status_code, 422)
+
+
+# ── 분석 결과의 관련 원문 ──────────────────────────────────────────────────
+
+
+class RelatedItemsTest(unittest.TestCase):
+    def test_summary_is_split_only_at_sentence_ends_followed_by_whitespace(self):
+        summary = ("LoRA는 드롭아웃 0.1을 쓰고 GPT-3 175B에서 파라미터를 10,000배 줄인다. "
+                   "Top-1 정확도는 2.5% 올랐다!\n결과는 W_0 + BA로 쓴다.")
+        items = rag_service.related_items(summary, [])
+        self.assertEqual([item["id"] for item in items], ["summary-0", "summary-1", "summary-2"])
+        self.assertEqual(items[0]["label"], "LoRA는 드롭아웃 0.1을 쓰고 GPT-3 175B에서 파라미터를 10,000배 줄인다.")
+        self.assertEqual(items[2]["query"], "결과는 W_0 + BA로 쓴다.")
+
+    def test_formulas_are_searched_by_name_and_description_not_latex(self):
+        formulas = [
+            {"name": "LoRA Update", "latex": "W = W_0 + BA", "description": "저랭크 행렬의 곱을 더한다."},
+            "not a formula",                                  # 저장된 값이 깨져 있어도 건너뛴다
+            {"name": "", "latex": "x^2", "description": ""},  # 찾을 말이 없는 수식
+            {"name": "Scaling", "latex": "\\alpha / r"},
+        ]
+        items = rag_service.related_items("", formulas)
+        # id는 저장된 목록에서의 순번 — 건너뛴 항목이 있어도 화면의 수식 순번과 맞는다
+        self.assertEqual([(item["id"], item["label"]) for item in items], [("formula-0", "LoRA Update"), ("formula-3", "Scaling")])
+        self.assertEqual(items[0]["query"], "LoRA Update 저랭크 행렬의 곱을 더한다.")
+        self.assertNotIn("W_0", items[0]["query"])
+
+    def test_the_number_and_length_of_queries_are_bounded(self):
+        summary = " ".join(f"문장 {i}번이다." for i in range(30))
+        formulas = [{"name": f"F{i}", "description": "설" * 2000} for i in range(30)]
+        items = rag_service.related_items(summary, formulas)
+        self.assertEqual(sum(item["kind"] == "summary" for item in items), rag_service.RELATED_MAX_SUMMARY_SENTENCES)
+        self.assertEqual(sum(item["kind"] == "formula" for item in items), rag_service.RELATED_MAX_FORMULAS)
+        self.assertTrue(all(len(item["query"]) <= rag_service.RELATED_MAX_QUERY_CHARS for item in items))
+        self.assertEqual(rag_service.related_items("", []), [])
+        self.assertEqual(rag_service.related_items(None, None), [])
+
+
+class RelatedApiTest(AskApiTest):
+    SUMMARY = "Low rank adaptation freezes the weights. It is evaluated on the GLUE benchmark with RoBERTa."
+    FORMULAS = [{"name": "rank decomposition matrices", "latex": "W_0 + BA", "description": "adaptation of weights"}]
+
+    async def _analysis_with_results(self, user_id: int | None = None, pages: list[str] | None = None) -> int:
+        analysis_id, _ = await self._analyzed_document(user_id, pages)
+        async with self.sessions() as db:
+            await db.execute(
+                update(AnalysisResult).where(AnalysisResult.id == analysis_id)
+                .values(paper_summary=self.SUMMARY, key_formulas=self.FORMULAS)
+            )
+            await db.commit()
+        return analysis_id
+
+    async def _related(self, analysis_id: int) -> httpx.Response:
+        return await self.client.get(f"/api/v1/analyses/{analysis_id}/related")
+
+    async def test_each_summary_sentence_and_formula_gets_passages_from_this_document_only(self):
+        other_user = await self._new_user()
+        self.user_ids.append(other_user)
+        _, other_doc = await self._analyzed_document(other_user, ["Low rank adaptation of bananas: GLUE benchmark for bananas."])
+        await rag_service.ensure_indexed(await self._document(other_doc))
+        analysis_id = await self._analysis_with_results()
+
+        response = await self._related(analysis_id)
+        self.assertEqual(response.status_code, 200)
+        items = response.json()["items"]
+        self.assertEqual([(item["id"], item["kind"]) for item in items],
+                         [("summary-0", "summary"), ("summary-1", "summary"), ("formula-0", "formula")])
+        self.assertEqual(items[2]["label"], "rank decomposition matrices")
+        for item in items:
+            self.assertTrue(1 <= len(item["passages"]) <= rag_service.RELATED_PASSAGES_PER_ITEM)
+            self.assertTrue(all("banana" not in passage["text"] for passage in item["passages"]))
+        # 가장 가까운 구절이 먼저 온다: 첫 문장은 1쪽(LoRA), 둘째 문장은 3쪽(GLUE)
+        self.assertEqual([items[0]["passages"][0]["page"], items[1]["passages"][0]["page"]], [1, 3])
+        # 질의는 저장된 분석에서만 만든다 — 한 번의 임베딩 호출에 항목 3개 (그 앞의 호출들은 색인)
+        self.assertEqual(self.embed_calls[-1], [self.SUMMARY.split(". ")[0] + ".", self.SUMMARY.split(". ")[1],
+                                                "rank decomposition matrices adaptation of weights"])
+
+    async def test_a_query_sent_by_the_client_is_ignored(self):
+        analysis_id = await self._analysis_with_results()
+        response = await self.client.get(f"/api/v1/analyses/{analysis_id}/related", params={"query": "bananas", "q": "bananas"})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all("bananas" not in text for call in self.embed_calls for text in call))
+
+    async def test_an_analysis_without_summary_or_formulas_returns_no_items(self):
+        analysis_id, _ = await self._analyzed_document()
+        response = await self._related(analysis_id)
+        self.assertEqual((response.status_code, response.json()), (200, {"items": []}))
+
+    async def test_access_and_state_responses_match_the_ask_endpoint(self):
+        analysis_id = await self._analysis_with_results()
+        other_user = await self._new_user()
+        self.user_ids.append(other_user)
+        self.current_user = other_user
+        self.assertEqual((await self._related(analysis_id)).status_code, 404)
+
+        self.current_user = self.user_id
+        async with self.sessions() as db:
+            record = await crud_analysis.create_analysis_result(
+                db, mode="pdf", query="old.pdf", generated_code="", review_feedback="", review_passed=True,
+                iteration_count=1, user_id=self.user_id, document_id=None, paper_summary=self.SUMMARY,
+            )
+            await db.commit()
+        without_document = await self._related(record.id)
+        self.assertEqual((without_document.status_code, without_document.json()["reason"]), (409, "no_document"))
+
+        _, doc_id = await self._analyzed_document(pages=["A different paper about something else entirely."])
+        indexing_id = (await self._analysis_ids_of(doc_id))[0]
+        async with self.sessions() as db:
+            await claim_index_job(db, doc_id, stale_after_seconds=90)  # 다른 요청이 색인 중
+            await db.commit()
+        indexing = await self._related(indexing_id)
+        self.assertEqual((indexing.status_code, indexing.json()["retry_after_seconds"]), (202, rag_service.RETRY_AFTER_SECONDS))
+
+        self.app.dependency_overrides.pop(get_current_user)  # 실제 인증 — 토큰 없음
+        self.assertEqual((await self._related(analysis_id)).status_code, 401)
+
+    async def _analysis_ids_of(self, document_id: int) -> list[int]:
+        async with self.sessions() as db:
+            rows = await db.execute(select(AnalysisResult.id).where(AnalysisResult.document_id == document_id))
+            return list(rows.scalars())
 
 
 # ── 실제 HTTP 연결 종료 ───────────────────────────────────────────────────
