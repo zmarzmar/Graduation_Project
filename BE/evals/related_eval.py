@@ -38,17 +38,21 @@ async def run(out: str | None) -> None:
                 document = SimpleNamespace(id=910_000 + number, pages=pages, indexed_chunk_count=0)
                 job_id = uuid.uuid4().hex
                 document.indexed_chunk_count = await rag_service._run_index_job(document, job_id)
-                items = await rag_service.find_related(document, job_id, analysis["paper_summary"], analysis["key_formulas"])
-                rows.extend({"paper": name, **item} for item in items)
+                summary, formulas = analysis["paper_summary"], analysis["key_formulas"]
+                items = await rag_service.find_related(document, job_id, summary, formulas)
+                # 실제로 검색에 쓴 질의를 함께 남긴다 (수식은 이름 + 설명이라 label만으로는 알 수 없다)
+                queries = {item["id"]: item["query"] for item in rag_service.related_items(summary, formulas)}
+                rows.extend({"paper": name, "query": queries[item["id"]], **item} for item in items)
         finally:
             client = rag_service.chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
             await asyncio.to_thread(client.delete_collection, collection_name)
             rag_service._collection.cache_clear()
 
     for row in rows:
-        print(f"\n[{row['paper']}] {row['id']} — {row['label']}")
+        print(f"\n[{row['paper']}] {row['id']} — 질의: {row['query']}")
         for rank, passage in enumerate(row["passages"], start=1):
-            print(f"  {rank}. p.{passage['page']}: {' '.join(passage['text'].split())[:400]}")
+            text = " ".join(passage["text"].split())
+            print(f"  {rank}. p.{passage['page']} ({len(text)}자): {text[:400]}")
     if out:
         with open(out, "w") as f:
             json.dump(rows, f, ensure_ascii=False, indent=1)
