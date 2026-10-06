@@ -4,15 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Info, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { askPaper, QA_QUESTION_MAX_LENGTH, QA_QUESTION_MIN_LENGTH } from '@/lib/api'
+import { askPaper, QA_QUESTION_MAX_LENGTH, QA_QUESTION_MIN_LENGTH, retryWhileIndexing } from '@/lib/api'
 import type { QaAnswer } from '@/lib/api'
 import type { QaUnavailableReason } from '@/lib/types/agent-run'
 import { useAuthStore } from '@/store/auth-store'
-
-// 색인 중(202) 자동 재시도 상한 — BE의 색인 시간 제한(60초)을 3초 간격으로 덮는 횟수
-const MAX_INDEXING_RETRIES = 20
-const MIN_RETRY_SECONDS = 1
-const MAX_RETRY_SECONDS = 10
 
 interface PaperQaProps {
   /** 커밋된 분석 기록 id. 저장에 실패했으면 null, BE가 값을 주지 않았으면 undefined */
@@ -35,21 +30,6 @@ const NO_DOCUMENT_MESSAGES: Record<string, string> = {
   document_store_failed: '분석 기록은 저장됐지만 논문 원문을 보관하지 못했어요. 논문을 다시 분석하면 질문할 수 있어요.',
 }
 const NO_DOCUMENT_DEFAULT = '이 기록에는 보관된 논문 원문이 없어요. 논문을 다시 분석하면 질문할 수 있어요.'
-
-/** 취소할 수 있는 대기 — 취소되면 타이머를 지우고 AbortError로 끝난다 */
-function wait(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms)
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true },
-    )
-  })
-}
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
@@ -143,34 +123,29 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
     setBusy(true)
 
     try {
-      for (let attempt = 0; ; attempt++) {
-        const response = await askPaper(analysisId, question, controller.signal)
-        // 취소 뒤에 도착한 응답은 반영하지 않는다 (취소가 응답 수신과 겹칠 수 있다)
-        if (controller.signal.aborted) return
+      const response = await retryWhileIndexing(
+        () => askPaper(analysisId, question, controller.signal),
+        controller.signal,
+        () => {
+          if (!controller.signal.aborted) update({ status: 'indexing' })
+        },
+      )
+      // 취소 뒤에 도착한 응답은 반영하지 않는다 (취소가 응답 수신과 겹칠 수 있다)
+      if (controller.signal.aborted) return
 
-        if (response.status === 'indexing') {
-          if (attempt >= MAX_INDEXING_RETRIES) {
-            update({ status: 'error', error: '논문 검색 준비가 오래 걸리고 있어요. 잠시 후 다시 질문해 주세요.' })
-            break
-          }
-          update({ status: 'indexing' })
-          const seconds = Math.min(Math.max(response.retryAfterSeconds, MIN_RETRY_SECONDS), MAX_RETRY_SECONDS)
-          await wait(seconds * 1000, controller.signal)
-          continue
-        }
-        if (response.status === 'unauthorized') {
-          // 토큰 만료 — 로그아웃 처리해 로그인 안내로 보낸다. 안내를 이 화면의 상태로 두면 같은 계정으로
-          // 다시 로그인해도(사용자 id가 같아 화면이 다시 만들어지지 않는다) 사라지지 않는다.
-          logout()
-          return
-        }
-        if (response.status === 'answered') {
-          update({ status: 'done', result: response.data })
-        } else {
-          setBlocked(response.status)
-          setEntries((prev) => prev.filter((entry) => entry.id !== id))
-        }
-        break
+      if (response.status === 'unauthorized') {
+        // 토큰 만료 — 로그아웃 처리해 로그인 안내로 보낸다. 안내를 이 화면의 상태로 두면 같은 계정으로
+        // 다시 로그인해도(사용자 id가 같아 화면이 다시 만들어지지 않는다) 사라지지 않는다.
+        logout()
+        return
+      }
+      if (response.status === 'answered') {
+        update({ status: 'done', result: response.data })
+      } else if (response.status === 'still_indexing') {
+        update({ status: 'error', error: '논문 검색 준비가 오래 걸리고 있어요. 잠시 후 다시 질문해 주세요.' })
+      } else {
+        setBlocked(response.status)
+        setEntries((prev) => prev.filter((entry) => entry.id !== id))
       }
     } catch (error) {
       if (controller.signal.aborted) return

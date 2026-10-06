@@ -282,12 +282,72 @@ export interface QaAnswer {
   dropped_claims: number // 출처가 확인되지 않아 답변에서 빠진 문장 수
 }
 
-export type AskPaperResult =
-  | { status: 'answered'; data: QaAnswer }
+/** 논문 색인이 필요한 호출(질문·관련 원문)이 공통으로 돌려주는 '아직 답이 아닌' 결과 */
+export type PaperSearchPending =
   | { status: 'indexing'; retryAfterSeconds: number } // 202 — 검색 준비 중, 잠시 뒤 다시 요청
   | { status: 'no_document'; message: string } // 409 — 원문이 보관되지 않은 기록
   | { status: 'unauthorized' } // 401
   | { status: 'not_found' } // 404 — 삭제됐거나 본인 기록이 아니다
+
+export type AskPaperResult = { status: 'answered'; data: QaAnswer } | PaperSearchPending
+
+// 색인 중(202) 자동 재시도 상한 — BE의 색인 시간 제한(60초)을 3초 간격으로 덮는 횟수
+const MAX_INDEXING_RETRIES = 20
+const MIN_RETRY_SECONDS = 1
+const MAX_RETRY_SECONDS = 10
+
+/** 취소할 수 있는 대기 — 취소되면 타이머를 지우고 AbortError로 끝난다 */
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms)
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(new DOMException('Aborted', 'AbortError'))
+      },
+      { once: true },
+    )
+  })
+}
+
+/**
+ * 색인 중(202)이면 서버가 알려준 간격으로 기다렸다가 다시 호출한다. 상한을 넘으면 'still_indexing'.
+ * signal이 취소되면 대기 타이머를 지우고 AbortError로 끝난다 — 호출한 쪽은 반영하기 전에 signal.aborted를 확인한다.
+ */
+export async function retryWhileIndexing<T extends { status: string }>(
+  call: () => Promise<T>,
+  signal: AbortSignal,
+  onIndexing?: () => void,
+): Promise<Exclude<T, { status: 'indexing' }> | { status: 'still_indexing' }> {
+  for (let attempt = 0; ; attempt++) {
+    const result = await call()
+    if (result.status !== 'indexing') return result as Exclude<T, { status: 'indexing' }>
+    if (attempt >= MAX_INDEXING_RETRIES) return { status: 'still_indexing' }
+    onIndexing?.()
+    const requested = (result as unknown as { retryAfterSeconds: number }).retryAfterSeconds
+    await wait(Math.min(Math.max(requested, MIN_RETRY_SECONDS), MAX_RETRY_SECONDS) * 1000, signal)
+  }
+}
+
+/** 색인이 필요한 호출의 공통 응답 처리 — 200이면 본문을, 아니면 PaperSearchPending을 돌려준다 */
+async function readPaperSearchResponse(res: Response): Promise<{ ok: true; data: unknown } | { ok: false; pending: PaperSearchPending }> {
+  if (res.status === 401) return { ok: false, pending: { status: 'unauthorized' } }
+  if (res.status === 404) return { ok: false, pending: { status: 'not_found' } }
+
+  const data = await res.json().catch(() => ({}))
+  if (res.status === 202) {
+    // 재시도 간격은 본문에서 읽는다 — CORS 설정이 Retry-After 헤더를 노출하지 않는다
+    return { ok: false, pending: { status: 'indexing', retryAfterSeconds: Number(data.retry_after_seconds) || 3 } }
+  }
+  if (res.status === 409 && data.reason === 'no_document') {
+    return { ok: false, pending: { status: 'no_document', message: String(data.detail ?? '') } }
+  }
+  if (!res.ok) {
+    throw new Error(typeof data.detail === 'string' ? data.detail : '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.')
+  }
+  return { ok: true, data }
+}
 
 /** 분석한 논문 한 편에 질문한다. 질문 하나에 대한 독립적인 답을 받는다 (이전 질문의 맥락은 전달되지 않는다) */
 export async function askPaper(analysisId: number, question: string, signal?: AbortSignal): Promise<AskPaperResult> {
@@ -297,21 +357,33 @@ export async function askPaper(analysisId: number, question: string, signal?: Ab
     body: JSON.stringify({ question }),
     signal,
   })
-  if (res.status === 401) return { status: 'unauthorized' }
-  if (res.status === 404) return { status: 'not_found' }
+  const parsed = await readPaperSearchResponse(res)
+  return parsed.ok ? { status: 'answered', data: parsed.data as QaAnswer } : parsed.pending
+}
 
-  const data = await res.json().catch(() => ({}))
-  if (res.status === 202) {
-    // 재시도 간격은 본문에서 읽는다 — CORS 설정이 Retry-After 헤더를 노출하지 않는다
-    return { status: 'indexing', retryAfterSeconds: Number(data.retry_after_seconds) || 3 }
-  }
-  if (res.status === 409 && data.reason === 'no_document') {
-    return { status: 'no_document', message: String(data.detail ?? '') }
-  }
-  if (!res.ok) {
-    throw new Error(typeof data.detail === 'string' ? data.detail : '질문을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.')
-  }
-  return { status: 'answered', data: data as QaAnswer }
+export interface RelatedPassage {
+  page: number // 원본 PDF 페이지 번호
+  chunk_index: number
+  text: string
+}
+
+export interface RelatedItem {
+  id: string // summary-0, formula-1 … 저장된 분석 안에서의 순번
+  kind: 'summary' | 'formula'
+  label: string // 요약 문장 또는 수식 이름
+  passages: RelatedPassage[]
+}
+
+export type RelatedPassagesResult = { status: 'found'; items: RelatedItem[] } | PaperSearchPending
+
+/**
+ * 분석 결과의 요약 문장·핵심 수식마다 가장 비슷한 원문 구절을 찾는다.
+ * 유사도 검색 결과다 — 구절이 그 내용을 뒷받침하는지는 확인되지 않았다 (Q&A의 '확인된 인용'과 다르다).
+ */
+export async function getRelatedPassages(analysisId: number, signal?: AbortSignal): Promise<RelatedPassagesResult> {
+  const res = await authFetch(`${API_BASE}/analyses/${analysisId}/related`, { signal })
+  const parsed = await readPaperSearchResponse(res)
+  return parsed.ok ? { status: 'found', items: (parsed.data as { items: RelatedItem[] }).items } : parsed.pending
 }
 
 /** 검색 기록 개별 삭제 */
