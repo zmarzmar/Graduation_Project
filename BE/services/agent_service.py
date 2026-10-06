@@ -334,13 +334,37 @@ async def stream_agent(
         # 분석 대상은 업로드한 파일 — papers(검색 결과)와 구분해서 전달한다.
         final_result["uploaded_filename"] = user_query
 
-    # DB 저장 — search/trend 모드는 검색 기록만, pdf는 전체 저장
+    # DB 저장 — search/trend 모드는 검색 기록만, pdf는 전체 저장.
+    # complete보다 먼저 저장해서 결과 화면이 바로 질문할 수 있게 기록 id를 함께 보낸다. 저장이 실패해도 분석 결과는 보낸다.
+    saved: tuple[int, int | None] | None = None
     try:
-        await _save_to_db(mode, user_query, accumulated, search_only=(mode in ("search", "trend")), user_id=user_id)
+        saved = await _save_to_db(mode, user_query, accumulated, search_only=(mode in ("search", "trend")), user_id=user_id)
     except Exception as e:
         logger.error(f"DB 저장 실패 (무시): {e}")
+    if mode == "pdf":
+        final_result.update(_qa_availability(saved, user_id, accumulated))
 
     yield _sse({"event": "complete", "result": final_result})
+
+
+def _qa_availability(saved: tuple[int, int | None] | None, user_id: int | None, accumulated: dict) -> dict:
+    """분석 결과에 붙이는 논문 Q&A 사용 가능 여부. '커밋된' 저장 결과(saved)로만 판단한다.
+
+    PDF가 입력됐다는 사실만으로 has_document를 true로 하지 않는다 — 원문 보관은 세이브포인트 안에서 따로 실패할 수 있다.
+    qa_unavailable_reason은 질문할 수 없는 이유를 화면이 정확히 안내하도록 구분한다 (질문할 수 있으면 None).
+    """
+    analysis_id, document_id = saved if saved else (None, None)
+    if user_id is None:
+        reason = "guest"                   # 게스트는 원문을 보관하지 않는다
+    elif analysis_id is None:
+        reason = "save_failed"             # 분석 기록 저장 실패
+    elif not accumulated.get("pdf_pages"):
+        reason = "no_text"                 # 초록 기반 분석 — 보관할 원문이 없다
+    elif document_id is None:
+        reason = "document_store_failed"   # 기록은 저장됐지만 원문 보관 실패
+    else:
+        reason = None
+    return {"analysis_id": analysis_id, "has_document": document_id is not None, "qa_unavailable_reason": reason}
 
 
 async def _store_document(
@@ -377,10 +401,10 @@ async def _save_to_db(
     accumulated: dict,
     search_only: bool = False,
     user_id: int | None = None,
-) -> None:
-    """에이전트 실행 결과를 DB에 저장한다.
+) -> tuple[int, int | None] | None:
+    """에이전트 실행 결과를 DB에 저장하고, 커밋된 (분석 기록 id, 연결된 문서 id)를 반환한다.
 
-    search_only=True 이면 검색 기록만 저장하고 분석 결과는 저장하지 않는다.
+    search_only=True 이면 검색 기록만 저장하고 분석 결과는 저장하지 않는다 (None 반환).
     (search 모드는 Researcher에서 끝나므로 실제 분석 결과가 없음)
     """
     papers: list[dict] = accumulated.get("papers", [])
@@ -394,13 +418,13 @@ async def _save_to_db(
 
         if search_only:
             await db.commit()
-            return
+            return None
 
         # PDF 모드는 업로드된 본문을 분석하므로 연결할 Paper 행이 없다(paper_id=None).
         # 업로드된 논문의 식별은 user_query(파일명)와 paper_summary로 충분하고,
         # 향후 PDF 본문에서 arxiv_id를 추출할 수 있게 되면 그때 정확 매칭을 붙인다.
         document_id = await _store_document(db, user_id, accumulated, source="upload", title=user_query)
-        await crud_analysis.create_analysis_result(
+        record = await crud_analysis.create_analysis_result(
             db,
             document_id=document_id,
             mode=mode,
@@ -416,6 +440,7 @@ async def _save_to_db(
             user_id=user_id,
         )
         await db.commit()
+        return record.id, document_id
 
 
 async def stream_analyze(
@@ -537,18 +562,22 @@ async def stream_analyze(
         "analysis_source": analysis_source,
     }
 
-    # DB 저장 — 선택한 논문 + 분석 결과
+    # DB 저장 — 선택한 논문 + 분석 결과. 저장이 실패해도 분석 결과는 보낸다.
+    saved: tuple[int, int | None] | None = None
     try:
         accumulated["papers"] = [paper]
-        await _save_analyze_to_db(user_query, paper, accumulated, user_id=user_id)
+        saved = await _save_analyze_to_db(user_query, paper, accumulated, user_id=user_id)
     except Exception as e:
         logger.error(f"분석 DB 저장 실패 (무시): {e}")
+    final_result.update(_qa_availability(saved, user_id, accumulated))
 
     yield _sse({"event": "complete", "result": final_result})
 
 
-async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict, user_id: int | None = None) -> None:
-    """사용자가 선택한 논문 분석 결과를 DB에 저장한다."""
+async def _save_analyze_to_db(
+    user_query: str, paper: dict, accumulated: dict, user_id: int | None = None,
+) -> tuple[int, int | None]:
+    """사용자가 선택한 논문 분석 결과를 DB에 저장하고, 커밋된 (분석 기록 id, 연결된 문서 id)를 반환한다."""
     async with AsyncSessionLocal() as db:
         # 선택한 논문 저장
         paper_id: int | None = None
@@ -565,7 +594,7 @@ async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict, u
         )
 
         # 분석 결과 저장
-        await crud_analysis.create_analysis_result(
+        record = await crud_analysis.create_analysis_result(
             db,
             document_id=document_id,
             mode="analyze",
@@ -581,6 +610,7 @@ async def _save_analyze_to_db(user_query: str, paper: dict, accumulated: dict, u
             user_id=user_id,
         )
         await db.commit()
+        return record.id, document_id
 
 
 def _extract_plan_summary(plan_str: str) -> str:

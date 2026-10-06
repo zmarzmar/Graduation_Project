@@ -231,7 +231,7 @@ class PagePreservationTest(unittest.IsolatedAsyncioTestCase):
     async def test_upload_path_passes_pages_to_the_graph(self):
         graph = _CapturingGraph()
         pages = extract_pdf_pages(_pdf(self.PAGES))
-        with patch.object(agent_service, "analyze_graph", graph), patch.object(agent_service, "_save_to_db", AsyncMock()):
+        with patch.object(agent_service, "analyze_graph", graph), patch.object(agent_service, "_save_to_db", AsyncMock(return_value=None)):
             await _events(stream_agent("pdf", "upload.pdf", pdf_pages=pages))
         self.assert_pages(graph.state["pdf_pages"])
         self.assertEqual(graph.state["pdf_text"], join_pages(pages))
@@ -241,7 +241,7 @@ class PagePreservationTest(unittest.IsolatedAsyncioTestCase):
         with (
             _serve_pdf(_pdf(self.PAGES)),
             patch.object(agent_service, "analyze_graph", graph),
-            patch.object(agent_service, "_save_analyze_to_db", AsyncMock()),
+            patch.object(agent_service, "_save_analyze_to_db", AsyncMock(return_value=None)),
         ):
             await _events(stream_analyze({"arxiv_id": "1706.03762", "abstract": "abs"}, "q"))
         self.assert_pages(graph.state["pdf_pages"])
