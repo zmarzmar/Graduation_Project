@@ -8,10 +8,11 @@ DB에 붙을 수 없으면 건너뛴다. CI에서는 REQUIRE_DB_TESTS=1로 건�
 """
 
 import asyncio
+import json
 import os
 import unittest
 import uuid
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -329,6 +330,76 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         record = await self._save_pdf_run(user_id, [])
         self.assertIsNone(record.document_id)
         self.assertEqual(await self._document_ids(user_id), [])
+
+    # ── complete 이벤트의 Q&A 계약 (analysis_id, has_document, qa_unavailable_reason) ──
+
+    async def _complete(self, stream) -> dict:
+        """실제 저장 경로로 스트림을 끝까지 돌리고 complete 이벤트의 result를 반환한다 (그래프만 가짜)."""
+        class _Graph:
+            async def astream(self, _state: dict, stream_mode: str = "updates"):
+                yield {"analyzer": {"paper_summary": "요약"}}
+
+        with (
+            patch.object(agent_service, "AsyncSessionLocal", self.sessions),
+            patch.object(agent_service, "analyze_graph", _Graph()),
+        ):
+            events = [json.loads(line.removeprefix("data: ")) async for line in stream]
+        return next(event for event in events if event["event"] == "complete")["result"]
+
+    async def test_complete_event_carries_the_committed_record_and_document(self):
+        user_id = await self._user()
+        result = await self._complete(agent_service.stream_agent("pdf", "paper.pdf", pdf_pages=PAGES, user_id=user_id))
+        self.assertEqual((result["has_document"], result["qa_unavailable_reason"]), (True, None))
+        # 화면이 받은 id로 바로 질문할 수 있다 — Q&A의 접근 판정과 같은 함수로 확인한다
+        document = await get_document_for_analysis(self.db, result["analysis_id"], user_id)
+        self.assertEqual(document.pages, PAGES)
+
+    async def test_selected_paper_run_carries_the_same_contract(self):
+        user_id = await self._user()
+        paper = {
+            "arxiv_id": f"test.{uuid.uuid4().hex[:8]}", "title": "Attention Is All You Need",
+            "authors": ["A. Vaswani"], "abstract": "abs", "url": "https://arxiv.org/abs/1706.03762",
+            "pdf_url": "https://arxiv.org/pdf/1706.03762", "published_at": "2017-06-12T00:00:00Z", "categories": ["cs.CL"],
+        }
+        downloaded = AsyncMock(return_value=(PAGES, paper["pdf_url"]))
+        with patch.object(agent_service, "_download_first_available_pdf_pages", downloaded):
+            result = await self._complete(agent_service.stream_analyze(paper, "q", user_id=user_id))
+        self.assertEqual((result["has_document"], result["qa_unavailable_reason"]), (True, None))
+        self.assertIsNotNone(await get_document_for_analysis(self.db, result["analysis_id"], user_id))
+
+        # 초록 기반 분석: 기록은 저장되지만 보관할 원문이 없다
+        failed = AsyncMock(side_effect=RuntimeError("download failed"))
+        with patch.object(agent_service, "_download_first_available_pdf_pages", failed):
+            result = await self._complete(
+                agent_service.stream_analyze(paper, "q", allow_abstract_fallback=True, user_id=user_id)
+            )
+        self.assertIsNotNone(result["analysis_id"])
+        self.assertEqual((result["has_document"], result["qa_unavailable_reason"]), (False, "no_text"))
+
+    async def test_document_storage_failure_keeps_the_record_and_says_why_qa_is_unavailable(self):
+        user_id = await self._user()
+        broken = AsyncMock(side_effect=RuntimeError("storage failed"))
+        with patch.object(agent_service.crud_paper_document, "get_or_create_document", broken):
+            result = await self._complete(agent_service.stream_agent("pdf", "paper.pdf", pdf_pages=PAGES, user_id=user_id))
+        # PDF가 입력됐어도 has_document는 실제 저장 결과를 따른다
+        self.assertEqual((result["has_document"], result["qa_unavailable_reason"]), (False, "document_store_failed"))
+        record = await self.db.get(AnalysisResult, result["analysis_id"])
+        self.assertEqual((record.user_id, record.document_id), (user_id, None))
+
+    async def test_save_failure_still_delivers_the_analysis_and_says_why_qa_is_unavailable(self):
+        user_id = await self._user()
+        broken = AsyncMock(side_effect=RuntimeError("database unavailable"))
+        with patch.object(agent_service.crud_analysis, "create_analysis_result", broken):
+            result = await self._complete(agent_service.stream_agent("pdf", "paper.pdf", pdf_pages=PAGES, user_id=user_id))
+        self.assertEqual(result["paper_summary"], "요약")  # 분석 결과는 그대로 전달된다
+        self.assertEqual(
+            (result["analysis_id"], result["has_document"], result["qa_unavailable_reason"]), (None, False, "save_failed")
+        )
+        self.assertEqual(await self._document_ids(user_id), [])  # 롤백으로 원문도 남지 않는다
+
+    async def test_guest_run_reports_that_login_is_required(self):
+        result = await self._complete(agent_service.stream_agent("pdf", "paper.pdf", pdf_pages=PAGES))
+        self.assertEqual((result["has_document"], result["qa_unavailable_reason"]), (False, "guest"))
 
 
 class PaperDocumentConcurrencyTest(unittest.IsolatedAsyncioTestCase):

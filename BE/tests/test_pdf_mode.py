@@ -29,7 +29,7 @@ class _FakeGraph:
 
 async def _run(mode: str, query: str, search_graph: _FakeGraph, analysis_graph: _FakeGraph) -> tuple[dict, AsyncMock]:
     """stream_agent를 끝까지 돌려 complete 이벤트의 result와 DB 저장 mock을 반환한다."""
-    save = AsyncMock()
+    save = AsyncMock(return_value=None)
     with (
         patch.object(agent_service, "agent_graph", search_graph),
         patch.object(agent_service, "analyze_graph", analysis_graph),

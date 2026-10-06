@@ -9,6 +9,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-run'
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
+import { PaperQa } from '@/components/agent/PaperQa'
 
 interface ResultsPanelProps {
   result: AgentResult
@@ -161,13 +162,17 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
       ? { label: '분석 논문', title: result.papers[0].title, authors: result.papers[0].authors }
       : null
 
-  type TabId = 'papers' | 'analysis' | 'trend' | 'code' | 'review'
+  // 논문 Q&A 탭은 논문 한 편을 분석한 결과에서 항상 보여준다 — 쓸 수 없는 이유는 탭 안에서 안내한다
+  const hasQa = result.mode === 'pdf' || result.mode === 'analyze'
+
+  type TabId = 'papers' | 'analysis' | 'trend' | 'code' | 'review' | 'qa'
   const tabs: TabId[] = [
     // pdf 모드는 논문 검색을 하지 않으므로 빈 '참고 논문' 탭을 숨긴다.
     ...(isPdf && result.papers.length === 0 ? [] : ['papers' as TabId]),
     ...(hasAnalysis ? ['analysis' as TabId] : []),
     ...(hasTrendAnalysis ? ['trend' as TabId] : []),
     ...(hasCoding ? ['code' as TabId, 'review' as TabId] : []),
+    ...(hasQa ? ['qa' as TabId] : []),
   ]
   const labels: Record<TabId, string> = {
     papers: (result.mode === 'pdf' || result.mode === 'analyze') ? '참고 논문' : '수집 논문',
@@ -175,6 +180,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
     trend: '트렌드 분석',
     code: '생성 코드',
     review: '코드 리뷰',
+    qa: '논문 Q&A',
   }
 
   // 수동 탭 전환 오버라이드 — null이면 데이터 기반 기본값 사용
@@ -424,6 +430,17 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
                 <MathText text={result.review_feedback} />
               </p>
             )}
+          </div>
+        )}
+
+        {/* 다른 탭을 보는 동안에도 질문·답변이 남도록 언마운트하지 않고 숨긴다 */}
+        {hasQa && (
+          <div className={activeTab === 'qa' ? '' : 'hidden'}>
+            <PaperQa
+              analysisId={result.analysis_id}
+              hasDocument={result.has_document ?? false}
+              unavailableReason={result.qa_unavailable_reason}
+            />
           </div>
         )}
       </div>
