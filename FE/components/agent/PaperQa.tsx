@@ -113,12 +113,12 @@ function AnswerView({ result }: { result: QaAnswer }) {
 
 /** 질문·답변 목록. 분석이나 사용자가 바뀌면 key가 바뀌어 통째로 다시 만들어진다 — 진행 중인 요청과 대기 타이머는 그때 정리된다 */
 function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDocumentMessage: string }) {
-  const openModal = useAuthStore((state) => state.openModal)
+  const logout = useAuthStore((state) => state.logout)
   const [entries, setEntries] = useState<QaEntry[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  // 질문 중에 서버가 알려준 상태 — 원문 없음(409)·기록 없음(404)·로그인 만료(401)
-  const [blocked, setBlocked] = useState<'no_document' | 'not_found' | 'unauthorized' | null>(null)
+  // 질문 중에 서버가 알려준 상태 — 원문 없음(409)·기록 없음(404)
+  const [blocked, setBlocked] = useState<'no_document' | 'not_found' | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   const nextIdRef = useRef(1)
 
@@ -158,6 +158,12 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
           await wait(seconds * 1000, controller.signal)
           continue
         }
+        if (response.status === 'unauthorized') {
+          // 토큰 만료 — 로그아웃 처리해 로그인 안내로 보낸다. 안내를 이 화면의 상태로 두면 같은 계정으로
+          // 다시 로그인해도(사용자 id가 같아 화면이 다시 만들어지지 않는다) 사라지지 않는다.
+          logout()
+          return
+        }
         if (response.status === 'answered') {
           update({ status: 'done', result: response.data })
         } else {
@@ -178,16 +184,6 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
   if (blocked === 'no_document') return <Notice>{noDocumentMessage}</Notice>
   if (blocked === 'not_found') {
     return <Notice>분석 기록을 찾을 수 없어요. 삭제됐거나 지금 로그인한 계정의 기록이 아니에요.</Notice>
-  }
-  if (blocked === 'unauthorized') {
-    return (
-      <Notice>
-        <p>로그인이 만료됐어요. 다시 로그인해 주세요.</p>
-        <Button size="sm" variant="outline" className="mt-2 text-xs" onClick={() => openModal('login')}>
-          로그인
-        </Button>
-      </Notice>
-    )
   }
 
   return (
