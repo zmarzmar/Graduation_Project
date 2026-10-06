@@ -36,8 +36,9 @@ RETRY_AFTER_SECONDS = 3         # 색인 중일 때 클라이언트에 알려주
 # 툼스톤 행은 이 시간이 지난 뒤에야 지운다. 색인 중에 삭제된 문서는 늦게 도착한 upsert가 청크를 다시 만들 수 있어서,
 # 색인 시간 제한보다 길게 기다린 뒤 한 번 더 지우고 나서 행을 없앤다.
 PURGE_GRACE_SECONDS = 120
-# 삭제 정리를 다시 도는 간격. 삭제 요청은 접근만 즉시 막는다 — Chroma의 청크가 실제로 없어지는 것은 그 뒤이고,
-# 정리 이후에 늦게 도착한 청크는 길게는 이 간격만큼 남는다.
+# 삭제 정리를 다시 시도하는 주기. 청크가 남아 있는 시간의 상한이 아니다 — 정리가 실패하거나(Chroma·DB 장애),
+# 한 번 도는 데 오래 걸리거나, 서버가 내려가 있으면 늦게 도착한 청크는 이보다 오래 남는다.
+# 삭제 요청은 접근만 즉시 막는다. Chroma의 청크가 실제로 없어지는 것은 그 뒤다.
 PURGE_INTERVAL_SECONDS = 600
 
 
@@ -131,17 +132,26 @@ async def embed(texts: list[str]) -> list[list[float]]:
     return vectors
 
 
+async def _chroma(method: str, **kwargs):
+    """컬렉션 메서드를 스레드에서 호출한다. 클라이언트 생성(_collection)도 스레드 안에서 한다.
+
+    클라이언트 생성은 동기 네트워크 호출이다 — 이벤트 루프에서 만들면 Chroma가 느리거나 응답하지 않는 동안
+    /health를 포함한 모든 요청이 멈춘다 (실제 lifespan 테스트로 재현).
+    """
+    return await asyncio.to_thread(lambda: getattr(_collection(), method)(**kwargs))
+
+
 def _job_filter(document_id: int, job_id: str) -> dict:
     return {"$and": [{"document_id": document_id}, {"job_id": job_id}]}
 
 
 async def _count_chunks(document_id: int, job_id: str) -> int:
-    found = await asyncio.to_thread(_collection().get, where=_job_filter(document_id, job_id), include=[])
+    found = await _chroma("get", where=_job_filter(document_id, job_id), include=[])
     return len(found["ids"])
 
 
 async def _delete_chunks(where: dict) -> None:
-    await asyncio.to_thread(_collection().delete, where=where)
+    await _chroma("delete", where=where)
 
 
 # ── 색인 ─────────────────────────────────────────────────────────────────
@@ -152,8 +162,8 @@ async def _run_index_job(document: PaperDocument, job_id: str) -> int:
     if not chunks:
         return 0
     vectors = await embed([chunk.text for chunk in chunks])
-    await asyncio.to_thread(
-        _collection().upsert,
+    await _chroma(
+        "upsert",
         ids=[f"{document.id}:{job_id}:{chunk.index}" for chunk in chunks],
         embeddings=vectors,
         documents=[chunk.text for chunk in chunks],
@@ -223,8 +233,8 @@ async def ensure_indexed(document: PaperDocument) -> str:
 async def retrieve(document: PaperDocument, job_id: str, question: str) -> list[Passage]:
     """질문과 가까운 청크를 '이 문서의 현재 색인' 안에서만 찾는다. 범위 필터는 서버가 정한다."""
     [vector] = await embed([question])
-    found = await asyncio.to_thread(
-        _collection().query,
+    found = await _chroma(
+        "query",
         query_embeddings=[vector],
         n_results=settings.qa_top_k,
         where=_job_filter(document.id, job_id),
@@ -321,7 +331,7 @@ async def reconcile_orphan_chunks() -> int:
     seen: list[tuple[str, int | None, str | None]] = []
     offset = 0
     while True:
-        page = await asyncio.to_thread(_collection().get, include=["metadatas"], limit=_RECONCILE_PAGE, offset=offset)
+        page = await _chroma("get", include=["metadatas"], limit=_RECONCILE_PAGE, offset=offset)
         if not page["ids"]:
             break
         seen.extend(
@@ -338,7 +348,7 @@ async def reconcile_orphan_chunks() -> int:
         if document_id not in live_jobs or live_jobs[document_id] != job_id
     ]
     for start in range(0, len(orphans), _RECONCILE_PAGE):
-        await asyncio.to_thread(_collection().delete, ids=orphans[start:start + _RECONCILE_PAGE])
+        await _chroma("delete", ids=orphans[start:start + _RECONCILE_PAGE])
     if orphans:
         logger.warning(f"[RAG] 고아 청크 {len(orphans)}개 정리")
     return len(orphans)

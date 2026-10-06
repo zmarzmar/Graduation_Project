@@ -11,6 +11,7 @@ import asyncio
 import math
 import os
 import socket
+import time
 import unittest
 import uuid
 from contextlib import ExitStack
@@ -858,6 +859,90 @@ class ClientDisconnectTest(_DbCase):
 
 
 # ── 실제 Chroma 서버 ─────────────────────────────────────────────────────
+
+
+class LifespanPurgeTest(_DbCase):
+    """실제 uvicorn + 실제 앱 lifespan으로 주기 정리의 시작·반복·실패 후 재시도·종료 시 취소를 확인한다."""
+
+    SLOW_SECONDS = 0.5
+
+    async def asyncSetUp(self):
+        await super().asyncSetUp()
+        from main import app
+
+        self.rounds = 0
+        self.fail_rounds = 1
+        real_list = rag_service.crud_paper_document.list_purge_pending
+
+        async def counting_list(db):
+            self.rounds += 1
+            if self.rounds <= self.fail_rounds:
+                raise ConnectionError("database unavailable")
+            return await real_list(db)
+
+        def slow_collection():
+            # Chroma 클라이언트 생성은 동기 네트워크 호출이다 — 이벤트 루프에서 불리면 그동안 모든 요청이 멈춘다
+            time.sleep(self.SLOW_SECONDS)
+            return self.collection
+
+        self.stack.enter_context(patch.object(rag_service.crud_paper_document, "list_purge_pending", counting_list))
+        self.stack.enter_context(patch.object(rag_service, "_collection", slow_collection))
+        self.stack.enter_context(patch.object(rag_service, "PURGE_INTERVAL_SECONDS", 0.05))
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            self.port = probe.getsockname()[1]
+        self.server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=self.port, log_level="error", lifespan="on"))
+        self.serving = asyncio.create_task(self.server.serve())
+        while not self.server.started:
+            await asyncio.sleep(0.02)
+
+    async def asyncTearDown(self):
+        self.server.should_exit = True
+        await self.serving
+        await super().asyncTearDown()
+
+    async def _wait_for(self, condition, timeout: float = 10) -> None:
+        deadline = asyncio.get_running_loop().time() + timeout
+        while not condition():
+            self.assertLess(asyncio.get_running_loop().time(), deadline, "timed out")
+            await asyncio.sleep(0.02)
+
+    async def test_cleanup_starts_repeats_retries_after_a_failure_and_stops_on_shutdown(self):
+        orphan = "987654321:ghost:0"
+        self.collection.upsert(ids=[orphan], embeddings=[_fake_vector("rank")], documents=["late write"],
+                               metadatas=[{"document_id": 987_654_321, "job_id": "ghost", "page": 1, "chunk_index": 0}])
+
+        # 시작: 기동 직후 첫 주기가 돈다. 그 주기는 실패하지만(DB 오류) 루프는 끝나지 않고 다음 주기가 고아 청크를 지운다
+        await self._wait_for(lambda: orphan not in self.collection.rows)
+        self.assertGreater(self.rounds, self.fail_rounds)
+
+        # 정리가 느린 Chroma 호출에 묶여 있는 동안에도 /health는 바로 응답한다
+        # (요청은 다른 스레드에서 보낸다 — 같은 이벤트 루프에서 재면 루프가 멈춘 시간이 측정에서 빠진다)
+        def slowest_health_response() -> float:
+            slowest = 0.0
+            with httpx.Client(base_url=f"http://127.0.0.1:{self.port}") as client:
+                for _ in range(15):
+                    started = time.perf_counter()
+                    self.assertEqual(client.get("/health").status_code, 200)
+                    slowest = max(slowest, time.perf_counter() - started)
+                    time.sleep(0.07)
+            return slowest
+
+        self.assertLess(await asyncio.to_thread(slowest_health_response), self.SLOW_SECONDS / 2)
+
+        # 반복: 주기가 계속 돈다
+        seen = self.rounds
+        await self._wait_for(lambda: self.rounds >= seen + 2)
+
+        # 종료: 서버가 내려가면 정리 작업이 취소된다 — 더 이상 주기가 돌지 않는다
+        self.server.should_exit = True
+        started = asyncio.get_running_loop().time()
+        await self.serving
+        self.assertLess(asyncio.get_running_loop().time() - started, 5)
+        stopped_at = self.rounds
+        await asyncio.sleep(self.SLOW_SECONDS * 3)
+        self.assertEqual(self.rounds, stopped_at)
 
 
 class ChromaIntegrationTest(_DbCase):
