@@ -24,9 +24,10 @@ This file provides guidance to Claude Code when working with code in this reposi
 |----|------|------|
 | #33–#38 | 아래 "작업 기록" 참고 | 머지·운영 배포 완료 |
 | #39 | 논문 Q&A 백엔드 (RAG 3단계의 PR 2/3) | **2026-10-06 머지·운영 배포 완료** (`8e30893`) |
-| PR 3 `feature/paper-qa-frontend` | Q&A 화면 + 분석 결과 계약 | 로컬 커밋까지 완료. **push·PR 생성 전** |
+| #41 | Q&A 화면 + 분석 결과 계약 (RAG 3단계의 PR 3/3) | **2026-10-06 머지·운영 배포 완료** (`7b3cafb`) |
+| `feature/related-passages` | 분석 결과의 요약·수식에 '관련 원문' 연결 (다음 단계 4번) | 로컬 커밋까지 완료. **push·PR 생성 전 — 아래 품질 수치를 보고 내보낼지 정한다** |
 
-RAG 3단계: ① 문서 보관(#38) → ② RAG 백엔드(#39) → ③ 프런트엔드(진행 중).
+RAG 3단계(① 문서 보관 #38 → ② RAG 백엔드 #39 → ③ 프런트엔드 #41)는 모두 운영에 있다. **운영에서 실제 질문 → 답변 흐름은 아직 아무도 돌려 보지 않았다** (사이트 200과 비로그인 401만 확인).
 
 ### 1. #39에서 정해진 것 (운영에 반영됨)
 
@@ -38,7 +39,7 @@ RAG 3단계: ① 문서 보관(#38) → ② RAG 백엔드(#39) → ③ 프런트
 - Chroma 호출은 클라이언트 생성까지 스레드에서 한다 (`rag_service._chroma`). 이벤트 루프에서 만들면 Chroma가 응답하지 않는 동안 `/health`까지 멈춘다 (닿지 않는 호스트에 75초 — 측정)
 - 운영 Chroma: `chromadb/chroma:1.5.5`, 볼륨은 `/data`. 배포 직후 컬렉션 `paper_chunks` 0건
 
-### 2. PR 3 (FE) — 구현된 내용과 남은 일
+### 2. Q&A 화면 (#41, 운영에 반영됨)
 
 **BE 계약** (`BE/services/agent_service.py`): pdf·analyze 모드의 `complete.result`에 세 필드가 붙는다.
 - `analysis_id` — 커밋된 분석 기록 id. 저장 실패면 `null` (분석 결과 자체는 그대로 전달한다)
@@ -58,11 +59,30 @@ RAG 3단계: ① 문서 보관(#38) → ② RAG 백엔드(#39) → ③ 프런트
 - 같은 결과 안에서 탭을 옮기는 것은 화면 이탈이 아니다 — Q&A는 숨겨질 뿐 요청과 재시도가 계속된다 (의도한 동작). 결과 화면을 떠나거나 분석·사용자가 바뀔 때만 취소한다
 - 모킹으로만 확인한 분기는 실제 BE가 그 응답을 내는 상황에서 화면을 본 것이 아니다. BE 쪽은 계약 테스트(`tests/test_paper_documents.py`)가 맡는다
 
-**남은 일**: push → PR → 리뷰 → 머지. `BE/**`가 포함돼 있어 머지하면 백엔드 운영 배포가 나간다.
+### 2-1. 관련 원문 (`feature/related-passages`, 로컬)
+
+분석 결과의 요약 문장·핵심 수식마다 논문에서 가장 비슷한 구절을 찾아 보여준다.
+
+- **근거 검증이 아니라 검색이다.** LLM을 부르지 않고, 구절이 그 내용을 뒷받침하는지 확인하지 않는다. 화면·문서에서 "근거", "검증됨"이라고 쓰지 않는다 — "관련 원문", "확인되지 않은 검색 결과"다. Q&A의 '확인된 인용'과 섞지 않는다
+- `GET /api/v1/analyses/{id}/related`. 질의는 서버에 저장된 분석에서만 만든다 (클라이언트는 검색어를 보내지 않는다). 항목 id는 `summary-0`, `formula-1`처럼 저장된 순번
+- 상한: 요약 8문장, 수식 5개, 질의 500자, 항목당 구절 2개 (`rag_service.RELATED_*`)
+- 수식은 LaTeX가 아니라 이름 + 설명으로 찾는다
+- **거리 임계값을 쓰지 않는다.** 평가로 정한 기준이 없다. 한국어 질의는 영어 질의보다 거리가 전체적으로 크다(0.43~0.72 대 0.22~0.49) — 고정 임계값이 맞지 않는 이유이기도 하다. 화면에 거리 숫자도 보여주지 않는다
+- FE: `RelatedPassages.tsx`(홈 분석 탭과 마이페이지 상세 공용). 202 재시도·취소는 `lib/api.ts`의 `retryWhileIndexing`을 Q&A와 함께 쓴다
+- 홈의 분석 탭은 이제 숨김 처리다 (언마운트하지 않는다) — 찾아 둔 구절이 탭 전환 뒤에도 남는다
+
+**품질 (2026-10-06, `evals/related_eval.py`, 논문 2편·12개 항목·단일 실행, 판정은 구현한 쪽이 구절을 직접 읽고 함)**
+- 상위 1개 구절: 관련 있음 8 / 부분적 2 / 무관 2. 상위 2개까지 보면 관련 있음 9
+- 무관한 경우: 배경을 말하는 일반적인 요약 문장("사전 학습과 적응의 중요성")이 데이터셋 설명 구절에 걸림, 결과 요약이 페이지 끝의 짧은 조각(341자)에 걸림
+- 부분적인 경우: 수식 이름으로 찾으면 주제는 맞지만 수식이 정의된 구절이 아니다
+- 한국어 대 영어 질의(요약 7문장, 영어는 직접 옮김): 상위 1개가 4문장에서 달랐지만 관련 있음은 한국어 5/7, 영어 4~5/7로 **이 표본에서는 영어가 더 낫다고 할 수 없었다**. "한국어라서 품질이 떨어진다"는 확인되지 않았다
+- 표본이 작고 판정이 주관적이다. 항목과 구절은 스크립트가 그대로 출력하니 직접 읽어 볼 수 있다
+
+**남은 일**: 위 수치로 내보낼지 결정 → push → PR. `BE/**`가 포함돼 있어 머지하면 백엔드 운영 배포가 나간다. 품질을 올릴 후보(구현하지 않음): 짧은 조각 청크를 앞 청크에 붙이기, 구절 수 늘리기, LLM으로 인용을 뽑아 존재를 검증하기.
 
 ### 3. 그 다음 단계
 
-4. 같은 검색 기반으로 분석 결과(요약·수식·구현 설명)에 원문 근거 연결
+4. 같은 검색 기반으로 분석 결과에 원문 연결 — 요약·수식은 `feature/related-passages`에서 '관련 원문'으로 구현(위 2-1). 구현 설명(생성 코드)은 아직
 5. 전문 vs 검색 컨텍스트의 코드 생성 비교 — **평가 실험으로만** (Coder·Reviewer의 기본 입력은 전문 유지)
 6. 자기수정 루프 평가: 논문 10편, 최초 생성 vs 수정 후, 독립적인 실행 검사와 논문별 체크리스트. Reviewer 통과율은 보조 지표
 
@@ -132,7 +152,7 @@ Graduation_Project/
 ├── FE/
 │   ├── app/                        # page.tsx(홈), mypage/, admin/
 │   ├── components/
-│   │   ├── agent/                  # AgentPipeline, ResultsPanel, PaperQa, DocumentStorageNotice
+│   │   ├── agent/                  # AgentPipeline, ResultsPanel, PaperQa, RelatedPassages, DocumentStorageNotice
 │   │   ├── shared/                 # Header, Footer
 │   │   └── ui/                     # shadcn/ui
 │   ├── lib/
@@ -267,6 +287,7 @@ GET    /api/v1/mypage/search-history             DELETE …/search-history[/{id}
 GET    /api/v1/mypage/analysis-history[/{id}]    DELETE …/analysis-history[/{id}]   # 응답에 has_document
 GET    /api/v1/admin/users | /admin/papers | /admin/system
 POST   /api/v1/analyses/{analysis_id}/ask        # 논문 Q&A — 401 / 404 / 409 no_document / 202 색인 중 / 422 / 504
+GET    /api/v1/analyses/{analysis_id}/related    # (feature/related-passages) 요약·수식의 관련 원문 — 상태 코드는 ask와 같다
 ```
 
 ---
