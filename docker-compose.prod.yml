@@ -18,11 +18,13 @@ services:
       - backend_net
 
   chromadb:
-    image: chromadb/chroma:latest
+    # BE의 chromadb-client와 같은 버전으로 고정한다 (호환 테스트를 통과한 조합). 올릴 때는 둘을 함께 올린다.
+    image: chromadb/chroma:1.5.5
     container_name: ai_research_chroma
     restart: unless-stopped
     volumes:
-      - chroma_data:/chroma/chroma
+      # 이 이미지는 /data에 저장한다 (이전의 /chroma/chroma에는 아무것도 쓰이지 않아 색인이 보존되지 않았다)
+      - chroma_data:/data
     networks:
       - backend_net
 

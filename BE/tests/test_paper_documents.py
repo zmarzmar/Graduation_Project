@@ -19,7 +19,17 @@ from sqlalchemy.pool import NullPool
 
 from core.config import settings
 from crud import analysis as crud_analysis
-from crud.paper_document import get_or_create_document, hash_pages
+from crud.paper_document import (
+    claim_index_job,
+    delete_purged_document,
+    fail_index_job,
+    finish_index_job,
+    get_document_for_analysis,
+    get_or_create_document,
+    hash_pages,
+    list_purge_pending,
+    reset_lost_index,
+)
 from models.analysis import AnalysisResult
 from models.paper_document import PaperDocument
 from models.user import User
@@ -66,7 +76,10 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def _document_ids(self, user_id: int) -> list[int]:
-        rows = await self.db.execute(select(PaperDocument.id).where(PaperDocument.user_id == user_id))
+        # 삭제 대기(툼스톤)가 아닌 활성 문서만
+        rows = await self.db.execute(
+            select(PaperDocument.id).where(PaperDocument.user_id == user_id, PaperDocument.purge_pending_at.is_(None))
+        )
         return list(rows.scalars())
 
     # ── 보관·중복 제거 ────────────────────────────────────────────────────
@@ -128,7 +141,7 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         await self.db.refresh(second)
         self.assertEqual(second.document_id, document_id)
 
-    async def test_deleting_the_last_active_record_removes_the_document_and_unlinks_only(self):
+    async def test_deleting_the_last_active_record_empties_the_document_and_keeps_a_tombstone(self):
         user_id = await self._user()
         document_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
         first = await self._analysis(user_id, document_id)
@@ -138,11 +151,128 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         await crud_analysis.delete_analysis_result_by_id(self.db, second.id, user_id)
 
         self.assertEqual(await self._document_ids(user_id), [])
-        # 분석 기록 행은 남고(소프트 삭제), 문서 연결만 해제된다
-        for record in (first, second):
-            await self.db.refresh(record)
-            self.assertTrue(record.is_deleted)
-            self.assertIsNone(record.document_id)
+        tombstone = await self.db.get(PaperDocument, document_id, populate_existing=True)
+        # 원문은 즉시 비워지고, 벡터 색인 정리에 필요한 행(id)만 남는다
+        self.assertEqual(tombstone.pages, [])
+        self.assertIsNotNone(tombstone.purge_pending_at)
+        self.assertEqual(tombstone.doc_hash, f"purged:{document_id}")
+        self.assertEqual([doc_id for doc_id, _ in await list_purge_pending(self.db)].count(document_id), 1)
+
+    async def test_removing_the_tombstone_keeps_analysis_rows_and_only_unlinks_them(self):
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
+        record = await self._analysis(user_id, document_id)
+        await crud_analysis.delete_analysis_result_by_id(self.db, record.id, user_id)
+
+        await delete_purged_document(self.db, document_id)
+
+        self.assertIsNone(await self.db.get(PaperDocument, document_id, populate_existing=True))
+        await self.db.refresh(record)
+        self.assertTrue(record.is_deleted)
+        self.assertIsNone(record.document_id)
+
+    async def test_an_active_document_is_never_removed_by_the_tombstone_cleanup(self):
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
+        await self._analysis(user_id, document_id)
+        await delete_purged_document(self.db, document_id)  # 툼스톤이 아니므로 아무 일도 없어야 한다
+        self.assertEqual(await self._document_ids(user_id), [document_id])
+
+    async def test_reanalysis_while_deletion_is_pending_creates_a_new_document(self):
+        user_id = await self._user()
+        old_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
+        record = await self._analysis(user_id, old_id)
+        await crud_analysis.delete_analysis_result_by_id(self.db, record.id, user_id)
+
+        new_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
+
+        # 삭제 중인 문서는 되살리지 않는다 — 새 id라서 옛 문서의 정리 작업이 새 문서를 건드릴 수 없다
+        self.assertNotEqual(new_id, old_id)
+        self.assertEqual((await self.db.get(PaperDocument, new_id)).pages, PAGES)
+        self.assertIsNotNone((await self.db.get(PaperDocument, old_id, populate_existing=True)).purge_pending_at)
+
+    # ── 접근 권한 ─────────────────────────────────────────────────────────
+
+    async def test_document_access_goes_through_the_users_own_active_analysis(self):
+        alice, bob = await self._user(), await self._user()
+        document_id = await get_or_create_document(self.db, alice, PAGES, source="upload", title="p.pdf")
+        record = await self._analysis(alice, document_id)
+
+        self.assertEqual((await get_document_for_analysis(self.db, record.id, alice)).id, document_id)
+        self.assertIsNone(await get_document_for_analysis(self.db, record.id, bob))        # 남의 기록
+        self.assertIsNone(await get_document_for_analysis(self.db, 10**9, alice))          # 없는 기록
+        no_doc = await self._analysis(alice, None)
+        self.assertIsNone(await get_document_for_analysis(self.db, no_doc.id, alice))      # 원문 없는 기록
+
+        await crud_analysis.delete_analysis_result_by_id(self.db, record.id, alice)
+        self.assertIsNone(await get_document_for_analysis(self.db, record.id, alice))      # 삭제된 기록
+
+    # ── 색인 작업 ─────────────────────────────────────────────────────────
+
+    async def _doc(self) -> int:
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
+        await self._analysis(user_id, document_id)
+        return document_id
+
+    async def _status(self, document_id: int) -> tuple[str, str | None, int | None]:
+        doc = await self.db.get(PaperDocument, document_id, populate_existing=True)
+        return doc.index_status, doc.index_job_id, doc.indexed_chunk_count
+
+    async def test_only_one_claim_succeeds_until_the_job_ends(self):
+        document_id = await self._doc()
+        job = await claim_index_job(self.db, document_id, stale_after_seconds=90)
+        self.assertIsNotNone(job)
+        self.assertIsNone(await claim_index_job(self.db, document_id, stale_after_seconds=90))
+
+        self.assertTrue(await finish_index_job(self.db, document_id, job, chunk_count=7))
+        self.assertEqual(await self._status(document_id), ("ready", job, 7))
+        self.assertIsNone(await claim_index_job(self.db, document_id, stale_after_seconds=90))  # ready는 다시 색인하지 않는다
+
+    async def test_failed_job_can_be_claimed_again(self):
+        document_id = await self._doc()
+        job = await claim_index_job(self.db, document_id, stale_after_seconds=90)
+        self.assertTrue(await fail_index_job(self.db, document_id, job, "embedding error"))
+        retry = await claim_index_job(self.db, document_id, stale_after_seconds=90)
+        self.assertIsNotNone(retry)
+        self.assertNotEqual(retry, job)
+
+    async def test_a_superseded_job_cannot_finish_or_fail_the_current_one(self):
+        document_id = await self._doc()
+        old = await claim_index_job(self.db, document_id, stale_after_seconds=90)
+        # 오래 걸리는(또는 죽은) 작업으로 보고 다시 선점 — 옛 작업은 아직 돌고 있을 수 있다.
+        # 이 테스트는 한 트랜잭션 안에서 돌아 now()가 고정이므로 음수 기준으로 '이미 오래됨'을 만든다.
+        new = await claim_index_job(self.db, document_id, stale_after_seconds=-1)
+        self.assertIsNotNone(new)
+
+        self.assertFalse(await finish_index_job(self.db, document_id, old, chunk_count=3))
+        self.assertFalse(await fail_index_job(self.db, document_id, old, "late failure"))
+        self.assertEqual(await self._status(document_id), ("indexing", new, None))
+
+        self.assertTrue(await finish_index_job(self.db, document_id, new, chunk_count=9))
+        self.assertFalse(await finish_index_job(self.db, document_id, old, chunk_count=3))  # 완료 뒤에 도착해도 못 바꾼다
+        self.assertEqual(await self._status(document_id), ("ready", new, 9))
+
+    async def test_deleting_the_document_invalidates_a_running_index_job(self):
+        user_id = await self._user()
+        document_id = await get_or_create_document(self.db, user_id, PAGES, source="upload", title="p.pdf")
+        record = await self._analysis(user_id, document_id)
+        job = await claim_index_job(self.db, document_id, stale_after_seconds=90)
+
+        await crud_analysis.delete_analysis_result_by_id(self.db, record.id, user_id)
+
+        # 색인 중에 삭제됐다 — 늦게 끝난 작업이 완료를 기록하거나 툼스톤을 다시 선점할 수 없다
+        self.assertFalse(await finish_index_job(self.db, document_id, job, chunk_count=5))
+        self.assertIsNone(await claim_index_job(self.db, document_id, stale_after_seconds=-1))
+
+    async def test_lost_index_is_reset_only_for_the_job_that_was_checked(self):
+        document_id = await self._doc()
+        job = await claim_index_job(self.db, document_id, stale_after_seconds=90)
+        await finish_index_job(self.db, document_id, job, chunk_count=4)
+
+        self.assertFalse(await reset_lost_index(self.db, document_id, "some-other-job"))
+        self.assertTrue(await reset_lost_index(self.db, document_id, job))
+        self.assertEqual(await self._status(document_id), ("none", None, None))
 
     async def test_delete_all_removes_only_that_users_documents(self):
         alice, bob = await self._user(), await self._user()
@@ -285,6 +415,26 @@ class PaperDocumentConcurrencyTest(unittest.IsolatedAsyncioTestCase):
             self.assertIsNotNone(await db.get(PaperDocument, document_id))  # 새 기록이 쓰므로 남는다
             self.assertEqual((await db.get(AnalysisResult, new.id)).document_id, document_id)
             self.assertTrue((await db.get(AnalysisResult, old.id)).is_deleted)
+
+    async def test_concurrent_first_questions_claim_the_index_job_exactly_once(self):
+        async with self.sessions() as db:
+            document_id = await get_or_create_document(db, self.user_id, PAGES, source="upload", title="p.pdf")
+            await self._new_analysis(db, document_id)
+            await db.commit()
+
+        async def claim() -> str | None:
+            async with self.sessions() as db:
+                job = await claim_index_job(db, document_id, stale_after_seconds=90)
+                await asyncio.sleep(0.2)  # 트랜잭션을 열어둔 채 겹치게 한다
+                await db.commit()
+                return job
+
+        jobs = await asyncio.gather(*(claim() for _ in range(5)))
+
+        winners = [job for job in jobs if job]
+        self.assertEqual(len(winners), 1)
+        async with self.sessions() as db:
+            self.assertEqual((await db.get(PaperDocument, document_id)).index_job_id, winners[0])
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.paper_document import purge_unreferenced_documents
+from crud.paper_document import mark_unreferenced_documents_for_purge
 from models.analysis import AnalysisResult
 
 
@@ -53,6 +53,18 @@ async def get_recent_analysis_results(
     return list(result.scalars().all())
 
 
+async def user_has_active_analysis(db: AsyncSession, result_id: int, user_id: int) -> bool:
+    """본인 소유의 삭제되지 않은 분석 기록인지 확인한다."""
+    found = await db.scalar(
+        select(AnalysisResult.id).where(
+            AnalysisResult.id == result_id,
+            AnalysisResult.user_id == user_id,
+            AnalysisResult.is_deleted == False,  # noqa: E712
+        )
+    )
+    return found is not None
+
+
 async def delete_analysis_result_by_id(db: AsyncSession, result_id: int, user_id: int) -> bool:
     """분석 결과 개별 소프트 딜리트. 본인 소유만 가능. 성공 여부 반환"""
     result = await db.execute(
@@ -68,8 +80,9 @@ async def delete_analysis_result_by_id(db: AsyncSession, result_id: int, user_id
     obj.is_deleted = True
     # 소프트 삭제를 먼저 반영해야 아래 정리 쿼리가 이 기록을 '삭제됨'으로 본다
     await db.flush()
-    # 이 기록이 문서를 가리키던 마지막 활성 기록이었다면 원문도 함께 지운다
-    await purge_unreferenced_documents(db, user_id)
+    # 이 기록이 문서를 가리키던 마지막 활성 기록이었다면 원문을 비우고 삭제 대기로 표시한다.
+    # 벡터 색인 삭제와 행 제거는 커밋 뒤에 rag_service.purge_pending_documents가 한다.
+    await mark_unreferenced_documents_for_purge(db, user_id)
     return True
 
 
@@ -83,6 +96,6 @@ async def delete_all_analysis_results(db: AsyncSession, user_id: int) -> int:
         )
         .values(is_deleted=True)
     )
-    # 활성 기록이 없어졌으므로 사용자의 원문도 모두 지운다
-    await purge_unreferenced_documents(db, user_id)
+    # 활성 기록이 없어졌으므로 사용자의 원문을 모두 비우고 삭제 대기로 표시한다
+    await mark_unreferenced_documents_for_purge(db, user_id)
     return result.rowcount

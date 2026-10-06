@@ -18,10 +18,10 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.48",
     "asyncpg>=0.31.0",
     "alembic>=1.18.4",
-    "chromadb>=1.5.5",
     "openai>=2.29.0",
     "bcrypt>=5.0.0",
     "pyjwt>=2.12.1",
     "email-validator>=2.2.0",
     "tiktoken>=0.12.0",
+    "chromadb-client==1.5.5",
 ]
