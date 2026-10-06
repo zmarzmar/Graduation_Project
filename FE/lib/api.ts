@@ -228,6 +228,7 @@ export interface AnalysisHistoryItem {
   paper_authors: string[] | null
   review_passed: boolean
   has_code: boolean
+  has_document: boolean
   created_at: string
 }
 
@@ -259,6 +260,58 @@ export async function getAnalysisDetail(id: number): Promise<AnalysisDetail> {
   const res = await authFetch(`${API_BASE}/mypage/analysis-history/${id}`)
   if (!res.ok) throw new Error('분석 상세 조회 실패')
   return res.json()
+}
+
+// ── 논문 Q&A ─────────────────────────────────────────────────────────────────
+
+// BE AskRequest와 같은 제한 — 앞뒤 공백을 뗀 뒤의 길이
+export const QA_QUESTION_MIN_LENGTH = 2
+export const QA_QUESTION_MAX_LENGTH = 500
+
+export interface QaCitation {
+  page: number // 원본 PDF 페이지 번호
+  chunk_index: number
+  quote: string // 논문에 실제로 있음이 확인된 인용 구절
+}
+
+export interface QaAnswer {
+  answerable: boolean // false면 answer는 '근거를 확인하지 못함' 안내다 (오류가 아니다)
+  answer: string
+  citations: QaCitation[]
+  dropped_citations: number
+  dropped_claims: number // 출처가 확인되지 않아 답변에서 빠진 문장 수
+}
+
+export type AskPaperResult =
+  | { status: 'answered'; data: QaAnswer }
+  | { status: 'indexing'; retryAfterSeconds: number } // 202 — 검색 준비 중, 잠시 뒤 다시 요청
+  | { status: 'no_document'; message: string } // 409 — 원문이 보관되지 않은 기록
+  | { status: 'unauthorized' } // 401
+  | { status: 'not_found' } // 404 — 삭제됐거나 본인 기록이 아니다
+
+/** 분석한 논문 한 편에 질문한다. 질문 하나에 대한 독립적인 답을 받는다 (이전 질문의 맥락은 전달되지 않는다) */
+export async function askPaper(analysisId: number, question: string, signal?: AbortSignal): Promise<AskPaperResult> {
+  const res = await authFetch(`${API_BASE}/analyses/${analysisId}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question }),
+    signal,
+  })
+  if (res.status === 401) return { status: 'unauthorized' }
+  if (res.status === 404) return { status: 'not_found' }
+
+  const data = await res.json().catch(() => ({}))
+  if (res.status === 202) {
+    // 재시도 간격은 본문에서 읽는다 — CORS 설정이 Retry-After 헤더를 노출하지 않는다
+    return { status: 'indexing', retryAfterSeconds: Number(data.retry_after_seconds) || 3 }
+  }
+  if (res.status === 409 && data.reason === 'no_document') {
+    return { status: 'no_document', message: String(data.detail ?? '') }
+  }
+  if (!res.ok) {
+    throw new Error(typeof data.detail === 'string' ? data.detail : '질문을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.')
+  }
+  return { status: 'answered', data: data as QaAnswer }
 }
 
 /** 검색 기록 개별 삭제 */

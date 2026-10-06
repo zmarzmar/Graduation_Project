@@ -47,6 +47,9 @@ export interface PaperReview {
   significance: string
 }
 
+/** 분석 결과에서 논문 Q&A를 쓸 수 없는 이유 (BE agent_service._qa_availability와 1:1) */
+export type QaUnavailableReason = 'guest' | 'save_failed' | 'no_text' | 'document_store_failed'
+
 /** 에이전트 파이프라인 최종 결과물 */
 export interface AgentResult {
   papers: ArxivPaper[]
@@ -62,6 +65,11 @@ export interface AgentResult {
   /** pdf 모드 전용 — 분석 대상인 업로드 파일명 (papers는 분석 대상이 아님) */
   uploaded_filename?: string
   trend_analysis?: TrendAnalysis
+  /** pdf·analyze 모드 전용 — 커밋된 분석 기록 id. 저장에 실패했으면 null */
+  analysis_id?: number | null
+  /** 그 기록에 논문 원문이 실제로 보관됐는지 (PDF를 넣었다는 사실만으로 true가 되지 않는다) */
+  has_document?: boolean
+  qa_unavailable_reason?: QaUnavailableReason | null
 }
 
 export interface PdfFallbackRequest {
