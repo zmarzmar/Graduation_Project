@@ -1,8 +1,9 @@
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, StringConstraints
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import get_current_user, get_db
@@ -16,7 +17,8 @@ router = APIRouter(tags=["qa"])
 
 
 class AskRequest(BaseModel):
-    question: str = Field(..., min_length=2, max_length=500)
+    # 앞뒤 공백을 뗀 뒤에 길이를 잰다 — 공백뿐인 질문이 임베딩 호출까지 가지 않게 한다
+    question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=500)]
 
 
 class CitationOut(BaseModel):
@@ -28,7 +30,7 @@ class CitationOut(BaseModel):
 class AskResponse(BaseModel):
     answerable: bool     # False면 answer는 '근거를 확인하지 못함' 안내다
     answer: str
-    citations: list[CitationOut]
+    citations: list[CitationOut]  # 인용문이 구절에 실재함만 확인된 출처 — 문장을 뒷받침하는지는 확인하지 않았다
     dropped_citations: int  # 검증에서 제거된 출처 수
     dropped_claims: int     # 출처가 검증되지 않아 답변에서 뺀 문장 수 — 0보다 크면 답변이 모델이 쓴 것보다 짧다
 
@@ -62,7 +64,7 @@ async def ask_about_analyzed_paper(
     await db.commit()
 
     try:
-        return await rag_service.ask(document, body.question.strip())
+        return await rag_service.ask(document, body.question)
     except rag_service.IndexingInProgress:
         return JSONResponse(
             status_code=202,

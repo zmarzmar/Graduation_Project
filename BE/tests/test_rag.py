@@ -715,6 +715,11 @@ class AskApiTest(_DbCase):
         self.assertTrue(body["answerable"])
         self.assertEqual(body["citations"], [{"page": 3, "chunk_index": 1, "quote": "We evaluate on GLUE with RoBERTa"}])
 
+    async def test_a_blank_question_is_rejected_before_any_external_call(self):
+        analysis_id, _ = await self._analyzed_document()
+        self.assertEqual((await self._ask(analysis_id, question="     ")).status_code, 422)
+        self.assertEqual(self.embed_calls, [])
+
     async def test_guests_are_rejected(self):
         analysis_id, _ = await self._analyzed_document()
         self.app.dependency_overrides.pop(get_current_user)  # 실제 인증 — 토큰 없음
