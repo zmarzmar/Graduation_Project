@@ -125,6 +125,8 @@ async def related_passages_of_analysis(
     if isinstance(document, JSONResponse):
         return document
     analysis = await crud_analysis.get_active_analysis(db, analysis_id, current_user.id)
+    if analysis is None:  # 문서를 확인한 직후에 기록이 삭제됐다
+        raise HTTPException(status_code=404, detail="분석 기록을 찾을 수 없습니다.")
     summary, formulas = analysis.paper_summary, analysis.key_formulas
     await db.commit()
 

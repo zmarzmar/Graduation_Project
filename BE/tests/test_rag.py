@@ -681,7 +681,9 @@ class OrphanChunkTest(_DbCase):
 # ── API ──────────────────────────────────────────────────────────────────
 
 
-class AskApiTest(_DbCase):
+class _ApiCase(_DbCase):
+    """실제 앱에 요청을 보내는 테스트의 공통 준비 — 인증·DB 의존성 교체와 가짜 LLM."""
+
     async def asyncSetUp(self):
         await super().asyncSetUp()
         from main import app
@@ -709,6 +711,8 @@ class AskApiTest(_DbCase):
     async def _ask(self, analysis_id: int, question: str = "glue roberta accuracy benchmark") -> httpx.Response:
         return await self.client.post(f"/api/v1/analyses/{analysis_id}/ask", json={"question": question})
 
+
+class AskApiTest(_ApiCase):
     async def test_answer_comes_with_verified_page_citations(self):
         analysis_id, _ = await self._analyzed_document()
         response = await self._ask(analysis_id)
@@ -803,7 +807,7 @@ class RelatedItemsTest(unittest.TestCase):
         self.assertEqual(rag_service.related_items(None, None), [])
 
 
-class RelatedApiTest(AskApiTest):
+class RelatedApiTest(_ApiCase):
     SUMMARY = "Low rank adaptation freezes the weights. It is evaluated on the GLUE benchmark with RoBERTa."
     FORMULAS = [{"name": "rank decomposition matrices", "latex": "W_0 + BA", "description": "adaptation of weights"}]
 
