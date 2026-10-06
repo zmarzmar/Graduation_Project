@@ -214,6 +214,24 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         # 줄 끝의 하이픈이라도 한 글자 변수 사이면 뺄셈일 수 있다 — 빼면 다른 식이다
         self.assertFalse(accepted("The gap is xy for the pair."))
 
+    def test_whitespace_may_differ_in_amount_but_not_in_presence(self):
+        passage = Passage(chunk_index=0, page=1, distance=0.1,
+                          text="The product of x y and the\nvalue  xy differ here. The loss is a - b for the pair. "
+                               "The update is applied when x > 0 holds.")
+
+        def accepted(quote: str) -> bool:
+            return bool(validate_citations(self._citations((1, quote)), [passage])[0])
+
+        # 줄바꿈과 연속 공백은 공백 하나와 같다
+        self.assertTrue(accepted("The product of x y and the value xy differ here."))
+        self.assertTrue(accepted("The  product of x y\nand the value xy differ here."))
+        # 공백을 없애거나 새로 넣으면 다른 문장이다: "x y"(두 변수)와 "xy"(곱 또는 한 변수)
+        self.assertFalse(accepted("The product of xy and the value xy differ here."))
+        self.assertFalse(accepted("The product of x y and the value x y differ here."))
+        self.assertFalse(accepted("The loss is a -b for the pair."))   # 뺄셈이 음수 부호가 된다
+        self.assertFalse(accepted("The loss is a-b for the pair."))
+        self.assertFalse(accepted("applied when x>0 holds"))           # 뜻은 같아도 원문과 다르다 — 알려진 한계로 둔다
+
     def test_symbols_that_change_the_meaning_are_never_normalized_away(self):
         passage = Passage(chunk_index=0, page=1, distance=0.1,
                           text="The update is applied when x > 0 holds. The offset is set to -1 in this case. "
@@ -222,8 +240,8 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         def accepted(quote: str) -> bool:
             return bool(validate_citations(self._citations((1, quote)), [passage])[0])
 
-        # 원문 그대로는 통과 (공백 차이는 허용)
-        self.assertTrue(accepted("applied when x>0 holds"))
+        # 원문 그대로는 통과 (공백의 양만 다른 것은 허용)
+        self.assertTrue(accepted("applied when x  >  0 holds"))
         self.assertTrue(accepted("The offset is set to -1 in this case."))
         self.assertTrue(accepted("We use a dropout rate of 0.1 throughout."))
         # 부호·부등호·소수점·뺄셈 기호가 다르면 다른 문장이다

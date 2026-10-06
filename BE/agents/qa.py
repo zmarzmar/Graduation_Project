@@ -68,18 +68,22 @@ _LINE_END_HYPHEN = re.compile(r"(?<=[^\W\d_]{2})-\s*\n\s*(?=[^\W\d_]{2})")
 # 구절에서 줄 끝 하이픈이 있던 자리. 원래 단어에 하이픈이 있었는지(pre-trained) 줄바꿈 때문에 생겼는지(decomposition)
 # 추출 텍스트만으로는 알 수 없는 유일한 자리다 — 여기서만 인용문의 하이픈 유무를 둘 다 받아들인다.
 _BREAK = "\ue000"
+# 줄 끝 하이픈 가운데 위의 경우가 아닌 것(x-\ny): 하이픈은 남기고 줄바꿈만 없앤다
+_HYPHEN_NEWLINE = re.compile(r"-[^\S\n]*\n\s*")
 
 
 def _normalize(text: str, line_end_hyphen: str) -> str:
-    """인용문과 구절을 비교하기 위한 정규화. 바꾸는 것은 세 가지뿐이다: 합자, 공백·줄바꿈 위치, 줄 끝 하이픈.
+    """인용문과 구절을 비교하기 위한 정규화. 바꾸는 것은 세 가지뿐이다: 합자, 공백의 양(줄바꿈 포함), 줄 끝 하이픈.
 
     대소문자, 위첨자·아래첨자, 줄 안의 하이픈, 부호·소수점·부등호는 그대로 둔다 — "A"와 "a", "x²"와 "x2",
     "alpha-beta"와 "alphabeta", "x > 0"과 "x < 0"은 서로 다른 문장이다.
-    한계: 공백을 모두 없애므로 "x y"와 "xy"는 구분하지 못한다 (PDF 추출은 수식 주변 공백이 일정하지 않다).
+    공백은 '있는지 없는지'를 보존하고 양만 맞춘다(연속 공백·줄바꿈 → 공백 하나) — "x y"와 "xy", "a - b"와 "a -b"는 다르다.
+    그 결과 모델이 "x > 0"을 "x>0"으로 붙여 쓰거나 따옴표 모양을 바꾼 인용문은 거부된다 (알려진 한계 — 완화하지 않는다).
     """
     text = text.replace(_BREAK, "").translate(_LIGATURES)
     text = _LINE_END_HYPHEN.sub(line_end_hyphen, text)
-    return re.sub(r"\s+", "", text)
+    text = _HYPHEN_NEWLINE.sub("-", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _quote_in_passage(quote: str, passage: str) -> bool:
@@ -91,7 +95,8 @@ def _quote_in_passage(quote: str, passage: str) -> bool:
 def validate_citations(citations: list[Citation], passages: list[_Passage]) -> tuple[list[dict], int]:
     """출처 중 '실제로 검색된 구절에 그 인용문이 들어 있는' 것만 남긴다. (남은 출처, 제거한 개수)를 반환한다.
 
-    여기서 확인하는 것은 인용문의 진위다 — 인용문이 문장을 뒷받침하는지는 확인하지 못한다 (평가에서 확인한다).
+    여기서 확인하는 것은 '인용문이 그 구절에 실제로 있는가'(존재)뿐이다. '그 인용문이 문장을 뒷받침하는가'(의미적 근거)는
+    다른 문제이고 런타임에 확인하지 않는다 — 진짜 인용문을 달고도 문장이 틀릴 수 있다. 그쪽은 평가(evals/qa_eval.py)에서 본다.
     화면에 보여줄 구절·페이지는 모델의 출력이 아니라 검색된 청크에서 가져온다.
     """
     valid: list[dict] = []
@@ -134,6 +139,7 @@ async def answer_question(question: str, passages: list[_Passage]) -> dict:
         return no_evidence()
     # 문장 단위로 거른다: 출처가 없거나 하나라도 검증에서 떨어진 문장은 답변에서 뺀다.
     # 떨어진 출처가 받치던 내용이 '검증된 답변'처럼 남지 않게 하기 위해서다.
+    # 남은 문장도 '인용문이 실재한다'까지만 확인된 것이다 — 인용문이 그 문장을 뒷받침한다는 보장은 아니다.
     kept: list[str] = []
     citations: list[dict] = []
     dropped_citations = 0
