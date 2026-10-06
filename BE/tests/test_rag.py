@@ -636,6 +636,20 @@ class OrphanChunkTest(_DbCase):
         self.assertEqual(await rag_service.reconcile_orphan_chunks(), 0)
         self.assertIn(partial, self.collection.rows)
 
+    async def test_periodic_purge_removes_late_orphans_and_survives_a_failed_round(self):
+        self.collection.fail_deletes = True  # 첫 주기들은 Chroma 장애로 실패한다
+        with patch.object(rag_service, "PURGE_INTERVAL_SECONDS", 0.01):
+            task = asyncio.create_task(rag_service.purge_periodically())
+            self.addCleanup(task.cancel)
+            await asyncio.sleep(0.05)
+            orphan = self._late_write(987_654_321, "ghost")  # 기동 뒤, 삭제 요청 없이 도착한 청크
+            await asyncio.sleep(0.05)
+            self.assertIn(orphan, self.collection.rows)
+            self.assertFalse(task.done())                 # 실패한 주기가 루프를 끝내지 않는다
+            self.collection.fail_deletes = False
+            await asyncio.sleep(0.2)
+        self.assertNotIn(orphan, self.collection.rows)
+
     async def test_every_delete_runs_the_reconciliation(self):
         analysis_id, doc_id = await self._analyzed_document()
         orphan = self._late_write(987_654_321, "ghost")  # 어떤 문서에도 속하지 않는 청크

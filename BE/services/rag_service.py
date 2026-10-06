@@ -36,6 +36,9 @@ RETRY_AFTER_SECONDS = 3         # 색인 중일 때 클라이언트에 알려주
 # 툼스톤 행은 이 시간이 지난 뒤에야 지운다. 색인 중에 삭제된 문서는 늦게 도착한 upsert가 청크를 다시 만들 수 있어서,
 # 색인 시간 제한보다 길게 기다린 뒤 한 번 더 지우고 나서 행을 없앤다.
 PURGE_GRACE_SECONDS = 120
+# 삭제 정리를 다시 도는 간격. 삭제 요청은 접근만 즉시 막는다 — Chroma의 청크가 실제로 없어지는 것은 그 뒤이고,
+# 정리 이후에 늦게 도착한 청크는 길게는 이 간격만큼 남는다.
+PURGE_INTERVAL_SECONDS = 600
 
 
 class IndexingInProgress(Exception):
@@ -288,6 +291,20 @@ async def purge_pending_documents() -> None:
         logger.error(f"[RAG] 고아 청크 정리 실패 (다음에 다시 시도): {e}")
 
 
+async def purge_periodically() -> None:
+    """서버가 떠 있는 동안 삭제 정리를 되풀이한다 (기동 직후 한 번, 그 뒤 PURGE_INTERVAL_SECONDS마다).
+
+    삭제 요청 때의 정리만으로는 그 뒤에 도착한 청크와 Chroma 장애로 남은 툼스톤이 다음 삭제까지 남는다.
+    여러 프로세스(blue/green)가 함께 돌려도 된다 — 정리는 몇 번을 실행해도 결과가 같다.
+    """
+    while True:
+        try:
+            await purge_pending_documents()
+        except Exception as e:
+            logger.error(f"[RAG] 주기 정리 실패 (다음 주기에 다시 시도): {e}")
+        await asyncio.sleep(PURGE_INTERVAL_SECONDS)
+
+
 async def reconcile_orphan_chunks() -> int:
     """벡터 색인을 Postgres와 대조해 주인 없는 청크를 지우고, 지운 개수를 반환한다. 시간 기준에 기대지 않는다.
 
@@ -298,7 +315,7 @@ async def reconcile_orphan_chunks() -> int:
     청크를 쓰므로, 훑을 때 보인 청크의 작업은 그 뒤에 읽은 Postgres에 반드시 있다 — 진행 중인 색인의 청크를
     고아로 오판하지 않는다.
 
-    ponytail: 컬렉션 전체를 훑는다(O(전체 청크 수)). 삭제·서버 기동 때만 돌아서 지금 규모에선 충분하다.
+    ponytail: 컬렉션 전체를 훑는다(O(전체 청크 수)). 삭제 때와 PURGE_INTERVAL_SECONDS마다 돌아서 지금 규모에선 충분하다.
     느려지면 문서별 청크 수를 Postgres에 두고 달라진 문서만 확인하는 방식으로 바꾼다.
     """
     seen: list[tuple[str, int | None, str | None]] = []

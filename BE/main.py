@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -23,13 +24,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # 삭제 대기 중인 문서의 벡터 색인 정리를 다시 시도한다 — 지난 실행에서 Chroma 삭제가 실패했거나
-    # 유예 시간이 지나지 않아 남은 툼스톤을 여기서 마무리한다. 실패해도 서버 기동은 막지 않는다.
-    try:
-        await rag_service.purge_pending_documents()
-    except Exception as e:
-        logger.error(f"기동 시 문서 정리 실패 (무시): {e}")
+    # 삭제된 문서의 벡터 색인 정리를 백그라운드에서 되풀이한다 — 지난 실행에서 남은 툼스톤과
+    # 정리 뒤에 늦게 도착한 청크를 마무리한다. 기동을 기다리게 하지 않고, 실패해도 서버는 뜬다.
+    purge_task = asyncio.create_task(rag_service.purge_periodically())
     yield
+    purge_task.cancel()
 
 
 app = FastAPI(
