@@ -14,7 +14,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 ---
 
-## 🚧 현재 상태와 이어서 할 일 (2026-09-20 기준)
+## 🚧 현재 상태와 이어서 할 일 (2026-10-06 기준)
 
 **새 세션은 여기부터 읽는다.** 아래는 결정이 끝난 내용이다 — 다시 논의하지 말고 이어서 진행한다.
 
@@ -23,42 +23,39 @@ This file provides guidance to Claude Code when working with code in this reposi
 | PR | 내용 | 상태 |
 |----|------|------|
 | #33–#38 | 아래 "작업 기록" 참고 | 머지·운영 배포 완료 |
-| **#39** `feature/paper-qa-rag-backend` | 논문 Q&A 백엔드 (RAG 3단계의 PR 2/3) | **열려 있음. CI 통과(101 tests). 머지 보류** |
-| PR 3 (FE) | Q&A 화면 | 계획만 있음. #39 머지 후 시작 |
+| #39 | 논문 Q&A 백엔드 (RAG 3단계의 PR 2/3) | **2026-10-06 머지·운영 배포 완료** (`8e30893`) |
+| PR 3 `feature/paper-qa-frontend` | Q&A 화면 + 분석 결과 계약 | 로컬 커밋까지 완료. **push·PR 생성 전** |
 
-RAG 3단계는 PR 3개로 나눴다: ① 문서 보관(#38, 완료) → ② RAG 백엔드(#39) → ③ 프런트엔드.
+RAG 3단계: ① 문서 보관(#38) → ② RAG 백엔드(#39) → ③ 프런트엔드(진행 중).
 
-### 1. #39를 머지하기 전에 해야 하는 것
+### 1. #39에서 정해진 것 (운영에 반영됨)
 
-**(a) 운영 Chroma 확인 — 서버 접속 권한이 있는 사람이 직접.** #39는 서버 이미지를 고정하고 볼륨 마운트 경로를 `/chroma/chroma` → `/data`로 바꿔서 컨테이너가 다시 만들어진다. 기존 마운트 경로는 서버가 실제로 쓰는 위치가 아니었으므로 **볼륨이 비어 있어도 컨테이너 내부 `/data`에 데이터가 있을 수 있다.** 마운트, 실제 저장 경로, 컬렉션 세 가지를 모두 확인한다 (명령은 #39 본문 맨 위). 데이터가 있으면 멈추고 보존 여부부터 정한다. 확인 없이 볼륨·컨테이너를 지우거나 초기화하지 않는다. 서버의 `/api/v2/version`은 이미지와 무관하게 `"1.0.0"`을 돌려주므로 버전 확인에 쓸 수 없다.
+- **인용 검증은 '존재 확인'이다.** 서버는 인용문이 그 구절에 실제로 있는지만 확인한다. 인용문이 문장을 뒷받침하는지(의미적 근거)는 런타임에 확인하지 않는다 — 평가의 LLM 판정으로만 본다. 화면·문서에서 둘을 섞어 쓰지 않는다
+- 인용 비교가 정규화하는 것은 합자, 공백의 **양**, 단어 사이의 줄 끝 하이픈 세 가지뿐이다. 대소문자·위첨자·줄 안 하이픈·공백 유무는 그대로 비교한다 (`BE/agents/qa.py`의 `_normalize`)
+- **알려진 거짓 거부는 완화하지 않는다**: 모델이 따옴표 모양을 바꾸거나(`‘ ’` → `' '`), 수식을 고쳐 쓰거나(`1/√dk`), 공백을 붙여 쓴(`x>0`) 인용은 거부된다
+- 모델은 답을 claim(문장 + 그 문장의 인용) 단위로 쓴다. 인용이 없거나 하나라도 검증에서 떨어진 문장은 답변에서 뺀다. 응답의 `dropped_claims`가 빠진 문장 수다
+- 삭제 정리는 삭제 요청 때와 lifespan의 백그라운드 작업(기동 직후 + 10분마다)에서 돈다. **10분은 재시도 주기이지 상한이 아니다** — 정리 실패·실행 시간·서버 중단에 따라 청크는 더 오래 남는다. "접근 차단(즉시)"과 "실제 삭제(나중)"는 별개다
+- Chroma 호출은 클라이언트 생성까지 스레드에서 한다 (`rag_service._chroma`). 이벤트 루프에서 만들면 Chroma가 응답하지 않는 동안 `/health`까지 멈춘다 (닿지 않는 호스트에 75초 — 측정)
+- 운영 Chroma: `chromadb/chroma:1.5.5`, 볼륨은 `/data`. 배포 직후 컬렉션 `paper_chunks` 0건
 
-**(b) 인용문 정규화 범위를 더 좁힌다** (`BE/agents/qa.py`의 `_normalize`). 지금은 NFKC, casefold, 공백 제거, 줄 끝 하이픈, 단어 안 하이픈(양쪽 글자 2개 이상)을 정규화하고 부호·소수점·부등호는 보존한다. 그래도 수식 의미를 바꿀 수 있는 것이 남아 있다:
-- casefold → `A`와 `a`가 같아진다 (행렬 A와 스칼라 a)
-- NFKC → `²`와 `2`가 같아진다 (위첨자·아래첨자)
-- 단어 안 하이픈 제거 → `alpha-beta`와 `alphabeta`가 같아진다
+### 2. PR 3 (FE) — 구현된 내용과 남은 일
 
-"의미를 보존한다"고 단정하지 말 것. 범위를 제한하고(예: 합자만 풀기, 대소문자 보존, 하이픈은 줄 끝에서 끊긴 경우만) 위 반례를 거부하는 테스트를 추가한다. 기존 반례 테스트는 `tests/test_rag.py`의 `CitationValidationTest`에 있다. 바꾼 뒤에는 `evals/qa_eval.py`를 다시 돌려 잘못된 거부가 얼마나 늘었는지 **수치로** 보고한다.
+**BE 계약** (`BE/services/agent_service.py`): pdf·analyze 모드의 `complete.result`에 세 필드가 붙는다.
+- `analysis_id` — 커밋된 분석 기록 id. 저장 실패면 `null` (분석 결과 자체는 그대로 전달한다)
+- `has_document` — 그 기록에 원문이 **실제로** 연결됐는지. PDF가 입력됐다는 사실만으로 true가 되지 않는다
+- `qa_unavailable_reason` — `guest` / `save_failed` / `no_text`(초록 기반) / `document_store_failed` / `null`
 
-**(c) 고아 청크 정리의 한계를 명시하거나 주기 실행을 둔다.** `reconcile_orphan_chunks()`는 삭제 요청과 서버 기동 때만 돈다. 마지막 정리 이후에 늦게 도착한 청크는 다음 이벤트까지 Chroma에 남는다. **접근 차단(즉시)과 실제 삭제 완료(나중)는 별개**라는 점을 코드 주석과 PR에 명시하고, 확실한 정리가 필요하면 주기적인 재시도(예: lifespan에서 도는 백그라운드 루프)를 추가한다. 화면이나 문서에서 "원문이 완전히 삭제됐다"고 표현하지 않는다.
+**FE**
+- `FE/lib/api.ts`의 `askPaper()` — 200 / 202 / 409 `no_document` / 401 / 404를 구분한 결과를 반환. 202 간격은 본문 `retry_after_seconds`로 읽는다 (CORS가 `Retry-After`를 노출하지 않는다)
+- `FE/components/agent/PaperQa.tsx` — 홈 결과(`ResultsPanel`의 "논문 Q&A" 탭)와 마이페이지 분석 상세가 함께 쓴다
+- 탭은 pdf·analyze 결과에서 항상 보인다. 안내 순서: 로그인 여부 → 기록 저장 여부 → 원문 보유 여부
+- 요청·대기 타이머는 `AbortController` 하나로 묶고, 사용자·분석이 바뀌면 `key`로 통째로 다시 만든다 → 화면 이탈·분석 변경·로그아웃 뒤의 늦은 응답은 반영되지 않는다
+- 질문마다 독립 답변이다 (화면에 명시). 대화 문맥 전달, 서버 대화 저장, PDF 뷰어 연결은 범위 밖
 
-**(d) 코드 리뷰.** 위 (b)(c)를 포함해 #39 diff를 실제로 읽는 리뷰가 아직 없었다 (지금까지의 검토는 보고서 기준).
+**화면에서 확인한 것** (로컬 실제 BE·Chroma, 2026-10-06): 최초 색인, 답변·출처 펼침, 근거 부족, 202 자동 재시도, 재시도 중 화면 이동·로그아웃 뒤 요청 중단, 게스트 안내, 원문 없는 기존 기록 안내, 마이페이지에서 질문.
+**화면에서 확인하지 못한 것**: `save_failed`·`document_store_failed`·`no_text`·`guest` 사유별 문구(BE 계약 테스트만 있음), `dropped_claims` 안내, 401·404 안내, 500자 초과 안내, 재시도 상한 도달.
 
-### 2. PR 3 (FE) 계획 — 확정된 내용
-
-브랜치 `feature/paper-qa-frontend`, #39가 머지된 `main`에서 분기.
-
-**BE 선행 변경 (PR 3에 포함):** 분석 완료 이벤트에 `analysis_id`와 `has_document`를 넣는다. 지금은 `_save_to_db`/`_save_analyze_to_db`가 아무것도 반환하지 않아 홈 결과 화면에서 질문할 수 없다. 저장을 `complete` 이벤트보다 먼저 하고 id를 반환하게 한다.
-- `has_document`는 **실제 저장 결과**로 정한다 — 커밋된 분석 기록의 `document_id` 기준. PDF가 입력됐다는 사실만으로 true로 만들지 않는다 (원문 보관은 세이브포인트 안에서 실패할 수 있다).
-
-**FE:**
-- `FE/lib/api.ts`에 `askPaper(analysisId, question)` — 200 / 202 / 409를 구분해 반환
-- `FE/components/agent/PaperQa.tsx` (신규) — 홈 결과(`ResultsPanel`)와 마이페이지 분석 상세 **양쪽에서 같은 컴포넌트**를 쓴다
-- **Q&A 탭을 `analysis_id` 유무만으로 숨기지 않는다.** PDF·선택 논문 분석 결과에서는 항상 탭을 보여주고, 내용을 이 순서로 가른다: 로그인 여부(게스트 → 로그인 안내) → 저장 성공 여부(`analysis_id` 없음 → 저장 실패 안내) → 원문 보유 여부(`has_document=false` 또는 409 `no_document` → "논문을 다시 분석하면 질문할 수 있어요")
-- **재시도 중 화면이 바뀌면 늦은 응답을 무시한다.** 타이머 정리만으로는 부족하다 — 요청을 `AbortController`로 취소하고, 응답을 반영하기 전에 "아직 같은 분석·같은 사용자인가"를 확인한다. 로그아웃하거나 다른 분석으로 이동했는데 이전 답변이 나타나면 안 된다
-- **질문별 독립 답변임을 화면에 명확히 한다.** API는 질문 하나만 받으므로 "그 수식은?" 같은 후속 질문의 맥락을 모른다. 화면의 대화 기록(표시용)과 대화 문맥(모델에 전달)은 다른 것이다. 대화형 처리는 나중에
-- **202 재시도 간격은 BE가 실제로 주는 값을 읽는다.** BE는 `Retry-After` 헤더와 본문의 `retry_after_seconds`를 둘 다 준다(값 동일). FE는 본문 필드 하나로 통일해서 읽는다 (CORS 설정이 `Retry-After`를 노출하지 않아 브라우저에서 읽을 수 없다). 재시도 횟수 상한을 둔다
-- `answerable: false`는 오류가 아니라 정상 결과로 보이게 한다. `dropped_citations > 0`이면 "일부 출처를 확인하지 못했습니다"를 표시한다
-- 출처 칩 `[p.5]`를 누르면 검증된 인용 구절을 펼친다. 원본 PDF 뷰어 이동은 범위 밖
+**남은 일**: push → PR → 리뷰 → 머지. `BE/**`가 포함돼 있어 머지하면 백엔드 운영 배포가 나간다.
 
 ### 3. 그 다음 단계
 
@@ -68,6 +65,9 @@ RAG 3단계는 PR 3개로 나눴다: ① 문서 보관(#38, 완료) → ② RAG 
 
 ### 4. 별도로 남겨둔 문제 (다른 PR에 섞지 말 것)
 
+- **배포 때 Postgres 컨테이너가 다시 만들어졌다** (2026-10-06, #39 배포). `postgres:16-alpine` 태그의 새 이미지를 받아 와서다 — 데이터는 볼륨에 있어 유지됐지만 배포 중 DB가 잠시 내려갔다. 이미지 태그(또는 digest) 고정을 검토한다
+- **배포 중 헬스체크가 20초 넘게 실패했다** (같은 배포: `Connection reset by peer`, `Empty reply`). 서버 메모리 956MB, 배포 중 load average 7. 원인 미확인 — 아래 `/health` 타임아웃 항목과 같은 문제인지도 확인하지 않았다
+- 논문 Q&A의 남은 한계: 응답 없는 Chroma 호출이 스레드를 최대 75초 잡는다(클라이언트 타임아웃 미설정, 종료 지연 가능) / 삭제 요청마다 컬렉션 전체 대조가 요청 안에서 돈다 / 본문의 `</passage>`가 구절 구분자를 흉내 낼 수 있다(영향은 올린 본인의 Q&A)
 - Reviewer 프롬프트가 "통과 기준 (관대하게 적용)"이고 TODO를 문제로 보지 않는다. 화면 문구도 "LLM 검토 통과"로 바꿔야 한다
 - 코드 실행 검증 없음. 도입한다면 1단계는 `ast.parse` + import **구문의 정적 확인**(실제 import는 코드를 실행하므로 금지), 실제 실행은 네트워크 없는 격리 컨테이너에서
 - 배포 중 `/health`가 간헐적으로 타임아웃된다(blue/green인데 무중단이 아닌 구간). 원인 미확인 — 외부 관측만으로 nginx나 자원 부족으로 단정하지 말 것
@@ -77,14 +77,15 @@ RAG 3단계는 PR 3개로 나눴다: ① 문서 보관(#38, 완료) → ② RAG 
 - `_extract_json`이 4개 노드에 복붙돼 있다 → `with_structured_output(PydanticModel)`로 교체. 모델명 하드코딩 6곳 → `config.py`
 - 검색 중 Semantic Scholar 403, arXiv API 406이 관측됐다 (OpenAlex만 동작) — 일시적인지 확인 필요
 - 미사용 import: `routers/mypage.py`(`HttpUrl`), `services/agent_service.py`(`io`)
-- `AGENTS.md`와 `README.md`는 아직 옛 내용이다 (CLAUDE.md 3개만 2026-09-20에 갱신됨). #39가 머지되면 이 파일의 "(#39)" 표시도 정리한다
+- `AGENTS.md`와 `README.md`는 아직 옛 내용이다
 
 ### 5. 로컬 환경 메모
 
-- 로컬 개발 DB는 마이그레이션 **0009**(#39 브랜치)까지 적용돼 있다. `main`(head 0008)에서 alembic을 돌리면 "Can't locate revision 0009"가 난다 → #39 브랜치에서 `uv run alembic downgrade 0008` 하거나 #39 브랜치에서 작업한다
-- 로컬 Chroma 컨테이너는 `chromadb/chroma:1.5.5`, 볼륨은 `/data`에 마운트돼 있다 (#39 기준)
+- 로컬 개발 DB는 마이그레이션 **0009**(현재 `main`의 head)까지 적용돼 있다
+- 로컬 Chroma 컨테이너는 `chromadb/chroma:1.5.5`, 볼륨은 `/data`에 마운트돼 있다
 - 로컬 DB에 검증용 계정 `canceltest`가 남아 있다
 - FE `node_modules`는 브랜치를 바꾼 뒤 `npm ci`로 맞춘다 (#36에서 의존성이 빠졌다)
+- 운영 서버는 `ssh gra`로 접속된다. 컨테이너: `ai_research_chroma`, `ai_research_postgres`, `ai_research_backend_blue` / `_green`. 조회 외의 작업은 매번 사용자 확인을 받는다
 
 ---
 
@@ -105,9 +106,9 @@ RAG 3단계는 PR 3개로 나눴다: ① 문서 보관(#38, 완료) → ② RAG 
 - **AI Core**: LangGraph, OpenAI API
   - Planner, Analyzer, TrendAnalyzer, 논문 Q&A: `gpt-4o-mini` (컨텍스트 128k, 최대 출력 16,384)
   - Coder, Reviewer: `o4-mini` (컨텍스트 200k, 추론 토큰도 출력 예산에서 쓴다)
-  - 임베딩(#39): `text-embedding-3-small`
+  - 임베딩: `text-embedding-3-small`
 - **Relational DB**: PostgreSQL 16 — 원본 데이터
-- **Vector DB**: ChromaDB — 논문 Q&A의 파생 색인 (#39). `chromadb-client==1.5.5` + 서버 `chromadb/chroma:1.5.5`, 둘은 함께 올린다
+- **Vector DB**: ChromaDB — 논문 Q&A의 파생 색인. `chromadb-client==1.5.5` + 서버 `chromadb/chroma:1.5.5`, 둘은 함께 올린다
 - **Package Manager**: uv (Python), npm (Node.js)
 - **배포**: BE는 Oracle 서버(Docker, blue/green, nginx), FE는 Vercel
 
@@ -128,7 +129,7 @@ Graduation_Project/
 ├── FE/
 │   ├── app/                        # page.tsx(홈), mypage/, admin/
 │   ├── components/
-│   │   ├── agent/                  # AgentPipeline, ResultsPanel, DocumentStorageNotice
+│   │   ├── agent/                  # AgentPipeline, ResultsPanel, PaperQa, DocumentStorageNotice
 │   │   ├── shared/                 # Header, Footer
 │   │   └── ui/                     # shadcn/ui
 │   ├── lib/
@@ -139,20 +140,20 @@ Graduation_Project/
 └── BE/
     ├── main.py
     ├── core/                       # config.py(pydantic-settings), dependencies.py(DB 세션·인증)
-    ├── routers/                    # agent, paper, auth, mypage, admin (+ qa: #39)
-    ├── services/                   # agent_service, arxiv/semantic_scholar/openalex/keyword/auth/admin_service (+ rag_service: #39)
+    ├── routers/                    # agent, paper, auth, mypage, admin, qa
+    ├── services/                   # agent_service, arxiv/semantic_scholar/openalex/keyword/auth/admin_service, rag_service
     ├── agents/                     # LangGraph 에이전트
     │   ├── graph.py, state.py
     │   ├── paper_context.py        # Coder·Reviewer가 공유하는 논문 원문 컨텍스트
     │   ├── token_budget.py         # 토큰 카운트, 호출 전 입력+출력 예산 검사
-    │   ├── qa.py                   # (#39) 논문 Q&A 답변·출처 검증
+    │   ├── qa.py                   # 논문 Q&A 답변·출처 검증
     │   └── nodes/                  # planner, researcher, trend_analyzer, analyzer, coder, reviewer, router
     ├── models/                     # SQLAlchemy: user, paper, analysis, search_history, paper_document
     ├── crud/                       # DB 쿼리 (commit은 호출자가 한다)
     ├── schemas/                    # Pydantic DTO
-    ├── alembic/versions/           # 0001 … 0008 (#39에서 0009)
+    ├── alembic/versions/           # 0001 … 0009
     ├── tests/                      # unittest
-    └── evals/                      # (#39) qa_eval.py — 실제 API를 쓰는 평가, CI에서 돌리지 않는다
+    └── evals/                      # qa_eval.py — 실제 API를 쓰는 평가, CI에서 돌리지 않는다
 ```
 
 ---
@@ -200,7 +201,7 @@ Graduation_Project/
 - 게스트는 보관하지 않는다 — 서버에 게스트를 구분할 수단이 없다 (1회 제한은 FE에서만 처리)
 - 문서 저장과 정리는 사용자 단위 advisory lock으로 직렬화한다. **락이나 DB 트랜잭션을 쥔 채로 LLM·임베딩·Chroma를 호출하지 않는다**
 
-**논문 Q&A / RAG (#39)**
+**논문 Q&A / RAG**
 - RAG는 **Q&A와 근거 연결**에 쓴다. 논문 한 편(~1만 토큰)은 컨텍스트에 통째로 들어가므로 Coder·Reviewer의 기본 입력을 검색 결과로 바꾸지 않는다
 - 로그인 전용. 색인은 첫 질문 때 요청 안에서 만든다 (60초 제한). 다른 요청이 색인 중이면 202
 - 색인 작업마다 `index_job_id`를 발급하고 청크에 job_id를 붙인다. 검색은 문서 + 현재 job + `ready`만. 완료·실패 기록은 현재 작업만 할 수 있다 → 오래된 작업이 새 색인을 훼손하지 못한다
@@ -236,7 +237,7 @@ uv run uvicorn main:app --reload         # 개발 서버 (localhost:8000)
 uv run python -m unittest discover -s tests -v
 REQUIRE_DB_TESTS=1 REQUIRE_CHROMA_TESTS=1 uv run python -m unittest discover -s tests   # DB·Chroma에 못 붙으면 건너뛰지 않고 실패 (CI와 같음)
 
-# 평가 (#39, 실제 API 비용 발생)
+# 평가 (실제 API 비용 발생)
 uv run python -m evals.qa_eval --out results.json
 ```
 
@@ -262,7 +263,7 @@ GET    /api/v1/mypage/me                         PATCH /api/v1/mypage/me
 GET    /api/v1/mypage/search-history             DELETE …/search-history[/{id}]
 GET    /api/v1/mypage/analysis-history[/{id}]    DELETE …/analysis-history[/{id}]   # 응답에 has_document
 GET    /api/v1/admin/users | /admin/papers | /admin/system
-POST   /api/v1/analyses/{analysis_id}/ask        # (#39) 논문 Q&A — 401 / 404 / 409 no_document / 202 색인 중 / 504
+POST   /api/v1/analyses/{analysis_id}/ask        # 논문 Q&A — 401 / 404 / 409 no_document / 202 색인 중 / 422 / 504
 ```
 
 ---
@@ -404,7 +405,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 | #36 | FE 미사용 의존성 제거(`zod`, `date-fns`, `@tanstack/react-query`), Planner의 쓰이지 않는 출력(`focus_area`, `framework`)과 도달 불가 분기 제거 |
 | #37 | **Reviewer가 논문 앞 8,000자만 보던 문제** → Coder와 같은 전문. PDF 페이지 보존, 길이 초과 시 자르지 않고 거부, 실제 토크나이저, 호출별 입력+출력 예산 |
 | #38 | **논문 원문 보관** (`paper_documents`, 마이그레이션 0008). 사용자별 중복 제거, 마지막 활성 기록 삭제 시 문서 정리, 동시 저장·삭제 경쟁을 advisory lock으로 해결. CI에 Postgres 서비스와 마이그레이션 적용 단계. 원문 보관 안내 문구 |
-| #39 (열림) | **논문 Q&A 백엔드.** 마이그레이션 0009, 청크 분할, 첫 질문 때 색인, 작업별 job id, 툼스톤 삭제, 고아 청크 대조 정리, 출처 검증, `chromadb-client` 교체와 서버 버전 고정, 평가 스크립트, CI에 Chroma 서비스 |
+| #39 | **논문 Q&A 백엔드.** 마이그레이션 0009, 청크 분할, 첫 질문 때 색인, 작업별 job id, 툼스톤 삭제, 고아 청크 대조 정리, 출처 검증, `chromadb-client` 교체와 서버 버전 고정, 평가 스크립트, CI에 Chroma 서비스 |
 
 **결정:** ChromaDB 제거 → 보류하고 RAG로. RAG는 Q&A·근거 연결에, Coder·Reviewer는 전문 유지. Q&A는 로그인 전용, 첫 질문 때 색인, 사용자별 중복 제거.
 
@@ -412,3 +413,11 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - 논문 길이(실제 토큰): Attention 10k / LoRA 26k / LLaMA 27k / GPT-3 64k / PaLM 83k — 87쪽짜리도 한도(10만) 안
 - LoRA 논문 1회 실행: Reviewer가 앞 8,000자만 볼 때 1회차 통과(LLM 호출 3회, 입력 5.7만 토큰) → 전문을 볼 때 2번 낙제 후 3회차 통과(호출 7회, 입력 19.8만 토큰). 회당 입력 증가와 반복 증가가 함께 작용한 결과이고, **단일 실행 관측값**이지 품질 개선의 증명이 아니다
 - Q&A 평가(질문 24개, 논문 2편 + 지시문을 심은 문서, 단일 실행): 답 있는 질문 11/13, 답 없는·다른 논문 질문 거부 10/10, 검색 범위 24/24, 심어둔 지시문 따름 0/2. 같은 질문이 실행마다 통과·실패가 갈렸다
+
+### 2026-10-06
+
+#39를 마무리해 머지·배포하고 PR 3(Q&A 화면)을 로컬에서 구현했다.
+
+- #39 추가 변경: 인용 비교 범위 축소(대소문자·위첨자·하이픈·공백 유무 보존), 문장 단위 근거 걸러내기(`dropped_claims`), 주기 정리, Chroma 클라이언트 생성을 이벤트 루프 밖으로, 공백뿐인 질문 422
+- 측정: 같은 모델 출력의 인용을 변경 전후 규칙으로 각각 검증 — 대소문자·NFKC·하이픈 축소는 52개 중 48 대 48, 공백 유무 보존은 49개 중 49 대 49로 거부 증가 0 (질문 24개 × 3회, 논문 2편). 평가 1회: 답 있는 질문 13/13 (같은 날 앞선 실행은 12/13), 거부 10/10, 범위 24/24, 지시문 따름 0/2
+- 운영 Chroma 확인(머지 전, 읽기 전용): 이미지 `latest`, 볼륨은 `/chroma/chroma`(빈 4K), 실제 저장은 컨테이너 내부 `/data/chroma.sqlite3` 188K, 컬렉션 0개 → 보존할 데이터 없음
