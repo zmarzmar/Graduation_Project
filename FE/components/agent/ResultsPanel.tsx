@@ -10,6 +10,7 @@ import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-r
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
+import { RelatedPassages } from '@/components/agent/RelatedPassages'
 
 interface ResultsPanelProps {
   result: AgentResult
@@ -268,8 +269,9 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
           </div>
         )}
 
-        {activeTab === 'analysis' && (
-          <div className="space-y-5">
+        {/* 다른 탭을 보는 동안에도 찾아 둔 관련 원문이 남도록 언마운트하지 않고 숨긴다 */}
+        {hasAnalysis && (
+          <div className={activeTab === 'analysis' ? 'space-y-5' : 'hidden'}>
             {/* 분석 대상 논문 */}
             {analysisTarget && (
               <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
@@ -360,6 +362,13 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {hasQa && (
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-gray-700">🔎 관련 원문</h4>
+                <RelatedPassages analysisId={result.analysis_id} hasDocument={result.has_document ?? false} />
               </div>
             )}
           </div>

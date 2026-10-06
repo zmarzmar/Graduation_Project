@@ -14,6 +14,7 @@ import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, 
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
+import { RelatedPassages } from '@/components/agent/RelatedPassages'
 import { useAuth } from '@/lib/hooks/useAuth'
 
 const MODE_LABEL: Record<string, string> = {
@@ -268,6 +269,10 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
                   </p>
                 </div>
               )}
+              <div>
+                <p className="mb-2 text-xs font-semibold text-gray-600">🔎 관련 원문</p>
+                <RelatedPassages analysisId={detail.id} hasDocument={detail.has_document} />
+              </div>
               <div>
                 <p className="mb-2 text-xs font-semibold text-gray-600">💬 논문 Q&amp;A</p>
                 <PaperQa analysisId={detail.id} hasDocument={detail.has_document} />
