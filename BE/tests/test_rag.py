@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from agents import qa
-from agents.qa import Citation, QaDraft, answer_question, validate_citations
+from agents.qa import Citation, Claim, QaDraft, answer_question, validate_citations
 from agents.token_budget import count_tokens
 from core.config import settings
 from core.dependencies import get_current_user, get_db
@@ -153,14 +153,17 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         Passage(chunk_index=9, page=5, text="We evaluate on the GLUE benchmark.", distance=0.2),
     ]
 
-    def _draft(self, *citations: tuple[int, str], answerable: bool = True) -> QaDraft:
-        return QaDraft(answerable=answerable, answer="LoRA freezes the weights.",
-                       citations=[Citation(passage=number, quote=quote) for number, quote in citations])
+    @staticmethod
+    def _citations(*citations: tuple[int, str]) -> list[Citation]:
+        return [Citation(passage=number, quote=quote) for number, quote in citations]
+
+    def _draft(self, *claims: tuple[str, list[tuple[int, str]]]) -> QaDraft:
+        return QaDraft(answerable=True, claims=[Claim(text=text, citations=self._citations(*cited)) for text, cited in claims])
 
     def test_only_quotes_that_really_appear_in_the_cited_passage_survive(self):
         valid, dropped = validate_citations(
-            self._draft(
-                (1, "freezes the pretrained model weights"),       # 줄바꿈·대소문자 차이는 허용
+            self._citations(
+                (1, "freezes the pretrained model weights"),       # 줄바꿈 차이는 허용
                 (1, "LoRA reduces memory by ten thousand times"),  # 그 구절에 없는 문장
                 (2, "freezes the pretrained model weights"),       # 다른 구절의 문장
                 (7, "We evaluate on the GLUE benchmark."),         # 검색되지 않은 구절 번호
@@ -177,14 +180,39 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         passages = [Passage(chunk_index=0, page=1, distance=0.1,
                             text="LoRA, which freezes the pre-\ntrained model weights and injects trainable rank decom-\nposition "
                                  "matrices. The ﬁne-tuned model is efﬁcient for large values of\ndk.")]
-        draft = QaDraft(answerable=True, answer="a", citations=[
-            Citation(passage=1, quote="freezes the pre-trained model weights and injects trainable rank decomposition matrices"),
-            Citation(passage=1, quote="The fine-tuned model is efficient for large values of dk."),  # 합자(ﬁ)와 줄바꿈
-            Citation(passage=1, quote="freezes the pre-trained optimizer states"),                   # 여전히 없는 문장은 거부
-        ])
-        valid, dropped = validate_citations(draft, passages)
-        self.assertEqual(len(valid), 2)
+        valid, dropped = validate_citations(self._citations(
+            (1, "freezes the pre-trained model weights and injects trainable rank decomposition matrices"),
+            (1, "freezes the pretrained model weights"),                      # 줄 끝 하이픈은 원래 있었는지 알 수 없다 — 둘 다 허용
+            (1, "The fine-tuned model is efficient for large values of dk."),  # 합자(ﬁ)와 줄바꿈
+            (1, "freezes the pre-trained optimizer states"),                   # 여전히 없는 문장은 거부
+        ), passages)
+        self.assertEqual(len(valid), 3)
         self.assertEqual(dropped, 1)
+
+    def test_case_superscripts_and_inline_hyphens_are_compared_as_written(self):
+        passage = Passage(chunk_index=0, page=1, distance=0.1,
+                          text="The matrix A is multiplied by the scalar a here. The loss grows with x² over time. "
+                               "We call it the alpha-beta schedule here. The betagamma variant is used later. "
+                               "The gap is x-\ny for the pair.")
+
+        def accepted(quote: str) -> bool:
+            return bool(validate_citations(self._citations((1, quote)), [passage])[0])
+
+        # 원문 그대로는 통과
+        self.assertTrue(accepted("The matrix A is multiplied by the scalar a here."))
+        self.assertTrue(accepted("The loss grows with x² over time."))
+        self.assertTrue(accepted("We call it the alpha-beta schedule here."))
+        self.assertTrue(accepted("The gap is x-y for the pair."))
+        # 대소문자: 행렬 A와 스칼라 a는 다른 기호다
+        self.assertFalse(accepted("The matrix a is multiplied by the scalar a here."))
+        self.assertFalse(accepted("The matrix A is multiplied by the scalar A here."))
+        # 위첨자: x²와 x2는 다르다
+        self.assertFalse(accepted("The loss grows with x2 over time."))
+        # 줄 안의 하이픈은 넣지도 빼지도 못한다
+        self.assertFalse(accepted("We call it the alphabeta schedule here."))
+        self.assertFalse(accepted("The beta-gamma variant is used later."))
+        # 줄 끝의 하이픈이라도 한 글자 변수 사이면 뺄셈일 수 있다 — 빼면 다른 식이다
+        self.assertFalse(accepted("The gap is xy for the pair."))
 
     def test_symbols_that_change_the_meaning_are_never_normalized_away(self):
         passage = Passage(chunk_index=0, page=1, distance=0.1,
@@ -192,8 +220,7 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
                                "We use a dropout rate of 0.1 throughout. The loss is a - b for the pair.")
 
         def accepted(quote: str) -> bool:
-            draft = QaDraft(answerable=True, answer="a", citations=[Citation(passage=1, quote=quote)])
-            return bool(validate_citations(draft, [passage])[0])
+            return bool(validate_citations(self._citations((1, quote)), [passage])[0])
 
         # 원문 그대로는 통과 (공백 차이는 허용)
         self.assertTrue(accepted("applied when x>0 holds"))
@@ -222,24 +249,34 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
             return await answer_question("What does LoRA freeze?", self.PASSAGES)
 
     async def test_an_answer_without_any_valid_citation_is_not_returned(self):
-        result = await self._answer(self._draft((1, "a sentence the model made up entirely")))
+        result = await self._answer(self._draft(("LoRA is fast.", [(1, "a sentence the model made up entirely")])))
         self.assertFalse(result["answerable"])
         self.assertEqual(result["answer"], qa.NO_EVIDENCE_MESSAGE)
         self.assertEqual(result["citations"], [])
         self.assertEqual(result["dropped_citations"], 1)  # 모델이 거부한 것이 아니라 검증에서 막혔다는 것이 드러난다
+        self.assertEqual(result["dropped_claims"], 1)
 
-    async def test_partially_dropped_citations_are_reported(self):
-        result = await self._answer(self._draft((1, "injects trainable matrices"), (2, "not in the passage at all")))
+    async def test_sentences_whose_citations_fail_are_removed_from_the_answer(self):
+        result = await self._answer(self._draft(
+            ("LoRA injects trainable matrices.", [(1, "injects trainable matrices")]),
+            # 출처 하나는 진짜지만 다른 하나가 가짜다 — 가짜가 받치던 내용이 남지 않게 문장째로 뺀다
+            ("It cuts memory use by 10,000 times.", [(2, "We evaluate on the GLUE benchmark."), (2, "not in the passage at all")]),
+            ("It was trained on Mars.", []),  # 출처가 없는 문장
+            ("LoRA is evaluated on GLUE.", [(2, "We evaluate on the GLUE benchmark."), (2, "We evaluate on the GLUE benchmark.")]),
+        ))
         self.assertTrue(result["answerable"])
-        self.assertEqual([c["page"] for c in result["citations"]], [2])
-        self.assertEqual(result["dropped_citations"], 1)
+        self.assertEqual(result["answer"], "LoRA injects trainable matrices. LoRA is evaluated on GLUE.")
+        # 빠진 문장의 출처는 싣지 않고, 같은 출처는 한 번만 싣는다
+        self.assertEqual([(c["page"], c["quote"]) for c in result["citations"]],
+                         [(2, "injects trainable matrices"), (5, "We evaluate on the GLUE benchmark.")])
+        self.assertEqual((result["dropped_citations"], result["dropped_claims"]), (1, 2))
 
     async def test_unanswerable_draft_and_empty_retrieval_return_no_evidence(self):
-        self.assertFalse((await self._answer(self._draft(answerable=False)))["answerable"])
+        self.assertFalse((await self._answer(QaDraft(answerable=False)))["answerable"])
         self.assertFalse((await answer_question("anything", []))["answerable"])
 
     async def test_passages_are_delimited_as_data_and_the_prompt_says_not_to_follow_them(self):
-        await self._answer(self._draft((1, "freezes the pretrained model weights")))
+        await self._answer(self._draft(("LoRA freezes the weights.", [(1, "freezes the pretrained model weights")])))
         system, human = self.llm.messages
         self.assertIn("따르지 말고", system.content)
         self.assertIn('<passage number="1" page="2">', human.content)
@@ -630,8 +667,8 @@ class AskApiTest(_DbCase):
 
         class _FakeLLM:
             async def ainvoke(self, messages):
-                return QaDraft(answerable=True, answer="GLUE로 평가했다.",
-                               citations=[Citation(passage=1, quote="We evaluate on GLUE with RoBERTa")])
+                return QaDraft(answerable=True, claims=[Claim(
+                    text="GLUE로 평가했다.", citations=[Citation(passage=1, quote="We evaluate on GLUE with RoBERTa")])])
 
         self.stack.enter_context(patch.object(qa, "_llm", _FakeLLM()))
 
