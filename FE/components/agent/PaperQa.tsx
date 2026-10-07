@@ -5,7 +5,7 @@ import { Info, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { askPaper, QA_QUESTION_MAX_LENGTH, QA_QUESTION_MIN_LENGTH } from '@/lib/api'
-import type { QaAnswer } from '@/lib/api'
+import type { QaAnswer, QaCitation } from '@/lib/api'
 import type { QaUnavailableReason } from '@/lib/types/agent-run'
 import { useAuthStore } from '@/store/auth-store'
 
@@ -60,8 +60,34 @@ function Notice({ children }: { children: React.ReactNode }) {
   )
 }
 
+function CitationChip({ page, open, onToggle }: { page: number; open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      onClick={onToggle}
+      className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
+        open ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+      }`}
+    >
+      p.{page}
+    </button>
+  )
+}
+
+function CitationQuote({ citation }: { citation: QaCitation }) {
+  return (
+    <blockquote className="rounded-lg border-l-2 border-blue-300 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-gray-700">
+      <p className="mb-1 font-medium text-blue-600">{citation.page}쪽에서 인용</p>
+      <p className="whitespace-pre-wrap break-words">{citation.quote}</p>
+    </blockquote>
+  )
+}
+
 function AnswerView({ result }: { result: QaAnswer }) {
-  const [openCitation, setOpenCitation] = useState<number | null>(null)
+  // 펼친 출처 — 문장별 화면에서는 '문장 번호:출처 번호', 이전 응답의 화면에서는 출처 번호
+  const [openCitation, setOpenCitation] = useState<string | null>(null)
+  const toggle = (key: string) => setOpenCitation(openCitation === key ? null : key)
 
   if (!result.answerable) {
     // 근거 부족은 오류가 아니라 정상 결과다
@@ -75,37 +101,62 @@ function AnswerView({ result }: { result: QaAnswer }) {
     )
   }
 
+  const droppedNotice = result.dropped_claims > 0 && (
+    <p className="text-xs text-yellow-700">
+      출처를 논문에서 확인하지 못한 문장 {result.dropped_claims}개를 답변에서 제외했어요.
+    </p>
+  )
+
+  // 문장별 연결이 있으면 문장마다 그 문장의 출처를 붙인다 — 어느 구절을 어느 문장과 대조할지 보인다
+  if (result.claims && result.claims.length > 0) {
+    return (
+      <div className="space-y-2">
+        <ul className="space-y-2">
+          {result.claims.map((claim, claimIndex) => (
+            <li key={claimIndex} className="space-y-1.5">
+              <p className="text-sm leading-relaxed text-gray-800">
+                <span className="whitespace-pre-wrap">{claim.text}</span>{' '}
+                <span className="inline-flex flex-wrap items-center gap-1 align-middle">
+                  {claim.citations.map((citation, index) => (
+                    <CitationChip
+                      key={index}
+                      page={citation.page}
+                      open={openCitation === `${claimIndex}:${index}`}
+                      onToggle={() => toggle(`${claimIndex}:${index}`)}
+                    />
+                  ))}
+                </span>
+              </p>
+              {claim.citations.map(
+                (citation, index) =>
+                  openCitation === `${claimIndex}:${index}` && <CitationQuote key={index} citation={citation} />,
+              )}
+            </li>
+          ))}
+        </ul>
+        {droppedNotice}
+      </div>
+    )
+  }
+
+  // 문장별 연결이 없는 이전 BE 응답 — 답변 전체 아래에 출처를 모아 보여준다
   return (
     <div className="space-y-2">
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{result.answer}</p>
-      {result.dropped_claims > 0 && (
-        <p className="text-xs text-yellow-700">
-          출처를 논문에서 확인하지 못한 문장 {result.dropped_claims}개를 답변에서 제외했어요.
-        </p>
-      )}
+      {droppedNotice}
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs text-gray-400">출처</span>
         {result.citations.map((citation, index) => (
-          <button
-            key={`${citation.chunk_index}-${index}`}
-            type="button"
-            aria-expanded={openCitation === index}
-            onClick={() => setOpenCitation(openCitation === index ? null : index)}
-            className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
-              openCitation === index
-                ? 'border-blue-400 bg-blue-50 text-blue-700'
-                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            p.{citation.page}
-          </button>
+          <CitationChip
+            key={index}
+            page={citation.page}
+            open={openCitation === String(index)}
+            onToggle={() => toggle(String(index))}
+          />
         ))}
       </div>
-      {openCitation !== null && result.citations[openCitation] && (
-        <blockquote className="rounded-lg border-l-2 border-blue-300 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-gray-700">
-          <p className="mb-1 font-medium text-blue-600">{result.citations[openCitation].page}쪽에서 인용</p>
-          <p className="whitespace-pre-wrap break-words">{result.citations[openCitation].quote}</p>
-        </blockquote>
+      {result.citations.map(
+        (citation, index) => openCitation === String(index) && <CitationQuote key={index} citation={citation} />,
       )}
     </div>
   )
@@ -190,7 +241,7 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
     <div className="space-y-4">
       <p className="text-xs text-gray-500">
         질문마다 따로 답합니다. 이전 질문과 답변은 다음 질문에 전달되지 않으니, 질문 하나에 필요한 내용을 모두 적어 주세요.
-        답변은 논문에서 인용 구절을 확인한 문장만 보여 줍니다 — 구절이 답변을 뒷받침하는지는 출처를 펼쳐 직접 확인해 주세요.
+        답변은 논문에서 인용 구절을 확인한 문장만 보여 줍니다 — 구절이 그 문장을 뒷받침하는지는 문장 옆의 출처를 펼쳐 직접 확인해 주세요.
       </p>
 
       {entries.length > 0 && (
