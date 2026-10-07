@@ -231,7 +231,8 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(accepted("ACoRN, has shown improved performance over other compression methods."))
         # 모델이 참고문헌 번호 "[19]"를 빼고 인용했다. 뜻은 같지만 원문과 다르다
         self.assertFalse(accepted("(ODQA) training datasets do not consider the types of noise documents"))
-        # 모델이 문장 앞머리("Our method,")를 떼면서 "ACoRN" 뒤의 쉼표도 뺐다. 쉼표 하나 차이로 거부된다
+        # 모델이 문장 앞머리("Our method,")를 떼면서 "ACoRN" 뒤의 쉼표도 뺐다. 쉼표 하나 차이로 거부된다.
+        # (이것은 인용 검증의 결과일 뿐이다. 그 인용을 단 문장이 정확했는지는 별개의 판단이다 — evals/support_cases.py)
         self.assertFalse(accepted("ACoRN has shown improved performance over other compression methods."))
 
     def test_whitespace_may_differ_in_amount_but_not_in_presence(self):

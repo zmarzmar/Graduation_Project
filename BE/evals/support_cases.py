@@ -16,6 +16,12 @@
 
 검증에서 '거부된' 인용 사례(참고문헌 번호를 뺀 인용, 문장 앞머리를 떼며 쉼표를 뺀 인용 — 둘 다 거짓 거부)는 API 없이 재현되므로
 tests/test_rag.py의 test_known_rejections_from_a_real_paper_stay_rejected에 있다.
+
+인용 검증의 결과와 문장의 정확성은 따로 판단한다. 쉼표 때문에 거부된 인용이 달려 있던 문장은
+"이 방법은 ODQA 벤치마크에서 다른 압축 방법들보다 우수한 성능을 보인다."였다. 그 인용
+("Our method, ACoRN, has shown improved performance over other compression methods.")이 통과했더라도
+'ODQA 벤치마크에서'는 그 구절에 없다 (2쪽의 다른 문장 "Validated on three ODQA benchmarks, …"에 있다) — over_broad에 해당한다.
+즉 이 사례는 거짓 거부이면서, 통과했다면 인용 범위 초과였을 문장이다. 거부된 문장이라 판정기 사례(CASES)에는 넣지 않았다.
 """
 
 import asyncio
