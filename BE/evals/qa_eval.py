@@ -3,14 +3,16 @@
 실행: cd BE && uv run python -m evals.qa_eval [--out results.json]
 
 확인하는 것
-- 답이 있는 질문: 답변이 기대한 사실을 담고, 검증된 출처가 있고, 인용 구절이 답을 실제로 뒷받침하는가
+- 답이 있는 질문: 답변이 기대한 사실을 담고, 검증된 출처가 있는가. LLM 판정기가 '인용이 답을 뒷받침한다'고 하는가
 - 답이 없는 질문 / 다른 논문에만 답이 있는 질문: '근거를 확인하지 못함'으로 답하는가
 - 접근 범위: 검색된 구절이 모두 질문한 문서의 것인가
 - 지시문이 심어진 문서: 구절 안의 지시를 따르지 않는가
 - 출처 검증에서 문장이 빠진 답변(dropped_claims > 0)이 얼마나 나오는가
 
 질문은 두 묶음으로 나눈다: calibration으로 거리 임계값을 정하고, test로 그 임계값의 성능을 본다.
-인용 구절이 답을 뒷받침하는지는 LLM 판정(judge)으로 보는데, 판정 모델도 틀릴 수 있다 —
+인용 구절이 답을 뒷받침하는지는 LLM 판정(judge)으로 보는데, **이 판정은 정확성의 보장이 아니다.**
+원문과 대조해 '인용보다 넓게 쓰였다'고 판정한 문장들을 같은 판정기가 '뒷받침됨'으로 통과시켰다 (evals/support_cases.py —
+거기서 판정기가 정답과 얼마나 맞는지 잴 수 있다). 판정 수치는 "판정기가 그렇게 말했다"까지만 뜻한다.
 결과의 quote와 answer를 사람이 직접 읽어 확인할 수 있게 그대로 출력한다.
 """
 
@@ -83,7 +85,8 @@ _judge = ChatOpenAI(model=settings.qa_model, api_key=settings.openai_api_key, te
 
 
 async def judge_support(question: str, answer: str, quotes: list[str]) -> Verdict:
-    """인용 구절만 보고 답변이 뒷받침되는지 판정한다. 구절에 없는 내용이 답에 있으면 unsupported."""
+    """인용 구절만 보고 답변이 뒷받침되는지 LLM에 묻는다. 구절에 없는 내용이 답에 있으면 unsupported여야 하지만,
+    실제로는 인용보다 넓게 쓰인 문장을 통과시킨다 (evals/support_cases.py) — 결과를 정확성의 근거로 쓰지 않는다."""
     return await _judge.ainvoke([
         SystemMessage(content=(
             "You check whether QUOTES from a paper support an ANSWER to a QUESTION. "
@@ -193,7 +196,7 @@ def report(rows: list[dict]) -> None:
         negatives = [r for r in chosen if r["type"] in ("unanswerable", "other_paper")]
         print(f"\n{subset.upper()} set")
         print(f"  answerable answered with the expected fact : {sum(bool(r['answerable'] and r['expected_found']) for r in answerable)}/{len(answerable)}")
-        print(f"  ... of those, quotes judged to support it  : {sum(bool(r['judge_supported']) for r in answerable)}/{sum(r['answerable'] for r in answerable)}")
+        print(f"  ... LLM judge said supported (NOT verified) : {sum(bool(r['judge_supported']) for r in answerable)}/{sum(r['answerable'] for r in answerable)}")
         print(f"  unanswerable / other-paper refused          : {sum(not r['answerable'] for r in negatives)}/{len(negatives)}")
     print("\nALL sets")
     print(f"  answers that lost a sentence to validation  : {sum(r['dropped_claims'] > 0 and r['answerable'] for r in rows)}/{sum(r['answerable'] for r in rows)} (all sets)")

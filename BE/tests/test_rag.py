@@ -215,6 +215,21 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         # 줄 끝의 하이픈이라도 한 글자 변수 사이면 뺄셈일 수 있다 — 빼면 다른 식이다
         self.assertFalse(accepted("The gap is xy for the pair."))
 
+    def test_known_rejections_from_a_real_paper_stay_rejected(self):
+        # 운영에서 쓴 논문(ACoRN, arXiv 2504.12673 2쪽)에서 실제로 나온 두 거부 — 검증을 완화하지 않는다
+        passage = Passage(chunk_index=0, page=2, distance=0.1,
+                          text="Existing open-domain question answering (ODQA) [19] training datasets do not consider the "
+                               "types of noise documents. Validated on three ODQA benchmarks, it outperforms other methods.")
+
+        def accepted(quote: str) -> bool:
+            return bool(validate_citations(self._citations((1, quote)), [passage])[0])
+
+        self.assertTrue(accepted("(ODQA) [19] training datasets do not consider the types of noise documents"))
+        # 거짓 거부(알려진 한계): 모델이 참고문헌 번호 "[19]"를 빼고 인용했다. 뜻은 같지만 원문과 다르다
+        self.assertFalse(accepted("(ODQA) training datasets do not consider the types of noise documents"))
+        # 올바른 거부: 원문에 없는 문장을 인용이라고 달았다
+        self.assertFalse(accepted("ACoRN has shown improved performance over other compression methods."))
+
     def test_whitespace_may_differ_in_amount_but_not_in_presence(self):
         passage = Passage(chunk_index=0, page=1, distance=0.1,
                           text="The product of x y and the\nvalue  xy differ here. The loss is a - b for the pair. "
@@ -274,6 +289,7 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["citations"], [])
         self.assertEqual(result["dropped_citations"], 1)  # 모델이 거부한 것이 아니라 검증에서 막혔다는 것이 드러난다
         self.assertEqual(result["dropped_claims"], 1)
+        self.assertEqual(result["claims"], [])
 
     async def test_sentences_whose_citations_fail_are_removed_from_the_answer(self):
         result = await self._answer(self._draft(
@@ -289,6 +305,16 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([(c["page"], c["quote"]) for c in result["citations"]],
                          [(2, "injects trainable matrices"), (5, "We evaluate on the GLUE benchmark.")])
         self.assertEqual((result["dropped_citations"], result["dropped_claims"]), (1, 2))
+        # 문장별 연결: 남은 문장마다 그 문장의 출처가 붙어 있고, 빠진 문장은 여기에도 없다
+        self.assertEqual(
+            [(claim["text"], [(c["page"], c["quote"]) for c in claim["citations"]]) for claim in result["claims"]],
+            [
+                ("LoRA injects trainable matrices.", [(2, "injects trainable matrices")]),
+                # 같은 인용을 두 번 단 문장: 문장 안에서는 모델이 단 그대로 둔다 (전체 목록에서만 한 번으로 합친다)
+                ("LoRA is evaluated on GLUE.", [(5, "We evaluate on the GLUE benchmark.")] * 2),
+            ],
+        )
+        self.assertEqual(result["answer"], " ".join(claim["text"] for claim in result["claims"]))
 
     async def test_unanswerable_draft_and_empty_retrieval_return_no_evidence(self):
         self.assertFalse((await self._answer(QaDraft(answerable=False)))["answerable"])
@@ -715,6 +741,7 @@ class AskApiTest(_DbCase):
         body = response.json()
         self.assertTrue(body["answerable"])
         self.assertEqual(body["citations"], [{"page": 3, "chunk_index": 1, "quote": "We evaluate on GLUE with RoBERTa"}])
+        self.assertEqual(body["claims"], [{"text": "GLUE로 평가했다.", "citations": body["citations"]}])
 
     async def test_a_blank_question_is_rejected_before_any_external_call(self):
         analysis_id, _ = await self._analyzed_document()

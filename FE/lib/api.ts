@@ -274,9 +274,16 @@ export interface QaCitation {
   quote: string // 논문에 실제로 있음이 확인된 인용 구절
 }
 
+export interface QaClaim {
+  text: string // 답변의 한 문장
+  citations: QaCitation[] // 이 문장에 달린 출처
+}
+
 export interface QaAnswer {
   answerable: boolean // false면 answer는 '근거를 확인하지 못함' 안내다 (오류가 아니다)
   answer: string
+  /** 문장별 출처 연결. 이 필드가 생기기 전의 BE 응답에는 없다 — 그때는 answer·citations로 보여준다 */
+  claims?: QaClaim[]
   citations: QaCitation[]
   dropped_citations: number
   dropped_claims: number // 출처가 확인되지 않아 답변에서 빠진 문장 수

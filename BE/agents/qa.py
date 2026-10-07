@@ -116,7 +116,10 @@ def validate_citations(citations: list[Citation], passages: list[_Passage]) -> t
 
 def no_evidence() -> dict:
     """근거를 확인하지 못했을 때의 응답. 모델의 답을 대신한다."""
-    return {"answerable": False, "answer": NO_EVIDENCE_MESSAGE, "citations": [], "dropped_citations": 0, "dropped_claims": 0}
+    return {
+        "answerable": False, "answer": NO_EVIDENCE_MESSAGE, "claims": [], "citations": [],
+        "dropped_citations": 0, "dropped_claims": 0,
+    }
 
 
 async def answer_question(question: str, passages: list[_Passage]) -> dict:
@@ -140,17 +143,22 @@ async def answer_question(question: str, passages: list[_Passage]) -> dict:
     # 문장 단위로 거른다: 출처가 없거나 하나라도 검증에서 떨어진 문장은 답변에서 뺀다.
     # 떨어진 출처가 받치던 내용이 '검증된 답변'처럼 남지 않게 하기 위해서다.
     # 남은 문장도 '인용문이 실재한다'까지만 확인된 것이다 — 인용문이 그 문장을 뒷받침한다는 보장은 아니다.
-    kept: list[str] = []
+    # 남긴 문장과 그 문장의 출처를 묶어서 보낸다 — 화면이 어느 구절을 어느 문장과 대조할지 보여줄 수 있게 한다
+    kept: list[dict] = []
     citations: list[dict] = []
     dropped_citations = 0
     for claim in draft.claims:
         valid, dropped = validate_citations(claim.citations, passages)
         dropped_citations += dropped
         if valid and not dropped and claim.text.strip():
-            kept.append(claim.text.strip())
+            kept.append({"text": claim.text.strip(), "citations": valid})
             citations.extend(citation for citation in valid if citation not in citations)
     dropped = {"dropped_citations": dropped_citations, "dropped_claims": len(draft.claims) - len(kept)}
     if not kept:
         # 모델은 답했지만 검증을 통과한 문장이 없다 — 제거된 수를 남겨 '모델의 거부'와 구분할 수 있게 한다
         return {**no_evidence(), **dropped}
-    return {"answerable": True, "answer": " ".join(kept), "citations": citations, **dropped}
+    # answer·citations는 claims를 이어 붙인 것이다 (문장별 연결을 모르는 이전 화면과의 호환용)
+    return {
+        "answerable": True, "answer": " ".join(claim["text"] for claim in kept), "claims": kept,
+        "citations": citations, **dropped,
+    }

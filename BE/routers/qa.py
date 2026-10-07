@@ -27,9 +27,15 @@ class CitationOut(BaseModel):
     quote: str           # 검색된 구절에 실제로 들어 있는 것이 확인된 문장
 
 
+class ClaimOut(BaseModel):
+    text: str                      # 답변의 한 문장
+    citations: list[CitationOut]   # 이 문장에 달린 출처 — 모두 구절에 실재함이 확인됐다 (하나 이상)
+
+
 class AskResponse(BaseModel):
     answerable: bool     # False면 answer는 '근거를 확인하지 못함' 안내다
-    answer: str
+    answer: str          # claims의 문장을 이어 붙인 것
+    claims: list[ClaimOut]  # 문장별 출처 연결. 근거를 확인하지 못했으면 빈 목록
     citations: list[CitationOut]  # 인용문이 구절에 실재함만 확인된 출처 — 문장을 뒷받침하는지는 확인하지 않았다
     dropped_citations: int  # 검증에서 제거된 출처 수
     dropped_claims: int     # 출처가 검증되지 않아 답변에서 뺀 문장 수 — 0보다 크면 답변이 모델이 쓴 것보다 짧다
