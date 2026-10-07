@@ -216,18 +216,22 @@ class CitationValidationTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(accepted("The gap is xy for the pair."))
 
     def test_known_rejections_from_a_real_paper_stay_rejected(self):
-        # 운영에서 쓴 논문(ACoRN, arXiv 2504.12673 2쪽)에서 실제로 나온 두 거부 — 검증을 완화하지 않는다
+        # 운영에서 쓴 논문(ACoRN, arXiv 2504.12673 2쪽)에서 실제로 나온 두 거부. 둘 다 원문에 있는 문장을 모델이
+        # 조금 고쳐 인용한 것(거짓 거부)이다 — 알려진 한계로 두고 검증을 완화하지 않는다
         passage = Passage(chunk_index=0, page=2, distance=0.1,
                           text="Existing open-domain question answering (ODQA) [19] training datasets do not consider the "
-                               "types of noise documents. Validated on three ODQA benchmarks, it outperforms other methods.")
+                               "types of noise documents. Our method, ACoRN, has shown improved performance over other "
+                               "compression methods.")
 
         def accepted(quote: str) -> bool:
             return bool(validate_citations(self._citations((1, quote)), [passage])[0])
 
         self.assertTrue(accepted("(ODQA) [19] training datasets do not consider the types of noise documents"))
-        # 거짓 거부(알려진 한계): 모델이 참고문헌 번호 "[19]"를 빼고 인용했다. 뜻은 같지만 원문과 다르다
+        self.assertTrue(accepted("Our method, ACoRN, has shown improved performance over other compression methods."))
+        self.assertTrue(accepted("ACoRN, has shown improved performance over other compression methods."))
+        # 모델이 참고문헌 번호 "[19]"를 빼고 인용했다. 뜻은 같지만 원문과 다르다
         self.assertFalse(accepted("(ODQA) training datasets do not consider the types of noise documents"))
-        # 올바른 거부: 원문에 없는 문장을 인용이라고 달았다
+        # 모델이 문장 앞머리("Our method,")를 떼면서 "ACoRN" 뒤의 쉼표도 뺐다. 쉼표 하나 차이로 거부된다
         self.assertFalse(accepted("ACoRN has shown improved performance over other compression methods."))
 
     def test_whitespace_may_differ_in_amount_but_not_in_presence(self):
