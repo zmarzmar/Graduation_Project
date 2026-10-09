@@ -5,7 +5,7 @@ on:
     paths:
       - 'BE/**'
       - 'docker-compose.prod.yml'
-      - 'deploy/deploy.sh'
+      - 'deploy/*.sh'
       - 'deploy/nginx/**'
       - 'deploy/env/backend.env.example'
       - '.github/workflows/backend.yml'
@@ -15,7 +15,7 @@ on:
     paths:
       - 'BE/**'
       - 'docker-compose.prod.yml'
-      - 'deploy/deploy.sh'
+      - 'deploy/*.sh'
       - 'deploy/nginx/**'
       - 'deploy/env/backend.env.example'
       - '.github/workflows/backend.yml'
@@ -89,6 +89,10 @@ jobs:
             sleep 2
           done
           echo "Chroma did not become ready" && exit 1
+
+      - name: Test the deploy readiness gate
+        working-directory: .
+        run: bash deploy/test_readiness.sh
 
       - name: Run tests
         env:
