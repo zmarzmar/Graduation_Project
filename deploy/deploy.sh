@@ -11,6 +11,9 @@ BACKEND_BLUE_PORT="${BACKEND_BLUE_PORT:-18001}"
 BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-18002}"
 BACKEND_IMAGE_TAG="${1:?usage: deploy.sh <image-tag>}"
 
+# 준비 확인(wait_until_ready)과 그 한도
+source "$(dirname "${BASH_SOURCE[0]}")/readiness.sh"
+
 dump_backend_diagnostics() {
   local service_name="${1}"
   echo "Docker compose status for ${service_name}:"
@@ -78,20 +81,16 @@ for i in $(seq 1 10); do
   sleep 2
 done
 
-echo "Waiting for backend_${NEXT_COLOR} health check..."
-for i in $(seq 1 60); do
-  if curl --connect-timeout 2 --max-time 5 -fsS "http://127.0.0.1:${NEXT_PORT}/health" >/dev/null; then
-    break
-  fi
-
-  if [[ "${i}" -eq 60 ]]; then
-    echo "Health check failed for backend_${NEXT_COLOR}"
-    dump_backend_diagnostics "backend_${NEXT_COLOR}"
-    exit 1
-  fi
-
-  sleep 2
-done
+echo "Waiting for backend_${NEXT_COLOR} to be ready: ${READY_CONSECUTIVE} consecutive successes," \
+     "${READY_REQUEST_TIMEOUT_SECONDS}s per request, every ${READY_INTERVAL_SECONDS}s, at most ${READY_DEADLINE_SECONDS}s"
+if ! wait_until_ready "http://127.0.0.1:${NEXT_PORT}/health"; then
+  # 여기까지는 nginx와 활성 색을 건드리지 않았다 — 트래픽은 기존 컨테이너가 계속 받는다
+  echo "backend_${NEXT_COLOR} did not become ready. nginx was not changed; traffic stays on ${CURRENT_COLOR}."
+  dump_backend_diagnostics "backend_${NEXT_COLOR}"
+  # 준비되지 않은 컨테이너를 띄워 두지 않는다 (메모리가 작은 서버에서 기존 컨테이너와 자원을 다툰다)
+  docker compose -f "${COMPOSE_FILE}" stop --timeout 20 "backend_${NEXT_COLOR}" || true
+  exit 1
+fi
 
 cat > "${UPSTREAM_FILE}" <<EOF
 upstream backend_upstream {
