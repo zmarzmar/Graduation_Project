@@ -19,6 +19,7 @@ curl() {
   n="$(cat "${WORK}/calls")"
   echo $((n + 1)) > "${WORK}/calls"
   echo "$*" > "${WORK}/args"
+  echo "$*" >> "${WORK}/all-args"
   step="${SCRIPT:$((n % ${#SCRIPT})):1}"
   case "${step}" in
     S) return 0 ;;
@@ -78,7 +79,32 @@ if (( elapsed > 5 )); then
 else
   echo "ok   total waiting stayed within the limit (${elapsed}s for a 3s limit)"
 fi
-READY_CONSECUTIVE=3 READY_DEADLINE_SECONDS=2 READY_INTERVAL_SECONDS=0
+
+# 요청 제한이 남은 시간보다 길면 남은 시간으로 줄인다: 제한 5초, 한도 2초 → curl에는 2초 이하가 전달되고 2초쯤에 끝난다
+# (줄이지 않으면 요청 하나가 5초를 쓴다)
+READY_CONSECUTIVE=1 READY_DEADLINE_SECONDS=2 READY_INTERVAL_SECONDS=0 READY_REQUEST_TIMEOUT_SECONDS=5
+: > "${WORK}/all-args"
+before="${SECONDS}"
+check "a request never gets more time than is left" "W" 1 - "NOT ready within 2s"
+elapsed=$((SECONDS - before))
+if (( elapsed > 3 )) || grep -q -E -- '--max-time ([3-9]|[1-9][0-9])' "${WORK}/all-args"; then
+  echo "FAIL the request timeout was not shortened to the time left: ${elapsed}s, $(sort -u "${WORK}/all-args" | head -2)"
+  failed=1
+else
+  echo "ok   the request timeout was shortened to the time left (${elapsed}s for a 2s limit)"
+fi
+READY_CONSECUTIVE=3 READY_DEADLINE_SECONDS=2 READY_INTERVAL_SECONDS=0 READY_REQUEST_TIMEOUT_SECONDS=2
+
+# 어떤 호출에도 제한 0이 전달되지 않는다 (curl에서 0은 '제한 없음'). 초가 넘어가는 순간을 여러 번 지나도록 많이 호출한다.
+# 이 검사는 경계의 경합을 일부러 만들지는 못한다 — 0이 한 번도 나오지 않았다는 것만 확인한다
+: > "${WORK}/all-args"
+SCRIPT="F"; echo 0 > "${WORK}/calls"; wait_until_ready "http://127.0.0.1:1/health" > /dev/null 2>&1 || true
+if grep -q -E -- '--(connect-timeout|max-time) 0( |$)' "${WORK}/all-args"; then
+  echo "FAIL a zero timeout was passed to curl"
+  failed=1
+else
+  echo "ok   no call got a zero timeout ($(wc -l < "${WORK}/all-args" | tr -d ' ') calls)"
+fi
 
 # 요청 하나의 제한 시간이 curl에 실제로 전달된다
 SCRIPT="F"; echo 0 > "${WORK}/calls"; wait_until_ready "http://127.0.0.1:1/health" > /dev/null 2>&1 || true

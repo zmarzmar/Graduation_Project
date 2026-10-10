@@ -21,10 +21,15 @@ wait_until_ready() {
   local streak=0 attempts=0 failures=0 resets=0
   local last_error="(no request failed)" error remaining request_timeout pause
 
-  while (( SECONDS - started < READY_DEADLINE_SECONDS )); do
+  while true; do
+    # 남은 시간은 한 번만 계산하고 그 값으로 끝낼지와 요청 제한을 함께 정한다. 따로 계산하면 그 사이에 초가 넘어가
+    # 제한이 0이 될 수 있는데, curl에서 --max-time 0은 '제한 없음'이다 — 응답 없는 백엔드에 한도 없이 묶인다.
+    remaining=$((READY_DEADLINE_SECONDS - (SECONDS - started)))
+    if (( remaining <= 0 )); then
+      break
+    fi
     attempts=$((attempts + 1))
     # 요청도 남은 시간 안에서만 기다린다 — 한도 직전에 보낸 요청이 제한 시간을 다 써서 한도를 넘기지 않게 한다
-    remaining=$((READY_DEADLINE_SECONDS - (SECONDS - started)))
     request_timeout=$((READY_REQUEST_TIMEOUT_SECONDS < remaining ? READY_REQUEST_TIMEOUT_SECONDS : remaining))
     if error="$(curl --connect-timeout "${request_timeout}" --max-time "${request_timeout}" \
                   -fsS -o /dev/null "${url}" 2>&1)"; then
