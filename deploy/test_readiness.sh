@@ -11,17 +11,18 @@ source ./readiness.sh
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 
-# 가짜 curl: SCRIPT의 글자를 호출 순서대로 쓴다 (S=성공, F=연결 실패, T=시간 초과). 다 쓰면 마지막 글자를 되풀이한다.
+# 가짜 curl: SCRIPT의 글자를 호출 순서대로 쓰고, 다 쓰면 처음부터 되풀이한다.
+# S=성공, F=연결 실패, T=시간 초과, L=2초 뒤에야 도착하는 성공
 # wait_until_ready는 curl을 $(...) 안에서 부르므로 호출 횟수는 파일에 적는다.
 curl() {
   local n step
   n="$(cat "${WORK}/calls")"
   echo $((n + 1)) > "${WORK}/calls"
   echo "$*" > "${WORK}/args"
-  step="${SCRIPT:n:1}"
-  if [[ -z "${step}" ]]; then step="${SCRIPT: -1}"; fi
+  step="${SCRIPT:$((n % ${#SCRIPT})):1}"
   case "${step}" in
     S) return 0 ;;
+    L) sleep 2; return 0 ;;
     T) echo "curl: (28) Operation timed out" >&2; return 28 ;;
     *) echo "curl: (56) Recv failure: Connection reset by peer" >&2; return 56 ;;
   esac
@@ -53,10 +54,17 @@ check "success, failure, recovery"          "SSFSSS"   0 6 "counting again from 
 check "a timed-out request resets too"      "SSTSSS"   0 6 "Operation timed out"
 # 전체 대기 한도: 끝내 뜨지 않으면 실패하고 마지막 원인을 남긴다
 check "never comes up"                      "F"        1 - "last error: curl: (56) Recv failure"
-# 답했다 멈췄다를 되풀이하면 성공이 아무리 많아도 준비가 아니다
+# 답했다 멈췄다를 되풀이하면(성공 2번, 실패 1번이 끝없이 이어진다) 성공이 아무리 많아도 준비가 아니다
 check "flapping never reaches the streak"   "SSF"      1 - "NOT ready within 2s"
-# 한 번 성공한 것만으로는 전환하지 않는다 (예전 동작과의 차이)
-check "a single success is not enough"      "SF"       1 - "ended at 0/3 in a row"
+# 한 번 성공한 것만으로는 전환하지 않는다 (예전 동작과의 차이) — 성공과 실패가 번갈아 온다
+check "a single success is not enough"      "SF"       1 - "NOT ready within 2s"
+
+# 전체 대기 한도는 응답이 도착한 시각으로도 지킨다: 한도(1초) 안에 보낸 요청이 2초 뒤에 성공해도 준비가 아니다
+READY_CONSECUTIVE=1 READY_DEADLINE_SECONDS=1
+check "a success that arrives after the limit is not counted" "L" 1 1 "arrived after the 1s limit"
+# 같은 조건에서 제때 온 성공은 준비다 (위 검사가 한도 때문이지 다른 이유로 실패한 것이 아님을 확인)
+check "a success inside the limit still counts"                "S" 0 1 "ready: 1 consecutive successes"
+READY_CONSECUTIVE=3 READY_DEADLINE_SECONDS=2
 
 # 요청 하나의 제한 시간이 curl에 실제로 전달된다
 if [[ "$(cat "${WORK}/args")" != *"--max-time 2"* ]] || [[ "$(cat "${WORK}/args")" != *"--connect-timeout 2"* ]]; then

@@ -25,6 +25,11 @@ wait_until_ready() {
     attempts=$((attempts + 1))
     if error="$(curl --connect-timeout "${READY_REQUEST_TIMEOUT_SECONDS}" --max-time "${READY_REQUEST_TIMEOUT_SECONDS}" \
                   -fsS -o /dev/null "${url}" 2>&1)"; then
+      # 한도 직전에 보낸 요청이 한도를 넘겨 성공해도 세지 않는다 — 전체 대기 한도는 응답이 도착한 시각으로도 지킨다
+      if (( SECONDS - started >= READY_DEADLINE_SECONDS )); then
+        last_error="a success arrived after the ${READY_DEADLINE_SECONDS}s limit and was not counted"
+        break
+      fi
       streak=$((streak + 1))
       if (( streak == 1 )); then
         echo "  first success after $((SECONDS - started))s (attempt ${attempts}); need ${READY_CONSECUTIVE} in a row"
