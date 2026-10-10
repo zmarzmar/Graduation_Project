@@ -10,7 +10,7 @@
 READY_CONSECUTIVE="${READY_CONSECUTIVE:-10}"                        # 연속 성공 횟수
 READY_INTERVAL_SECONDS="${READY_INTERVAL_SECONDS:-2}"               # 확인 간격 → 기본값이면 최소 18초 동안 안정적이어야 한다
 READY_REQUEST_TIMEOUT_SECONDS="${READY_REQUEST_TIMEOUT_SECONDS:-2}" # 요청 하나의 제한 — 넘으면 실패로 센다
-READY_DEADLINE_SECONDS="${READY_DEADLINE_SECONDS:-300}"             # 전체 대기 한도
+READY_DEADLINE_SECONDS="${READY_DEADLINE_SECONDS:-300}"             # 전체 대기 한도 (요청과 쉬는 시간 모두 이 안에서 — 초 단위라 1초 미만의 오차는 있다)
 READY_PROGRESS_SECONDS="${READY_PROGRESS_SECONDS:-20}"              # 기다리는 동안 진행 상황을 찍는 간격
 
 # wait_until_ready <url>
@@ -19,11 +19,14 @@ wait_until_ready() {
   local url="${1}"
   local started="${SECONDS}" last_progress="${SECONDS}"
   local streak=0 attempts=0 failures=0 resets=0
-  local last_error="(no request failed)" error
+  local last_error="(no request failed)" error remaining request_timeout pause
 
   while (( SECONDS - started < READY_DEADLINE_SECONDS )); do
     attempts=$((attempts + 1))
-    if error="$(curl --connect-timeout "${READY_REQUEST_TIMEOUT_SECONDS}" --max-time "${READY_REQUEST_TIMEOUT_SECONDS}" \
+    # 요청도 남은 시간 안에서만 기다린다 — 한도 직전에 보낸 요청이 제한 시간을 다 써서 한도를 넘기지 않게 한다
+    remaining=$((READY_DEADLINE_SECONDS - (SECONDS - started)))
+    request_timeout=$((READY_REQUEST_TIMEOUT_SECONDS < remaining ? READY_REQUEST_TIMEOUT_SECONDS : remaining))
+    if error="$(curl --connect-timeout "${request_timeout}" --max-time "${request_timeout}" \
                   -fsS -o /dev/null "${url}" 2>&1)"; then
       # 한도 직전에 보낸 요청이 한도를 넘겨 성공해도 세지 않는다 — 전체 대기 한도는 응답이 도착한 시각으로도 지킨다
       if (( SECONDS - started >= READY_DEADLINE_SECONDS )); then
@@ -54,7 +57,13 @@ wait_until_ready() {
       last_progress="${SECONDS}"
       echo "  waiting: $((SECONDS - started))s elapsed, ${attempts} attempts, ${streak}/${READY_CONSECUTIVE} in a row"
     fi
-    sleep "${READY_INTERVAL_SECONDS}"
+    # 다음 확인까지 쉬는 시간도 남은 시간을 넘기지 않는다 (한도가 지났으면 쉬지 않고 끝낸다)
+    remaining=$((READY_DEADLINE_SECONDS - (SECONDS - started)))
+    if (( remaining <= 0 )); then
+      break
+    fi
+    pause=$((READY_INTERVAL_SECONDS < remaining ? READY_INTERVAL_SECONDS : remaining))
+    sleep "${pause}"
   done
 
   echo "  NOT ready within ${READY_DEADLINE_SECONDS}s: ${attempts} attempts, ${failures} failed," \

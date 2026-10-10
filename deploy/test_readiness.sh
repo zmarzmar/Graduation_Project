@@ -12,7 +12,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 
 # 가짜 curl: SCRIPT의 글자를 호출 순서대로 쓰고, 다 쓰면 처음부터 되풀이한다.
-# S=성공, F=연결 실패, T=시간 초과, L=2초 뒤에야 도착하는 성공
+# S=성공, F=연결 실패, T=시간 초과, L=2초 뒤에야 도착하는 성공, W=--max-time만큼 기다린 뒤 시간 초과(실제 curl처럼)
 # wait_until_ready는 curl을 $(...) 안에서 부르므로 호출 횟수는 파일에 적는다.
 curl() {
   local n step
@@ -23,6 +23,7 @@ curl() {
   case "${step}" in
     S) return 0 ;;
     L) sleep 2; return 0 ;;
+    W) sleep "$(echo "$*" | sed -n 's/.*--max-time \([0-9]*\).*/\1/p')"; echo "curl: (28) Operation timed out" >&2; return 28 ;;
     T) echo "curl: (28) Operation timed out" >&2; return 28 ;;
     *) echo "curl: (56) Recv failure: Connection reset by peer" >&2; return 56 ;;
   esac
@@ -64,10 +65,25 @@ READY_CONSECUTIVE=1 READY_DEADLINE_SECONDS=1
 check "a success that arrives after the limit is not counted" "L" 1 1 "arrived after the 1s limit"
 # 같은 조건에서 제때 온 성공은 준비다 (위 검사가 한도 때문이지 다른 이유로 실패한 것이 아님을 확인)
 check "a success inside the limit still counts"                "S" 0 1 "ready: 1 consecutive successes"
-READY_CONSECUTIVE=3 READY_DEADLINE_SECONDS=2
+
+# 걸린 시간도 한도 안이다: 요청이 제한 시간(2초)을 다 쓰고 실패하고 간격이 5초여도, 한도 3초를 넘겨 기다리지 않는다
+# (쉬는 시간을 남은 시간으로 줄이지 않으면 요청 2초 + 간격 5초 = 7초가 걸린다. 초 단위 오차를 감안해 5초까지 허용)
+READY_CONSECUTIVE=1 READY_DEADLINE_SECONDS=3 READY_INTERVAL_SECONDS=5
+before="${SECONDS}"
+check "waiting stops at the limit even when every request times out" "W" 1 - "NOT ready within 3s"
+elapsed=$((SECONDS - before))
+if (( elapsed > 5 )); then
+  echo "FAIL total waiting exceeded the 3s limit: ${elapsed}s"
+  failed=1
+else
+  echo "ok   total waiting stayed within the limit (${elapsed}s for a 3s limit)"
+fi
+READY_CONSECUTIVE=3 READY_DEADLINE_SECONDS=2 READY_INTERVAL_SECONDS=0
 
 # 요청 하나의 제한 시간이 curl에 실제로 전달된다
-if [[ "$(cat "${WORK}/args")" != *"--max-time 2"* ]] || [[ "$(cat "${WORK}/args")" != *"--connect-timeout 2"* ]]; then
+SCRIPT="F"; echo 0 > "${WORK}/calls"; wait_until_ready "http://127.0.0.1:1/health" > /dev/null 2>&1 || true
+# (마지막 호출은 남은 시간이 줄어 더 짧을 수 있으므로 값이 1~2초인지 본다)
+if ! grep -q -E -- '--connect-timeout [12] --max-time [12] ' "${WORK}/args"; then
   echo "FAIL request timeout is not passed to curl: $(cat "${WORK}/args")"
   failed=1
 else
@@ -123,8 +139,11 @@ expect "not ready: the last error is in the log"             'grep -q "last erro
 status="$(run_deploy up)"
 expect "ready: the deploy succeeds"                          '[[ "${status}" -eq 0 ]]'
 expect "ready: the upstream points at the new one"           'grep -q "18001" "${WORK}/app-up/deploy/runtime/backend_upstream.conf"'
-expect "ready: nginx is reloaded after the config test"      'grep -q "sudo nginx -t" "${WORK}/calls-up" && grep -q "sudo systemctl reload nginx" "${WORK}/calls-up"'
+# 순서를 확인한다 — 호출 기록에서의 줄 번호로: 설정 검사 → nginx 재적용 → 기존 컨테이너 중지
+line_of() { grep -n -m1 -- "${1}" "${WORK}/calls-up" | cut -d: -f1; }
+config_test="$(line_of "sudo nginx -t")"; reload="$(line_of "sudo systemctl reload nginx")"; stop_old="$(line_of "stop.*backend_green")"
+expect "ready: nginx is reloaded after the config test"      '[[ -n "${config_test}" && -n "${reload}" ]] && (( config_test < reload ))'
 expect "ready: the active color is switched"                 '[[ "$(cat "${WORK}/app-up/deploy/runtime/backend_active")" == "blue" ]]'
-expect "ready: the old container is stopped after the switch" 'grep -q "stop.*backend_green" "${WORK}/calls-up"'
+expect "ready: the old container is stopped after the switch" '[[ -n "${stop_old}" ]] && (( reload < stop_old ))'
 
 exit "${failed}"
