@@ -23,7 +23,7 @@ LangGraph 멀티 에이전트 파이프라인이 코드를 생성한 뒤 논문 
 
 - **Frontend**: Next.js, TypeScript, Tailwind CSS, shadcn/ui
 - **Backend**: FastAPI, Python 3.11
-- **AI**: LangGraph, OpenAI API (`gpt-4o-mini`, `o4-mini`)
+- **AI**: LangGraph, OpenAI API (`gpt-4o-mini`, `gpt-5.4-mini`)
 - **DB**: ChromaDB, PostgreSQL
 
 ---
