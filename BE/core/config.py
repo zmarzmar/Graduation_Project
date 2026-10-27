@@ -43,7 +43,7 @@ class Settings(BaseSettings):
 
     # 논문 본문 상한 (추정 토큰). 초과하면 자르지 않고 분석을 거부한다.
     # 가장 좁은 Analyzer(gpt-4o-mini, 128k)에서 시스템 프롬프트·출력 여유를 뺀 값.
-    # Coder·Reviewer(o4-mini, 200k)는 본문 + 이전 코드 + 피드백 + 추론/출력 여유를 더해도 이 안에 들어온다.
+    # Coder·Reviewer(gpt-5.4-mini, 400k)는 본문 + 이전 코드 + 피드백 + 추론/출력 여유를 더해도 이 안에 들어온다.
     max_paper_tokens: int = 100_000
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

@@ -113,19 +113,30 @@ class TokenBudgetTest(unittest.IsolatedAsyncioTestCase):
         worst = agent_service.settings.max_paper_tokens + 2_000 + token_budget.ANALYZER_OUTPUT_BUDGET
         self.assertLessEqual(worst, token_budget.CONTEXT_WINDOW["gpt-4o-mini"])
 
+    def test_coder_and_reviewer_reason_before_answering(self):
+        # gpt-5.4-mini의 기본 추론 강도는 none이다 — 지정이 빠지면 예전 o4-mini와 달리 추론 없이 답한다
+        for node in (coder, reviewer):
+            self.assertEqual(node._llm.model_name, node._MODEL)
+            self.assertEqual(node._llm.reasoning_effort, "medium")
+
+    def test_every_node_model_has_a_context_limit(self):
+        # 모델을 바꾸면서 한도 표를 빠뜨리면 호출 직전 검사가 KeyError로 실패한다
+        for node in (analyzer, coder, reviewer):
+            self.assertIn(node._MODEL, token_budget.CONTEXT_WINDOW)
+
     def test_request_check_counts_the_whole_input_plus_output_budget(self):
         messages = [SystemMessage(content="s"), HumanMessage(content="word " * 1000)]
-        used = token_budget.ensure_request_fits("o4-mini", messages, token_budget.REASONING_OUTPUT_BUDGET)
+        used = token_budget.ensure_request_fits("gpt-5.4-mini", messages, token_budget.REASONING_OUTPUT_BUDGET)
         self.assertGreater(used, 1000)
-        with patch.dict(token_budget.CONTEXT_WINDOW, {"o4-mini": used + token_budget.REASONING_OUTPUT_BUDGET - 1}):
+        with patch.dict(token_budget.CONTEXT_WINDOW, {"gpt-5.4-mini": used + token_budget.REASONING_OUTPUT_BUDGET - 1}):
             with self.assertRaises(token_budget.TokenBudgetError):
-                token_budget.ensure_request_fits("o4-mini", messages, token_budget.REASONING_OUTPUT_BUDGET)
+                token_budget.ensure_request_fits("gpt-5.4-mini", messages, token_budget.REASONING_OUTPUT_BUDGET)
 
     async def test_coder_does_not_call_the_model_when_previous_code_and_feedback_overflow(self):
         llm = _FakeLLM("```python\nx\n```")
         state = {"pdf_text": "paper", "papers": [], "iteration_count": 1,
                  "generated_code": "x = 1\n" * 3000, "review_feedback": "fix " * 3000}
-        with patch.object(coder, "_llm", llm), patch.dict(token_budget.CONTEXT_WINDOW, {"o4-mini": 40_000}):
+        with patch.object(coder, "_llm", llm), patch.dict(token_budget.CONTEXT_WINDOW, {"gpt-5.4-mini": 40_000}):
             result = await coder.coder_node(state)
         self.assertEqual(llm.user_message, "")  # 호출하지 않았다
         self.assertIn("입력이 너무 깁니다", result["error"])

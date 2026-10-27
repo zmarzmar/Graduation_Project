@@ -12,12 +12,13 @@ from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# o4-mini: 코드 추론 특화 모델 — temperature 파라미터 미지정
-_MODEL = "o4-mini"
+# o4-mini가 폐기돼(2026-10, 404) 교체. 예전 o4-mini처럼 추론한 뒤 답하도록 강도를 medium으로 둔다 (gpt-5.4-mini 기본값은 none)
+_MODEL = "gpt-5.4-mini"
 _llm = ChatOpenAI(
     model=_MODEL,
     api_key=settings.openai_api_key,
-    max_tokens=REASONING_OUTPUT_BUDGET,  # 출력 예산 (o4-mini는 추론 토큰 포함)
+    reasoning_effort="medium",
+    max_tokens=REASONING_OUTPUT_BUDGET,  # 출력 예산 (추론 토큰 포함)
 )
 
 _SYSTEM_PROMPT = """당신은 AI 논문을 PyTorch 코드로 구현하는 전문가입니다.

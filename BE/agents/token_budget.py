@@ -6,10 +6,10 @@ import tiktoken
 from langchain_core.messages import BaseMessage
 
 # 컨텍스트 한도 (OpenAI 공식 문서 기준)
-CONTEXT_WINDOW = {"gpt-4o-mini": 128_000, "o4-mini": 200_000}
+CONTEXT_WINDOW = {"gpt-4o-mini": 128_000, "gpt-5.4-mini": 400_000}
 
 # 호출당 출력 예산 — ChatOpenAI(max_tokens=...)로 API에 강제한다.
-# o4-mini는 보이는 답변 외에 추론 토큰도 이 예산에서 쓰므로 관측된 출력 길이(1.4k~5.6k)보다 넉넉히 잡는다.
+# gpt-5.4-mini(추론 강도 medium)는 보이는 답변 외에 추론 토큰도 이 예산에서 쓰므로 관측된 출력 길이(1.4k~5.6k)보다 넉넉히 잡는다.
 REASONING_OUTPUT_BUDGET = 32_000
 ANALYZER_OUTPUT_BUDGET = 16_384  # gpt-4o-mini 최대 출력
 
@@ -28,7 +28,7 @@ class TokenBudgetError(ValueError):
 
 @lru_cache(maxsize=1)
 def _encoding() -> tiktoken.Encoding:
-    # gpt-4o-mini·o4-mini 공용 인코딩. Docker 이미지에는 빌드 시 미리 받아둔다 (TIKTOKEN_CACHE_DIR).
+    # gpt-4o-mini·gpt-5.4-mini 공용 인코딩 (gpt-5.4-mini는 API가 센 입력 토큰과 대조해 확인). Docker 이미지에는 빌드 시 미리 받아둔다 (TIKTOKEN_CACHE_DIR).
     return tiktoken.get_encoding("o200k_base")
 
 
