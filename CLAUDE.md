@@ -121,7 +121,7 @@ RAG 3단계(① 문서 보관 #38 → ② RAG 백엔드 #39 → ③ 프런트엔
 - 논문 Q&A의 남은 한계: 응답 없는 Chroma 호출이 스레드를 최대 75초 잡는다(클라이언트 타임아웃 미설정, 종료 지연 가능) / 삭제 요청마다 컬렉션 전체 대조가 요청 안에서 돈다 / 본문의 `</passage>`가 구절 구분자를 흉내 낼 수 있다(영향은 올린 본인의 Q&A)
 - Reviewer 프롬프트가 "통과 기준 (관대하게 적용)"이고 TODO를 문제로 보지 않는다. 화면 문구도 "LLM 검토 통과"로 바꿔야 한다
 - 코드 실행 검증 없음. 도입한다면 1단계는 `ast.parse` + import **구문의 정적 확인**(실제 import는 코드를 실행하므로 금지), 실제 실행은 네트워크 없는 격리 컨테이너에서
-- OpenAI TPM: 루프 3회면 o4-mini에 2분 남짓 동안 ~17만 토큰이 들어간다
+- OpenAI TPM: 루프 3회면 Coder·Reviewer 모델에 2분 남짓 동안 ~17만 토큰이 들어간다 (o4-mini 때 측정)
 - 초록 폴백 모달이 페이지 이동 후 다시 뜨지 않는다 (대기 중인 논문이 페이지 로컬 상태)
 - 로컬 `npm run dev`가 tailwind 경로 문제로 깨진다(홈 디렉터리의 lockfile 때문에 Turbopack이 루트를 잘못 잡음). 우회: `npm run build && npm run start`
 - `_extract_json`이 4개 노드에 복붙돼 있다 → `with_structured_output(PydanticModel)`로 교체. 모델명 하드코딩 6곳 → `config.py`
@@ -158,7 +158,7 @@ RAG 3단계(① 문서 보관 #38 → ② RAG 백엔드 #39 → ③ 프런트엔
 - **Backend**: FastAPI (Python 3.11), SQLAlchemy(async) + asyncpg, Alembic
 - **AI Core**: LangGraph, OpenAI API
   - Planner, Analyzer, TrendAnalyzer, 논문 Q&A: `gpt-4o-mini` (컨텍스트 128k, 최대 출력 16,384)
-  - Coder, Reviewer: `o4-mini` (컨텍스트 200k, 추론 토큰도 출력 예산에서 쓴다)
+  - Coder, Reviewer: `gpt-5.4-mini`, 추론 강도 medium (컨텍스트 400k, 추론 토큰도 출력 예산에서 쓴다). 2026-10-27에 `o4-mini`가 폐기(호출 시 404)된 것을 발견해 교체했다 — 기본 추론 강도가 none이라 예전 o4-mini처럼 medium으로 지정한다
   - 임베딩: `text-embedding-3-small`
 - **Relational DB**: PostgreSQL 16 — 원본 데이터
 - **Vector DB**: ChromaDB — 논문 Q&A의 파생 색인. `chromadb-client==1.5.5` + 서버 `chromadb/chroma:1.5.5`, 둘은 함께 올린다
