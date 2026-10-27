@@ -126,7 +126,7 @@ async def run(names: list[str], out: str | None) -> None:
     commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     meta = {"commit": commit, "models": {"analyzer": analyzer._MODEL, "coder": coder._MODEL, "reviewer": reviewer._MODEL}}
     results = []
-    # 한 편씩 돌린다 — 루프 3회면 o4-mini의 분당 토큰 한도에 가깝다
+    # 한 편씩 돌린다 — 루프 3회면 Coder·Reviewer 모델의 분당 토큰 한도에 가깝다 (o4-mini 때 측정)
     for name in names:
         print(f"{name} 실행 중...")
         results.append(await run_paper(name))
