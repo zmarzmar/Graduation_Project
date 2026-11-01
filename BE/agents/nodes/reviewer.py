@@ -42,9 +42,9 @@ _SYSTEM_PROMPT = """당신은 AI 논문 구현 코드를 검토하는 전문 리
 - 사소한 구현 디테일 차이는 issues에 기록하되 passed는 true로 설정"""
 
 
-def _extract_json(text: str) -> dict:
+def _extract_json(text: str) -> object:
     """LLM 응답 텍스트에서 JSON 블록을 추출한다.
-    순수 JSON 직접 파싱 → 코드 블록 → 브라켓 카운팅 순으로 시도한다.
+    순수 JSON 직접 파싱 → 코드 블록 → 처음 나오는 JSON 값 순으로 시도한다. 객체가 아닐 수도 있다 — 호출자가 형식을 검사한다.
     """
     # 1. LLM이 순수 JSON만 반환한 경우 바로 파싱
     try:
@@ -53,38 +53,21 @@ def _extract_json(text: str) -> dict:
         pass
 
     # 2. ```json ... ``` 코드 블록 추출 시도
-    match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
     if match:
         try:
             return json.loads(match.group(1))
         except json.JSONDecodeError:
             pass
 
-    # 3. 브라켓 카운팅으로 첫 번째 완결된 JSON 객체 추출 — 문자열 내 {}도 올바르게 처리
-    start = text.find("{")
-    if start != -1:
-        depth = 0
-        in_str = False
-        escape = False
-        for i, ch in enumerate(text[start:], start):
-            if escape:
-                escape = False
-                continue
-            if ch == "\\" and in_str:
-                escape = True
-                continue
-            if ch == '"':
-                in_str = not in_str
-            elif not in_str:
-                if ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0:
-                        try:
-                            return json.loads(text[start : i + 1])
-                        except json.JSONDecodeError:
-                            break
+    # 3. 처음 나오는 '[' 또는 '{'에서 JSON 값을 해석한다 — 배열이면 배열 그대로 돌려줘 형식 검사에서 오류가 되게 하고,
+    #    해석되지 않는 대괄호(문장 속 표기)는 건너뛴다
+    decoder = json.JSONDecoder()
+    for start in sorted(i for i in (text.find("["), text.find("{")) if i != -1):
+        try:
+            return decoder.raw_decode(text, start)[0]
+        except json.JSONDecodeError:
+            continue
 
     return {}
 

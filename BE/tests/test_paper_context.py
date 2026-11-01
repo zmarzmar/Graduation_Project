@@ -90,6 +90,8 @@ class SharedFullTextTest(unittest.IsolatedAsyncioTestCase):
             '{"passed": "false", "feedback": "x"}',  # 문자열 "false"는 참으로 읽힌다
             '[{"passed": true}]',  # 객체가 아닌 JSON
             '```json\n[{"passed": true}]\n```',  # 코드 블록으로 감싼 배열 — 안쪽 객체만 꺼내면 통과로 읽힌다
+            '```JSON\n[{"passed": true}]\n```',  # 대문자 표시
+            '결과입니다: [{"passed": true}]',  # 문장 안의 배열
             '{"feedback": "passed 키 없음"}',
         ):
             with self.subTest(content=content), patch.object(reviewer, "_llm", _FakeLLM(content)):
@@ -97,6 +99,14 @@ class SharedFullTextTest(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(result["review_passed"])
                 self.assertTrue(result["error"])
                 self.assertTrue(result["review_feedback"])
+
+    async def test_reviewer_still_reads_an_object_after_bracketed_prose(self):
+        # 해석되지 않는 대괄호(문장 속 표기)는 건너뛰고 뒤의 JSON 객체를 읽는다
+        llm = _FakeLLM('[중요] 검토 결과: {"passed": true, "feedback": "ok"}')
+        with patch.object(reviewer, "_llm", llm):
+            result = await reviewer.reviewer_node(self.state)
+        self.assertIs(result["review_passed"], True)
+        self.assertIsNone(result.get("error"))
 
     async def test_reviewer_genuine_fail_is_not_an_error(self):
         llm = _FakeLLM('{"passed": false, "feedback": "스케일링 누락", "issues": ["sqrt(d) 없음"], "suggestions": []}')
