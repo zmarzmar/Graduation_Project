@@ -27,7 +27,25 @@ from services.agent_service import _make_initial_state, download_pdf_pages
 PAPERS: dict[str, dict] = {
     "attention": {"title": "Attention Is All You Need", "pdf_url": "https://arxiv.org/pdf/1706.03762"},
     "lora": {"title": "LoRA: Low-Rank Adaptation of Large Language Models", "pdf_url": "https://arxiv.org/pdf/2106.09685"},
+    # 본 평가 — 모두 Coder·Reviewer 모델(gpt-5.4-mini, 2026-03 출시)보다 나중에 나온 논문이라 학습 때 봤을 수 없다
+    "avq_attention": {"title": "AVQ-Attention: Adaptive Vector-Quantized Attention", "pdf_url": "https://arxiv.org/pdf/2607.12789"},
+    "poly_sketch_attention": {"title": "Learnable Low-Rank Polynomial Sketch for Effective Linear Attention", "pdf_url": "https://arxiv.org/pdf/2610.14219"},
+    "cubit": {"title": "Cubit: Token Mixer with Kernel Ridge Regression", "pdf_url": "https://arxiv.org/pdf/2605.06501"},
+    "gated_adaptive_pe": {"title": "Remember to Forget: Gated Adaptive Positional Encoding", "pdf_url": "https://arxiv.org/pdf/2605.10414"},
+    "token_adaptive_activation": {"title": "More Expressive Feedforward Layers: Part I. Token-Adaptive Mixing of Activations", "pdf_url": "https://arxiv.org/pdf/2605.26647"},
+    "taco_optimizer": {"title": "TACO: Ternary Absolute-max Column-wise One-sparse Optimizer for LLM Fine-Tuning", "pdf_url": "https://arxiv.org/pdf/2610.02199"},
+    "rotated_lora_optimizer": {"title": "Rotated Manifold Optimization for Low-Rank Adaptation", "pdf_url": "https://arxiv.org/pdf/2609.34264"},
+    "explicit_dropout": {"title": "Explicit Dropout: Deterministic Regularization for Transformer Architectures", "pdf_url": "https://arxiv.org/pdf/2604.20505"},
+    "dataset_level_ssl_reg": {"title": "Dataset-Level Regularization for Joint-Embedding Self-Supervised Learning", "pdf_url": "https://arxiv.org/pdf/2610.20158"},
+    "attention_discounted_sampler": {"title": "Attention-Discounted Adaptive Sampler for Masked Diffusion Language Models", "pdf_url": "https://arxiv.org/pdf/2606.10829"},
 }
+
+# 파일럿 2편은 따로 돌릴 때만 지정한다 — 기본 실행은 본 평가 10편
+PILOT_PAPERS = ("attention", "lora")
+MAIN_PAPERS = [name for name in PAPERS if name not in PILOT_PAPERS]
+
+# 한 편이 응답 없는 연결에 매달려도 나머지 논문은 돌도록 논문당 시간을 제한한다 (넘으면 run_error로 남는다)
+PAPER_TIMEOUT_SECONDS = 20 * 60
 
 # agents/nodes/router.py의 반복 상한과 같아야 한다 (테스트가 route()와 맞는지 확인한다)
 MAX_ITERATIONS = 3
@@ -78,15 +96,16 @@ async def run_paper(name: str) -> dict:
     started = time.perf_counter()
     # 다운로드나 그래프가 실패해도 그때까지 모은 회차와 실패 사유를 결과로 남긴다
     try:
-        pages = await download_pdf_pages(paper["pdf_url"])
-        # /agent/analyze가 전문을 받은 경우와 같은 초기 상태
-        state = _make_initial_state("analyze", paper["title"], pdf_pages=pages)
-        state["papers"] = [paper]
-        state["analysis_source"] = "pdf"
-        async for chunk in analyze_graph.astream(state, stream_mode="updates"):
-            for node, updates in chunk.items():
-                events.append((node, updates))
-                print(f"  [{name}] {node} 완료 ({time.perf_counter() - started:.0f}s)")
+        async with asyncio.timeout(PAPER_TIMEOUT_SECONDS):
+            pages = await download_pdf_pages(paper["pdf_url"])
+            # /agent/analyze가 전문을 받은 경우와 같은 초기 상태
+            state = _make_initial_state("analyze", paper["title"], pdf_pages=pages)
+            state["papers"] = [paper]
+            state["analysis_source"] = "pdf"
+            async for chunk in analyze_graph.astream(state, stream_mode="updates"):
+                for node, updates in chunk.items():
+                    events.append((node, updates))
+                    print(f"  [{name}] {node} 완료 ({time.perf_counter() - started:.0f}s)")
     except Exception as e:
         run_error = f"{type(e).__name__}: {e}"
 
@@ -141,7 +160,7 @@ async def run(names: list[str], out: str | None) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--papers", nargs="+", choices=list(PAPERS), default=list(PAPERS))
+    parser.add_argument("--papers", nargs="+", choices=list(PAPERS), default=MAIN_PAPERS)
     parser.add_argument("--out", help="결과(회차별 코드 포함)를 JSON으로 저장할 경로")
     args = parser.parse_args()
     asyncio.run(run(args.papers, args.out))

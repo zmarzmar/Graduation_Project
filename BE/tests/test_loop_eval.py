@@ -3,6 +3,7 @@
 실행: cd BE && uv run python -m unittest discover -s tests -v
 """
 
+import asyncio
 import builtins
 import io
 import json
@@ -156,6 +157,56 @@ class RunTest(unittest.IsolatedAsyncioTestCase):
             result = await loop_eval.run_paper("attention")
         self.assertEqual(result["end_reason"], "passed")
         self.assertEqual(result["analyzer_error"], "LLM API 호출에 실패했습니다.")
+
+    async def test_a_hung_paper_times_out_and_keeps_the_rounds_so_far(self) -> None:
+        # 응답 없는 연결에 매달린 경우 — 그때까지의 회차를 남기고 오류로 끝난다
+        class _HangingGraph(_FakeGraph):
+            async def astream(self, _state: dict, stream_mode: str = "updates"):
+                for node, updates in self.events:
+                    yield {node: updates}
+                await asyncio.sleep(3600)
+
+        with (
+            patch.object(loop_eval, "download_pdf_pages", AsyncMock(return_value=["page"])),
+            patch.object(loop_eval, "analyze_graph", _HangingGraph(_PASSING_RUN[:2])),
+            patch.object(loop_eval, "PAPER_TIMEOUT_SECONDS", 0.05),
+            redirect_stdout(io.StringIO()),
+        ):
+            result = await loop_eval.run_paper("attention")
+        self.assertEqual(result["end_reason"], "error")
+        self.assertIn("TimeoutError", result["run_error"])
+        self.assertEqual(result["rounds"][0]["code"], "import torch")
+
+    async def test_after_a_timeout_the_next_paper_still_runs_and_both_are_saved(self) -> None:
+        class _FirstCallHangs(_FakeGraph):
+            calls = 0
+
+            async def astream(self, _state: dict, stream_mode: str = "updates"):
+                type(self).calls += 1
+                hang = type(self).calls == 1
+                for node, updates in self.events:
+                    yield {node: updates}
+                if hang:
+                    await asyncio.sleep(3600)
+
+        with tempfile.TemporaryDirectory() as folder:
+            out = os.path.join(folder, "results.json")
+            with (
+                patch.object(loop_eval, "download_pdf_pages", AsyncMock(return_value=["page"])),
+                patch.object(loop_eval, "analyze_graph", _FirstCallHangs(_PASSING_RUN)),
+                patch.object(loop_eval, "PAPER_TIMEOUT_SECONDS", 0.05),
+                redirect_stdout(io.StringIO()),
+            ):
+                await loop_eval.run(["attention", "lora"], out)
+            with open(out, encoding="utf-8") as f:
+                first, second = json.load(f)["results"]
+        self.assertEqual((first["paper"], first["end_reason"]), ("attention", "error"))
+        self.assertIn("TimeoutError", first["run_error"])
+        self.assertEqual((second["paper"], second["end_reason"]), ("lora", "passed"))
+
+    def test_default_run_is_the_ten_main_papers_only(self) -> None:
+        self.assertEqual(len(loop_eval.MAIN_PAPERS), 10)
+        self.assertFalse(set(loop_eval.MAIN_PAPERS) & set(loop_eval.PILOT_PAPERS))
 
 
 if __name__ == "__main__":
