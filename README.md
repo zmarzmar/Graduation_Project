@@ -35,7 +35,7 @@ Frontend (Next.js, Vercel) ──REST / SSE──▶ Backend (FastAPI, Oracle Cl
 ```
 
 - Coder와 Reviewer는 같은 논문 전문을 봅니다. 본문은 자르지 않고, 모델 한도(10만 토큰)를 넘으면 거부합니다
-- 모든 LLM 호출 전에 입력 + 출력 예산이 컨텍스트 한도 안인지 실제 토크나이저로 확인합니다
+- 논문 본문이 들어가는 호출(Analyzer·Coder·Reviewer·논문 Q&A)은 호출 전에 입력 + 출력 예산이 컨텍스트 한도 안인지 실제 토크나이저로 확인합니다
 - PDF는 arXiv 호스트에서만 받습니다 (리다이렉트마다 다시 검사)
 
 ## 기술 스택
