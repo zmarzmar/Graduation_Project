@@ -53,7 +53,7 @@ def _extract_json(text: str) -> dict:
         pass
 
     # 2. ```json ... ``` 코드 블록 추출 시도
-    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
     if match:
         try:
             return json.loads(match.group(1))
@@ -87,6 +87,12 @@ def _extract_json(text: str) -> dict:
                             break
 
     return {}
+
+
+def _as_str_list(value: object) -> list[str]:
+    """issues·suggestions를 문자열 목록으로 맞춘다. 목록이 아니면 값 하나짜리 목록, None·빈 값은 버린다."""
+    items = value if isinstance(value, list) else [value]
+    return [str(item) for item in items if item not in (None, "")]
 
 
 async def reviewer_node(state: AgentState) -> dict:
@@ -148,21 +154,23 @@ async def reviewer_node(state: AgentState) -> dict:
         }
 
     passed: bool = result["passed"]
+    issues = _as_str_list(result.get("issues"))
+    suggestions = _as_str_list(result.get("suggestions"))
     verdict = "✅ 통과" if passed else "❌ 낙제"
     emit_log("reviewer", verdict)
-    if not passed and (issues := result.get("issues", [])):
+    if not passed and issues:
         for issue in issues[:3]:
             emit_log("reviewer", f"문제점: {issue}")
     logger.info(f"[Reviewer] 완료 — {verdict} (iteration={iteration})")
-    if not passed and (issues := result.get("issues", [])):
+    if not passed and issues:
         for issue in issues[:3]:
             logger.info(f"[Reviewer]   문제점: {issue[:80]}")
 
     # 피드백 텍스트 조합
-    feedback_parts = [result.get("feedback", "")]
-    if issues := result.get("issues", []):
+    feedback_parts = [str(result.get("feedback") or "")]
+    if issues:
         feedback_parts.append("문제점:\n" + "\n".join(f"- {i}" for i in issues))
-    if suggestions := result.get("suggestions", []):
+    if suggestions:
         feedback_parts.append("개선 제안:\n" + "\n".join(f"- {s}" for s in suggestions))
     feedback = "\n\n".join(filter(None, feedback_parts))
 

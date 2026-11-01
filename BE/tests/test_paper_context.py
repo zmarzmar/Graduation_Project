@@ -89,6 +89,7 @@ class SharedFullTextTest(unittest.IsolatedAsyncioTestCase):
             "이 코드는 좋아 보입니다.",  # JSON 없음
             '{"passed": "false", "feedback": "x"}',  # 문자열 "false"는 참으로 읽힌다
             '[{"passed": true}]',  # 객체가 아닌 JSON
+            '```json\n[{"passed": true}]\n```',  # 코드 블록으로 감싼 배열 — 안쪽 객체만 꺼내면 통과로 읽힌다
             '{"feedback": "passed 키 없음"}',
         ):
             with self.subTest(content=content), patch.object(reviewer, "_llm", _FakeLLM(content)):
@@ -104,6 +105,18 @@ class SharedFullTextTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result["review_passed"])
         self.assertIsNone(result.get("error"))
         self.assertIn("sqrt(d) 없음", result["review_feedback"])
+
+    async def test_reviewer_survives_wrongly_typed_optional_fields(self):
+        # feedback·issues·suggestions의 형식이 틀려도 그래프를 멈추지 않고 판정을 돌려준다
+        for content, passed in (
+            ('{"passed": true, "feedback": 123}', True),
+            ('{"passed": false, "issues": [1, null], "suggestions": "한 줄 제안"}', False),
+        ):
+            with self.subTest(content=content), patch.object(reviewer, "_llm", _FakeLLM(content)):
+                result = await reviewer.reviewer_node(self.state)
+                self.assertIs(result["review_passed"], passed)
+                self.assertIsNone(result.get("error"))
+                self.assertTrue(result["review_feedback"])
 
     async def test_coder_and_reviewer_share_the_same_paper_source(self):
         source = paper_source_context(self.state)
