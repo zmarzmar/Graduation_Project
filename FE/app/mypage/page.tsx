@@ -166,9 +166,9 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
               <>
                 <span>·</span>
                 {item.review_passed ? (
-                  <span className="flex items-center gap-1 text-green-500"><CheckCircle className="h-3 w-3" />검증 통과</span>
+                  <span className="flex items-center gap-1 text-green-500"><CheckCircle className="h-3 w-3" />LLM 검토 통과</span>
                 ) : (
-                  <span className="flex items-center gap-1 text-red-400"><XCircle className="h-3 w-3" />검증 미통과</span>
+                  <span className="flex items-center gap-1 text-red-400"><XCircle className="h-3 w-3" />LLM 검토 미통과</span>
                 )}
               </>
             )}

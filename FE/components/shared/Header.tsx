@@ -23,7 +23,7 @@ export function Header() {
             <BookOpen className="h-6 w-6 text-blue-600" />
             <div>
               <h1 className="text-xl font-bold">AI Research Analyst</h1>
-              <p className="text-xs text-gray-500">AI 논문 자동 분석 및 코드 재현 Deep Research Agent</p>
+              <p className="text-xs text-gray-500">AI 논문 분석 및 구현 초안 생성 Deep Research Agent</p>
             </div>
           </Link>
 

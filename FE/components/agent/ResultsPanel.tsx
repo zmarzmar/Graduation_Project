@@ -422,9 +422,12 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
                 <XCircle className="h-5 w-5 text-red-500" />
               )}
               <span className="text-sm font-semibold">
-                {result.review_passed ? '검증 통과' : '검증 미통과'}
+                {result.review_passed ? 'LLM 검토 통과' : 'LLM 검토 미통과'}
               </span>
             </div>
+            <p className="text-xs text-gray-500">
+              Reviewer(LLM)가 논문과 코드를 읽고 대조한 결과입니다. 코드를 실행해 확인하지는 않았습니다.
+            </p>
             {result.review_feedback && (
               <p className="whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">
                 <MathText text={result.review_feedback} />
