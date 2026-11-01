@@ -136,7 +136,18 @@ async def reviewer_node(state: AgentState) -> dict:
             "error": f"리뷰 중 오류 발생: {str(e)}",
         }
 
-    passed: bool = result.get("passed", False)
+    # 해석하지 못한 응답을 낙제와 구분해 오류로 남긴다 — 빈 피드백으로 Coder가 다시 쓰지 않게 사유를 적고 원문 앞부분을 로그에 남긴다
+    if not isinstance(result, dict) or not isinstance(result.get("passed"), bool):
+        logger.warning(f"[Reviewer] 응답 해석 실패 — 원문 앞부분: {str(response.content)[:500]!r}")
+        emit_log("reviewer", "검토 응답을 해석하지 못했습니다")
+        return {
+            "review_feedback": "리뷰 응답을 해석하지 못해 이번 회차는 판정하지 못했습니다.",
+            "review_passed": False,
+            "current_node": "reviewer",
+            "error": "리뷰 응답 형식 오류: passed(참/거짓)가 있는 JSON 객체가 아닙니다.",
+        }
+
+    passed: bool = result["passed"]
     verdict = "✅ 통과" if passed else "❌ 낙제"
     emit_log("reviewer", verdict)
     if not passed and (issues := result.get("issues", [])):

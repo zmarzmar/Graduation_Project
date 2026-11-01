@@ -83,6 +83,28 @@ class SharedFullTextTest(unittest.IsolatedAsyncioTestCase):
             await reviewer.reviewer_node(self.state)
         self.assertIn(_LATE_MARKER, llm.user_message)
 
+    async def test_reviewer_reports_an_unreadable_reply_as_an_error_not_a_silent_fail(self):
+        # 해석하지 못한 응답이 사유 없는 낙제(빈 피드백)로 섞이면 Coder가 빈 피드백으로 다시 쓴다
+        for content in (
+            "이 코드는 좋아 보입니다.",  # JSON 없음
+            '{"passed": "false", "feedback": "x"}',  # 문자열 "false"는 참으로 읽힌다
+            '[{"passed": true}]',  # 객체가 아닌 JSON
+            '{"feedback": "passed 키 없음"}',
+        ):
+            with self.subTest(content=content), patch.object(reviewer, "_llm", _FakeLLM(content)):
+                result = await reviewer.reviewer_node(self.state)
+                self.assertFalse(result["review_passed"])
+                self.assertTrue(result["error"])
+                self.assertTrue(result["review_feedback"])
+
+    async def test_reviewer_genuine_fail_is_not_an_error(self):
+        llm = _FakeLLM('{"passed": false, "feedback": "스케일링 누락", "issues": ["sqrt(d) 없음"], "suggestions": []}')
+        with patch.object(reviewer, "_llm", llm):
+            result = await reviewer.reviewer_node(self.state)
+        self.assertFalse(result["review_passed"])
+        self.assertIsNone(result.get("error"))
+        self.assertIn("sqrt(d) 없음", result["review_feedback"])
+
     async def test_coder_and_reviewer_share_the_same_paper_source(self):
         source = paper_source_context(self.state)
         coder_llm = _FakeLLM("```python\nimport torch\n```")
