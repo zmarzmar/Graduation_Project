@@ -30,7 +30,7 @@ const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description:
     id: 'trend',
     label: '트렌드 브리핑',
     icon: <TrendingUp className="h-4 w-4" />,
-    description: 'HuggingFace 기반 최신 트렌드 리포트',
+    description: 'HuggingFace · Semantic Scholar · arXiv 기반 최신 트렌드 리포트',
   },
 ]
 
@@ -399,7 +399,7 @@ export default function HomePage() {
                 <p className="text-sm font-semibold text-gray-800">트렌드 브리핑</p>
               </div>
               <p className="text-xs leading-relaxed text-gray-500 break-keep">
-                관심 분야를 입력하면 HuggingFace · arXiv 기반 최신 논문 Top 10과 키워드 리포트를 생성합니다.
+                관심 분야를 입력하면 HuggingFace · Semantic Scholar · arXiv 기반 최신 논문 Top 10과 키워드 리포트를 생성합니다.
               </p>
             </div>
           </div>

@@ -224,7 +224,7 @@ RAG 3단계(① 문서 보관 #38 → ② RAG 백엔드 #39 → ③ 프런트엔
 
 1. **PDF Upload Mode** — 논문 PDF를 업로드하면 **검색 없이** 업로드한 본문을 바로 분석하고 구현 초안을 만든다
 2. **Keyword Search Mode** — 키워드로 논문을 검색(Semantic Scholar + OpenAlex + arXiv)하고, 사용자가 고른 논문 1편을 분석한다. 전문은 **arXiv에서만** 받는다 — 그 외 출처는 "초록만으로 분석할까요?" 확인으로 넘어간다
-3. **Trend Briefing Mode** — Hugging Face + Semantic Scholar 기반 최신 트렌드 논문 요약 리포트
+3. **Trend Briefing Mode** — Hugging Face + Semantic Scholar + arXiv 기반 최신 트렌드 논문 요약 리포트
 
 로그인 사용자가 분석한 논문은 추출 텍스트가 서버에 보관된다(논문 Q&A용). 게스트와 초록 기반 분석은 보관하지 않는다.
 
