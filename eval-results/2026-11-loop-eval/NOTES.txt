@@ -1,0 +1,24 @@
+자기수정 루프 본 평가 원자료 (2026-11-01)
+
+무엇인가
+- 논문 10편을 분석 그래프(Analyzer → Coder ↔ Reviewer, 최대 3회)로 각 1회 돌린 결과와, 회차별 코드를
+  사전에 확정한 체크리스트(BE/evals/loop_checklists.py)로 판정한 표다.
+- 실행: cd BE && caffeinate -i uv run python -u -m evals.loop_eval --out <파일>
+- 모델: Analyzer gpt-4o-mini, Coder·Reviewer gpt-5.4-mini(추론 강도 medium). 실행 커밋은 results.json의 meta.commit
+
+파일
+- results.json        본 평가 10편. 회차마다 code, static(문법·import), review_passed, review_feedback, 오류
+- pilot_results.json  파일럿 2편(Attention, LoRA). 둘 다 1회차 통과, 체크리스트 8/8·6/6
+- code/               results.json의 회차별 코드를 파일로 꺼낸 것 (<논문>_r<회차>.py). 실행하지 않았다
+- verdicts.csv        항목별 판정 89건 — paper, round, item, verdict(충족/미충족), code_lines, note, grader
+
+합계: 1회차 63/74, 최종 64/74 (수정 회차가 돈 논문은 avq_attention, gated_adaptive_pe 둘)
+
+판정의 한계 — 숫자를 인용할 때 함께 적는다
+- 판정은 Claude(수정된 2편)와 보조 에이전트(나머지 8편)가 코드 줄을 근거로 했다. 확신이 낮다고 한
+  판정 일부만 Claude가 다시 확인했다(grader 열). 사용자 확정 전이다 — 확정 전에는 "잠정 채점"으로 쓴다
+- 경계 사례: taco T8, rotated R1, cubit C5, explicit_dropout D5, dataset_level_ssl_reg S6, attention_discounted_sampler A2,
+  poly_sketch_attention P7(해당없음으로 볼 여지)
+- 생성 코드는 실행하지 않았다. "실행 시 오류"(explicit_dropout D6, dataset_level_ssl_reg S7)는 코드를 읽어 판단한 것이다
+- 논문당 1회 실행이다
+- gated_adaptive_pe 1회차의 '낙제'는 Reviewer 응답 해석 실패였다(피드백 빈 문자열). 판단이 아니다

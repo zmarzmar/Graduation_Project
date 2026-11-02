@@ -22,7 +22,7 @@ const ALL_NODES: NodeConfig[] = [
   { name: 'trend_analyzer', label: 'TrendAnalyzer', description: '트렌드 분석' },
   { name: 'analyzer',       label: 'Analyzer',      description: '논문 분석' },
   { name: 'coder',          label: 'Coder',         description: '코드 생성' },
-  { name: 'reviewer',       label: 'Reviewer',      description: '코드 검증' },
+  { name: 'reviewer',       label: 'Reviewer',      description: '코드 검토' },
 ]
 
 const SEARCH_NODES: NodeName[]  = ['planner', 'researcher']

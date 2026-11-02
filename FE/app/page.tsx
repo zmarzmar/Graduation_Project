@@ -18,7 +18,7 @@ const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description:
     id: 'search',
     label: '키워드 검색',
     icon: <Search className="h-4 w-4" />,
-    description: 'arXiv + Semantic Scholar 검색 후 코드 재현',
+    description: 'arXiv + Semantic Scholar 검색 후 구현 초안 생성',
   },
   {
     id: 'pdf',
@@ -230,7 +230,7 @@ export default function HomePage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">AI Research Analyst</h1>
         <p className="mt-1 text-sm text-gray-500">
-          최신 AI 논문을 분석하고 PyTorch 코드 스켈레톤을 자동으로 재현합니다.
+          최신 AI 논문을 분석하고 논문 기반 PyTorch 구현 초안을 만듭니다.
         </p>
       </div>
 
@@ -377,7 +377,7 @@ export default function HomePage() {
                 <p className="text-sm font-semibold text-gray-800">키워드 검색</p>
               </div>
               <p className="text-xs leading-relaxed text-gray-500 break-keep">
-                키워드를 입력하면 여러 논문 DB에서 관련 논문을 수집하고 PyTorch 코드를 자동 재현합니다.
+                키워드를 입력하면 여러 논문 DB에서 관련 논문을 수집하고, 고른 논문으로 PyTorch 구현 초안을 만듭니다.
               </p>
             </div>
             <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">
@@ -388,7 +388,7 @@ export default function HomePage() {
                 <p className="text-sm font-semibold text-gray-800">PDF 업로드</p>
               </div>
               <p className="text-xs leading-relaxed text-gray-500 break-keep">
-                논문 PDF를 업로드하면 전문을 분석해 핵심 수식·강점·한계를 정리하고 코드를 재현합니다.
+                논문 PDF를 업로드하면 전문을 분석해 핵심 수식·강점·한계를 정리하고 PyTorch 구현 초안을 만듭니다.
               </p>
             </div>
             <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2">

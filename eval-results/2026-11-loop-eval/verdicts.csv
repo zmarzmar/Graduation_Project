@@ -1,0 +1,90 @@
+﻿paper,round,item,verdict,code_lines,note,grader
+avq_attention,1,V1,충족,41-42,"헤드별 부모 [H,M0,D] + 자식 [H,M0,C,D] 버퍼",Claude
+avq_attention,1,V2,충족,79-105,"가장 가까운 부모 → 그 부모의 자식만 비교, 더 가까울 때만 자식으로",Claude
+avq_attention,1,V3,미충족,155-156,최종 코드 인덱스 한 곳에만 누적 — 부모 집계에서 자식으로 간 키가 빠짐 (Reviewer가 정확히 지적),Claude
+avq_attention,1,V4,충족,"280-290, 436","exp 로짓, 분자 ΣA·V̄, 분모 ΣA·n, Y=X̄/Z̄",Claude
+avq_attention,1,V5,충족,"292-294, 420","타일 안에서 w=ΣA·n/Z̄, 타일별 topk",Claude
+avq_attention,1,V6,충족,356,부모 로짓 = 자식 로짓 평균,Claude
+avq_attention,1,V7,충족,358-367,ΔA=exp(S_c−m)−exp(S_p−m)로 누산기 갱신 (V3 때문에 결과는 틀어짐),Claude
+avq_attention,1,V8,충족,198-245,EMA k-means + 질량 가중 투영 후 부모=자식 평균,Claude
+avq_attention,2,V1,충족,,1회차와 같은 코드,Claude
+avq_attention,2,V2,충족,,1회차와 같은 코드,Claude
+avq_attention,2,V3,충족,168-184,"부모에는 모든 키, 자식에는 옮겨진 키만 따로 누적 — 고쳐짐",Claude
+avq_attention,2,V4,충족,,1회차와 같은 코드,Claude
+avq_attention,2,V5,충족,,빈 부모를 선택에서 제외 추가,Claude
+avq_attention,2,V6,충족,,1회차와 같은 코드,Claude
+avq_attention,2,V7,충족,,1회차와 같은 코드,Claude
+avq_attention,2,V8,충족,,"죽은 자식 재초기화 추가, 투영은 유지 (일부 자식만 비활성인 드문 경우 부모=평균 제약이 깨질 수 있음)",Claude
+gated_adaptive_pe,1,G1,충족,"186-188, 220-225","RoPE 유지, 로짓에 편향 덧셈, causal",Claude
+gated_adaptive_pe,1,G2,충족,196-198,key에서 sigmoid 게이트,Claude
+gated_adaptive_pe,1,G3,충족,193-195,query에서 softplus 게이트,Claude
+gated_adaptive_pe,1,G4,충족,"123-125, 209",head별 softplus 진폭,Claude
+gated_adaptive_pe,1,G5,충족,218,Γ·g/T·(j(1−l)+i·l),Claude
+gated_adaptive_pe,1,G6,충족,"181-182, 210","T=학습 길이 상수, 절대 위치(캐시 오프셋 포함)",Claude
+gated_adaptive_pe,1,G7,미충족,218-220,T×T 편향 행렬을 따로 만들어 더함,Claude
+gated_adaptive_pe,2,G1,충족,264-276,"의미 좌표에만 RoPE, 구조 좌표는 회전 안 함",Claude
+gated_adaptive_pe,2,G2,충족,283-285,k_sem에서 sigmoid,Claude
+gated_adaptive_pe,2,G3,충족,279-281,q_sem에서 softplus,Claude
+gated_adaptive_pe,2,G4,충족,199,head별 softplus 진폭,Claude
+gated_adaptive_pe,2,G5,충족,178-227,인수분해로 같은 식 (1/√d로 정확히 복원됨을 손으로 확인),Claude
+gated_adaptive_pe,2,G6,충족,261-262,1회차와 같음,Claude
+gated_adaptive_pe,2,G7,미충족,"178-227, 299-308","head 안 2좌표 인수분해는 구현, 표준 SDPA를 호출하지 않고 matmul+softmax",Claude
+poly_sketch_attention,1,P1,충족,"72, 150-163, 191-192",Q·K 별도 sketch 인스턴스,보조 에이전트
+poly_sketch_attention,1,P2,충족,"72, 77-79, 96-98","(rank,degree,d,m) 서로 다른 Θ_j, p는 인자",보조 에이전트
+poly_sketch_attention,1,P3,충족,"96-100, 103",xΘ_j를 원소별 곱,보조 에이전트
+poly_sketch_attention,1,P4,충족,"97, 100",외적·크로네커 없음,보조 에이전트
+poly_sketch_attention,1,P5,충족,72,nn.Parameter,보조 에이전트
+poly_sketch_attention,1,P6,충족,"209-210, 228-230",φ_Kᵀ V 먼저 / 인과는 누적합,보조 에이전트
+poly_sketch_attention,1,P7,충족,"107-108, 155, 162",옵션으로 구현(기본 꺼짐) — 해당없음으로 볼 여지,보조 에이전트
+cubit,1,C1,충족,"130-131, 172-175, 183, 190",같은 r로 Gram,보조 에이전트 (Claude 재확인)
+cubit,1,C2,충족,"144-146, 193-202",마스크 softmax 뒤 exp(log_lambda)·I,보조 에이전트 (Claude 재확인)
+cubit,1,C3,충족,205-206,torch.linalg.solve,보조 에이전트 (Claude 재확인)
+cubit,1,C4,충족,"193-197, 211, 206","같은 causal 마스크, 하삼각 결과 (solve_triangular 대신 일반 solve)",보조 에이전트 (Claude 재확인)
+cubit,1,C5,충족,"134-135, 138, 178-179, 205","lower+upper·sigmoid, 풀이 전에 곱함 (α·β 양수 제약은 없음, 논문 코드와 같음) — Claude 재확인",보조 에이전트 (Claude 재확인)
+cubit,1,C6,충족,210-214,A @ solution,보조 에이전트 (Claude 재확인)
+cubit,1,C7,충족,"141, 183, 190, 197",r/‖r‖·학습 스케일,보조 에이전트 (Claude 재확인)
+token_adaptive_activation,1,M1,충족,"170-171, 184-188, 292-294",투영 공유,보조 에이전트
+token_adaptive_activation,1,M2,충족,"76, 86-87, 186-187","x에서 Linear(d,K) 게이트, 채널 방향 브로드캐스트",보조 에이전트
+token_adaptive_activation,1,M3,충족,88-93,sigmoid/tanh/softmax(K축)만 허용,보조 에이전트
+token_adaptive_activation,1,M4,충족,"58-63, 187",K개 모두 가중합,보조 에이전트
+token_adaptive_activation,1,M5,충족,"342-350, 111","y·z 분리, one-sided는 SiLU(y) 고정, 사전에 Id",보조 에이전트
+token_adaptive_activation,1,M6,충족,"183-188, 309-370","Type-I, bi-sided, quadratic(k≤ℓ 쌍) 모두 식과 일치",보조 에이전트
+taco_optimizer,1,T1,충족,"80-88, 232",열별 argmax 부호,보조 에이전트 (Claude 재확인)
+taco_optimizer,1,T2,충족,"91-101, 239, 246",m/n 배율,보조 에이전트 (Claude 재확인)
+taco_optimizer,1,T3,충족,212-227,EMA 후 열별 topk,보조 에이전트 (Claude 재확인)
+taco_optimizer,1,T4,충족,231-232,"이력에 S 적용, 열마다 1개",보조 에이전트 (Claude 재확인)
+taco_optimizer,1,T5,충족,"14-18, 31-32, 58-60","[k,n] 값+인덱스만 영구 상태",보조 에이전트 (Claude 재확인)
+taco_optimizer,1,T6,미충족,29,FP8 E4M3 저장이 TODO — Claude 재확인,보조 에이전트 (Claude 재확인)
+taco_optimizer,1,T7,충족,"172-192, 248-284","2D만 TACO, 1D는 같은 클래스 안의 AdamW 계산",보조 에이전트 (Claude 재확인)
+taco_optimizer,1,T8,미충족,91-95,"배율 1 스위치는 파라미터 그룹 플래그뿐, 임베딩을 자동 구분하지 않음 — 경계 사례, Claude 재확인",보조 에이전트 (Claude 재확인)
+rotated_lora_optimizer,1,R1,충족,"24-28, 40-43, 272-281","U,σ,V를 옵티마이저 상태로 보관, 순전파는 같은 값의 밀집 파라미터 — 확신 중간",보조 에이전트 (Claude 재확인)
+rotated_lora_optimizer,1,R2,충족,"82-84, 291, 295-297","S, Up, Vp 식",보조 에이전트 (Claude 재확인)
+rotated_lora_optimizer,1,R3,미충족,"267, 82-84, 370",p.grad(m×n 전체 기울기)를 받아 사영,보조 에이전트 (Claude 재확인)
+rotated_lora_optimizer,1,R4,충족,"99-110, 295-297, 329-345",모멘텀 수송 후 EMA,보조 에이전트 (Claude 재확인)
+rotated_lora_optimizer,1,R5,미충족,145-148,m×n M을 만들어 전체 SVD (얇은 분해는 TODO) — Claude 재확인,보조 에이전트 (Claude 재확인)
+rotated_lora_optimizer,1,R6,충족,"113-123, 175-176",행·열 정규화 K회,보조 에이전트 (Claude 재확인)
+rotated_lora_optimizer,1,R7,충족,"179-183, 313-315",접공간 재사영,보조 에이전트 (Claude 재확인)
+rotated_lora_optimizer,1,R8,충족,201-217,2r×2r 코어 truncated SVD,보조 에이전트 (Claude 재확인)
+explicit_dropout,1,D1,충족,"70-78, 262-268",J_q 식,보조 에이전트 (Claude 재확인)
+explicit_dropout,1,D2,충족,"71, 91, 109, 126, 141",p² 계수,보조 에이전트 (Claude 재확인)
+explicit_dropout,1,D3,충족,"90-98, 271-278","J_k, 자기 계수",보조 에이전트 (Claude 재확인)
+explicit_dropout,1,D4,충족,108-112,데이터 항 포함,보조 에이전트 (Claude 재확인)
+explicit_dropout,1,D5,충족,"46-53, 124-128, 283-297",A 포함 변형 (멀티헤드 A는 평균) — 확신 중간,보조 에이전트 (Claude 재확인)
+explicit_dropout,1,D6,미충족,"140-147, 301-307",2층에도 1층 입력 Gram 사용 → hidden≠d면 expand_as 모양 오류로 실행 중단 (코드를 읽어 판단) — Claude 재확인,보조 에이전트 (Claude 재확인)
+explicit_dropout,1,D7,충족,"258-310, 375-401",성분·층별 λ로 손실에 더함,보조 에이전트 (Claude 재확인)
+explicit_dropout,1,D8,충족,151-224,무작위 마스크 없음,보조 에이전트 (Claude 재확인)
+dataset_level_ssl_reg,1,S1,미충족,"87-106, 396-404, 451, 484",전체 데이터 인코딩은 있으나 학습 중 반복 리프레시 경로 없음,보조 에이전트 (Claude 재확인)
+dataset_level_ssl_reg,1,S2,충족,"80-84, 223, 242-244, 257-259, 332-333",detach·CPU·인덱스 조회,보조 에이전트 (Claude 재확인)
+dataset_level_ssl_reg,1,S3,충족,"39-41, 377-384, 256-263, 343-351","정렬+앵커 손실, 앵커로 gradient 없음",보조 에이전트 (Claude 재확인)
+dataset_level_ssl_reg,1,S4,충족,"25-36, 228-243","정규화 방향, 순위 → Φ⁻¹((r+½)/N)",보조 에이전트 (Claude 재확인)
+dataset_level_ssl_reg,1,S5,충족,"228-231, 244, 256, 261-263","리프레시마다 방향 고정, MSE",보조 에이전트 (Claude 재확인)
+dataset_level_ssl_reg,1,S6,미충족,"303-330, 313","대응 항이 Σ가 아니라 mean(부분집합), S7 때문에 실제 최적화 안 됨 — 확신 중간",보조 에이전트 (Claude 재확인)
+dataset_level_ssl_reg,1,S7,미충족,"289, 306-330, 326, 397",@torch.no_grad() 안에서 loss.backward() → 실행 시 RuntimeError (코드를 읽어 판단) — Claude 재확인,보조 에이전트 (Claude 재확인)
+dataset_level_ssl_reg,1,S8,충족,"338-351, 485","1−cos만, negative 없음 (S7 예외 때문에 도달 못 함)",보조 에이전트 (Claude 재확인)
+attention_discounted_sampler,1,A1,충족,"85-92, 285, 213, 234",max 확률 c,보조 에이전트
+attention_discounted_sampler,1,A2,미충족,"106-124, 262-273, 287-288",head 평균·부분행렬은 있으나 마지막 층 attention 추출이 TODO — 확신 중간,보조 에이전트
+attention_discounted_sampler,1,A3,충족,"170-175, 234","c_i − α·A[i,s]·(1−c_s)",보조 에이전트
+attention_discounted_sampler,1,A4,충족,215-236,매 반복 argmax,보조 에이전트
+attention_discounted_sampler,1,A5,충족,"224-228, 241","S∪{i*} 검사, 실패하면 break",보조 에이전트
+attention_discounted_sampler,1,A6,충족,"11-82, 227",Top-k/Fast-dLLM/EB 규칙 분리,보조 에이전트
+attention_discounted_sampler,1,A7,충족,"213, 217, 234-236","증분 할인, 선택 위치 −inf",보조 에이전트
