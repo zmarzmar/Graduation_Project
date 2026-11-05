@@ -1,0 +1,116 @@
+{
+ "LLM reinforcement learning": {
+  "keywords": [
+   "LLM reinforcement learning",
+   "large language model",
+   "reinforcement learning techniques"
+  ],
+  "papers": [
+   "What Does Multi-Turn Reinforcement Learning Really Improve in LLM Agents?",
+   "Hista and Numca: Estimate State Value Effectively for LLM Reinforcement Learning",
+   "VideoMemBench: How Well Do MLLMs Remember in Video Conversations?",
+   "MUON-RT Reusing the Teacher's Trajectory for Momentum-Free Muon for LLM Self-Distillation",
+   "LoGRA: Scaling LLM Reinforcement Learning with Low-Rank Gradient Sketches",
+   "Low-Carbon Scheduling for Power-Hydrogen Integrated Energy System Using Large Language Model Enhanced Deep Reinforcement Learning",
+   "Proving the Utility of Large Language Models in Cybersecurity Simulations: A Comprehensive Examination",
+   "Adaptive Negative Reinforcement for LLM Reasoning:Dynamically Balancing Correction and Diversity in RLVR",
+   "EvoRIC: Reinforcement Learning Fine-Tuned LLM-empowered RAN Intelligent Control Toward Autonomous O-RAN",
+   "Large Language Models for Resource Block Assignment with QoS Constraints in OFDMA Multi-Cell Open RAN"
+  ]
+ },
+ "coding agents": {
+  "keywords": [
+   "coding agents",
+   "code generation models",
+   "automated code writing"
+  ],
+  "papers": [
+   "EmoReward: Self-Evolving Reward Calibration for Emotional Video Generation RL",
+   "PyRUA-REAL: Robot Exploration and Adaptive Learning through RSI in the Real World",
+   "The Agentic Scientist: Orchestrating Coding Agents for Automated Scientific (Co-)Discovery",
+   "Automatically Learning Skills for Coding Agents",
+   "VA-TDM: A Unified View for Improving Few-Step Diffusion Models by Velocity Adversarial Distillation",
+   "A Unified Issue Resolution Benchmark for Requirement Clarification, Planning, and Code Generation for Coding Agents",
+   "SCATE: Learning to Supervise Coding Agents for Cost-Effective Test Generation",
+   "WiseSpec: Requirements-Driven Agents for Code Generation",
+   "How Far Can Coding Agents Go in Visual Generation?",
+   "Executable but Unfaithful: Mock Object, Stub, and Assertion Generation by LLMs and Coding Agents"
+  ]
+ },
+ "on-policy distillation": {
+  "keywords": [
+   "on-policy distillation",
+   "policy distillation",
+   "reinforcement learning"
+  ],
+  "papers": [
+   "RLCSD: Reinforcement Learning with Contrastive On-Policy Self-Distillation",
+   "SEED: Self-Evolving On-Policy Distillation for Agentic Reinforcement Learning",
+   "What Does Multi-Turn Reinforcement Learning Really Improve in LLM Agents?",
+   "On the Generalization Limitation of On-Policy Distillation for Post-RL Consolidation",
+   "OPID: On-Policy Skill Distillation for Agentic Reinforcement Learning",
+   "RL Starts before RL: On Policy Distillation for Better Reinforcement Learning",
+   "RetireOPD: Self-Retiring On-Policy Distillation for Agentic Reinforcement Learning",
+   "GAPD: Gold-Action Policy Distillation for Agentic Reinforcement Learning in Knowledge Base Question Answering",
+   "Gains and Collapse in On-Policy Distillation:A Reinforcement Learning Perspective",
+   "SPD-MAPPO: Reinforcement Learning With Stochastic Policy Distillation for Multi-Vehicle Coordination in Open-pit Mine"
+  ]
+ },
+ "vision-language-action": {
+  "keywords": [
+   "vision-language-action",
+   "multimodal learning",
+   "AI interaction"
+  ],
+  "papers": [
+   "Turns Matter: Advancing Streaming Video RL via Turn-Level Credit",
+   "What Does Multi-Turn Reinforcement Learning Really Improve in LLM Agents?",
+   "FOCA: Future-Oriented Conditioning for Data-Efficient Vision-Language-Action Adaptation",
+   "PhysBrain 1.0 Technical Report",
+   "CR-VLA-Force: Learning Control-aware Compliance VLA Model for Robust Contact-rich Robotic Manipulation",
+   "Multimodal Contact-Semantic Extraction and Structural Consistency Learning via Embodied Closed-Loop Feedback for Humanoid Robot Assembly",
+   "SLIM-0.5B: Learning Action-Grounded Predictive Latents for Robot Manipulation",
+   "CC-VLA: Learning Control-Aware Compliance VLA Model for Robust Contact-Rich Robotic Manipulation",
+   "A Comprehensive Review of Multimodal Facial State Analysis: Tasks, Methods, and Resources",
+   "When Human Corrections Travel: Safety in Federated VLA Adaptation"
+  ]
+ },
+ "world models": {
+  "keywords": [
+   "world models",
+   "generative models",
+   "reinforcement learning"
+  ],
+  "papers": [
+   "What Does Multi-Turn Reinforcement Learning Really Improve in LLM Agents?",
+   "Physically Native World Models: A Hamiltonian Perspective on Generative World Modeling",
+   "Generalization of World Models under Environmental Variability for Vision-based Quadrotor Navigation",
+   "EmoReward: Self-Evolving Reward Calibration for Emotional Video Generation RL",
+   "Optimizing Visual Generative Models via Distribution-wise Rewards",
+   "Beyond Temporal Proximity: Explanatory World Models for Credit Assignment in Reinforcement Learning",
+   "Generative Model-based Exploration for Sample-Efficient Reinforcement Learning",
+   "From Generation to Simulation: How Far Are World Models from Being True Simulators?",
+   "ReflectiChain: Epistemic Grounding in LLM-Driven World Models for Supply Chain Resilience",
+   "Dream to Remember: Continual Steering of Generalist Robot Policies with World Models"
+  ]
+ },
+ "video generation": {
+  "keywords": [
+   "video generation",
+   "deep learning video generation",
+   "Generative Adversarial Networks video"
+  ],
+  "papers": [
+   "Turns Matter: Advancing Streaming Video RL via Turn-Level Credit",
+   "EmoReward: Self-Evolving Reward Calibration for Emotional Video Generation RL",
+   "VA-TDM: A Unified View for Improving Few-Step Diffusion Models by Velocity Adversarial Distillation",
+   "Advancing Deepfake Video Detection with Deep Learning Based Multi-Stream Architecture",
+   "Indian sign language video generation using attention-enhanced generative adversarial network",
+   "AI-Based Text-to-Video Generation Using Diffusion and Deep Learning Techniques",
+   "Talking Face Generation in Socio-Technical Systems: A Systematic Review of Deep Learning Architectures, Deployment Contexts, and Governance Frameworks",
+   "Deepfake Video Detection using Multi-Modality Features",
+   "Privacy-Preserving Techniques for the Collection, Analysis, and Dissemination of Multimedia Data",
+   "LiveFoley: Dynamic Real-Time Video-to-Audio Generation for Immersive Interactive Worlds"
+  ]
+ }
+}

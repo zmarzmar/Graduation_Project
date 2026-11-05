@@ -210,9 +210,17 @@ async def researcher_node(state: AgentState) -> dict:
     mode = state["mode"]
     plan = _parse_plan(state.get("plan", "{}"))
     keywords = plan.get("search_keywords") or [state.get("user_query", "")]
-    search_query = " ".join(keywords[:3])
+    # 키워드를 이어 붙이면 Planner가 덧붙인 넓은 말("deep learning")이 결과를 끌고 간다 →
+    # Planner가 사용자 입력을 옮긴 첫 키워드 하나로 검색한다. 한국어를 옮기지 않고 둘 때가 있어 한글 없는 첫 키워드
+    query = next(
+        (k for k in keywords if k and not re.search(r"[가-힣]", k)),
+        state.get("user_query", ""),
+    )
 
-    logger.info(f"[Researcher] 시작 — 검색어: \"{search_query}\"")
+    # 관련도 점수용 단어. "RL"처럼 검색어가 짧은 단어뿐이면 관련도 계산이 전부 버리므로 Planner 키워드로 대신 본다
+    match_terms = [query] if _keyword_tokens(query) else keywords[:3]
+
+    logger.info(f"[Researcher] 시작 — 검색어: \"{query}\"")
 
     try:
         if mode == "trend":
@@ -225,7 +233,7 @@ async def researcher_node(state: AgentState) -> dict:
             emit_log("researcher", "HuggingFace Daily Papers 수집 중...")
             async with log_elapsed(logger, "external_call", node="researcher", external="huggingface"):
                 hf_all = await _fetch_hf_trending(limit=20)
-            hf_scored = _annotate_relevance_scores(hf_all, keywords[:3])
+            hf_scored = _annotate_relevance_scores(hf_all, match_terms)
             hf_papers = [paper for paper in hf_scored if paper.get("relevance_score", 0) > 0]
             emit_log("researcher", f"HuggingFace Daily Papers {len(hf_all)}편 수집 완료")
             if hf_papers:
@@ -237,12 +245,12 @@ async def researcher_node(state: AgentState) -> dict:
             # S2 최근 6개월 논문 수집
             s2_papers = []
             try:
-                emit_log("researcher", f"Semantic Scholar 최근 6개월 검색 중... ({search_query})")
+                emit_log("researcher", f"검색어 \"{query}\"로 Semantic Scholar 최근 6개월 검색 중...")
                 async with log_elapsed(logger, "external_call", node="researcher", external="semantic_scholar"):
                     s2_papers = await semantic_scholar_service.search_papers(
-                        search_query, max_results=10, date_from=date_from
+                        query, max_results=10, date_from=date_from
                     )
-                s2_papers = _annotate_relevance_scores(s2_papers, keywords[:3])
+                s2_papers = _annotate_relevance_scores(s2_papers, match_terms)
                 emit_log("researcher", f"Semantic Scholar {len(s2_papers)}편 수집 완료")
                 logger.info(f"[Researcher] S2 트렌드 {len(s2_papers)}편 수집")
             except Exception as e:
@@ -252,13 +260,13 @@ async def researcher_node(state: AgentState) -> dict:
             # arXiv 최근 6개월 논문 수집 + S2 인용 수 보완
             arxiv_papers = []
             try:
-                emit_log("researcher", f"arXiv 최근 6개월 검색 중... ({search_query})")
+                emit_log("researcher", f"검색어 \"{query}\"로 arXiv 최근 6개월 검색 중...")
                 async with log_elapsed(logger, "external_call", node="researcher", external="arxiv"):
                     arxiv_results = await arxiv_service.search_papers(
-                        search_query, max_results=10, recent_months=6
+                        query, max_results=10, recent_months=6
                     )
                 arxiv_papers = [p.model_dump(mode="json") for p in arxiv_results]
-                arxiv_papers = _annotate_relevance_scores(arxiv_papers, keywords[:3])
+                arxiv_papers = _annotate_relevance_scores(arxiv_papers, match_terms)
                 emit_log("researcher", f"arXiv {len(arxiv_papers)}편 수집 완료")
                 logger.info(f"[Researcher] arXiv 트렌드 {len(arxiv_papers)}편 수집")
 
@@ -292,24 +300,16 @@ async def researcher_node(state: AgentState) -> dict:
             }
 
         else:
-            # 키워드를 이어 붙이면 흔한 단어("deep learning")가 섞여 엉뚱한 논문이 올라온다 →
-            # Planner가 사용자 검색어를 옮긴 첫 키워드 하나로 검색한다
-            # Planner가 한국어를 옮기지 않고 첫 키워드로 둘 때가 있다(2026-11-05 관측) → 한글 없는 첫 키워드
-            primary_query = next(
-                (k for k in keywords if k and not re.search(r"[가-힣]", k)),
-                state.get("user_query", ""),
-            )
-            logger.info(f"[Researcher] 검색 모드 검색어: \"{primary_query}\"")
             # S2 + OpenAlex 병렬 수집 (각 최대 10개) → 인용 수 순으로 상위 10개
-            emit_log("researcher", f"검색어 \"{primary_query}\"로 Semantic Scholar + OpenAlex 동시 검색 중...")
+            emit_log("researcher", f"검색어 \"{query}\"로 Semantic Scholar + OpenAlex 동시 검색 중...")
 
             async def _search_semantic_scholar() -> list[dict]:
                 async with log_elapsed(logger, "external_call", node="researcher", external="semantic_scholar"):
-                    return await semantic_scholar_service.search_papers(primary_query, max_results=10)
+                    return await semantic_scholar_service.search_papers(query, max_results=10)
 
             async def _search_openalex() -> list[dict]:
                 async with log_elapsed(logger, "external_call", node="researcher", external="openalex"):
-                    return await openalex_service.search_papers(primary_query, max_results=10)
+                    return await openalex_service.search_papers(query, max_results=10)
 
             s2_task = asyncio.create_task(
                 _search_semantic_scholar()
@@ -358,7 +358,7 @@ async def researcher_node(state: AgentState) -> dict:
                 emit_log("researcher", f"논문 {len(papers)}편 — arXiv에서 {shortage}편 추가 수집 중...")
                 try:
                     async with log_elapsed(logger, "external_call", node="researcher", external="arxiv"):
-                        arxiv_results = await arxiv_service.search_papers(primary_query, max_results=shortage)
+                        arxiv_results = await arxiv_service.search_papers(query, max_results=shortage)
                     logger.info(f"[Researcher] arXiv {len(arxiv_results)}편 수집")
 
                     # arXiv 논문에 S2 인용 정보 보완
