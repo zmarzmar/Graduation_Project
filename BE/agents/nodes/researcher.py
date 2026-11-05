@@ -292,16 +292,24 @@ async def researcher_node(state: AgentState) -> dict:
             }
 
         else:
-            # S2 + OpenAlex 병렬 수집 (각 최대 5개) → 합쳐서 최대 10개
-            emit_log("researcher", "Semantic Scholar + OpenAlex 동시 검색 중...")
+            # 키워드를 이어 붙이면 흔한 단어("deep learning")가 섞여 엉뚱한 논문이 올라온다 →
+            # Planner가 사용자 검색어를 옮긴 첫 키워드 하나로 검색한다
+            # Planner가 한국어를 옮기지 않고 첫 키워드로 둘 때가 있다(2026-11-05 관측) → 한글 없는 첫 키워드
+            primary_query = next(
+                (k for k in keywords if k and not re.search(r"[가-힣]", k)),
+                state.get("user_query", ""),
+            )
+            logger.info(f"[Researcher] 검색 모드 검색어: \"{primary_query}\"")
+            # S2 + OpenAlex 병렬 수집 (각 최대 10개) → 인용 수 순으로 상위 10개
+            emit_log("researcher", f"Semantic Scholar + OpenAlex 동시 검색 중... ({primary_query})")
 
             async def _search_semantic_scholar() -> list[dict]:
                 async with log_elapsed(logger, "external_call", node="researcher", external="semantic_scholar"):
-                    return await semantic_scholar_service.search_papers(search_query, max_results=5)
+                    return await semantic_scholar_service.search_papers(primary_query, max_results=10)
 
             async def _search_openalex() -> list[dict]:
                 async with log_elapsed(logger, "external_call", node="researcher", external="openalex"):
-                    return await openalex_service.search_papers(search_query, max_results=5)
+                    return await openalex_service.search_papers(primary_query, max_results=10)
 
             s2_task = asyncio.create_task(
                 _search_semantic_scholar()
@@ -330,13 +338,12 @@ async def researcher_node(state: AgentState) -> dict:
             def _add_if_unique(p: dict) -> None:
                 aid = (p.get("arxiv_id") or "").split("v")[0]
                 title = (p.get("title") or "").strip().lower()
+                # 같은 논문이 한 소스에선 arXiv ID와, 다른 소스에선 ID 없이 올 수 있어 둘 다 본다
+                if (aid and aid in seen_ids) or (title and title in seen_titles):
+                    return
                 if aid:
-                    if aid in seen_ids:
-                        return
                     seen_ids.add(aid)
-                elif title:
-                    if title in seen_titles:
-                        return
+                if title:
                     seen_titles.add(title)
                 papers.append(p)
 
@@ -351,7 +358,7 @@ async def researcher_node(state: AgentState) -> dict:
                 emit_log("researcher", f"논문 {len(papers)}편 — arXiv에서 {shortage}편 추가 수집 중...")
                 try:
                     async with log_elapsed(logger, "external_call", node="researcher", external="arxiv"):
-                        arxiv_results = await arxiv_service.search_papers(search_query, max_results=shortage)
+                        arxiv_results = await arxiv_service.search_papers(primary_query, max_results=shortage)
                     logger.info(f"[Researcher] arXiv {len(arxiv_results)}편 수집")
 
                     # arXiv 논문에 S2 인용 정보 보완
@@ -375,6 +382,11 @@ async def researcher_node(state: AgentState) -> dict:
                 except Exception as e:
                     logger.warning(f"[Researcher] arXiv 수집 실패 (무시): {e}")
                     emit_log("researcher", "arXiv 수집 실패 — 계속 진행")
+
+            # 인용 수 순 (없으면 0으로 보고 뒤로). 같은 인용 수는 수집 순서를 유지한다
+            papers.sort(key=lambda p: p.get("citation_count") or 0, reverse=True)
+            papers = papers[:10]
+            emit_log("researcher", "인용 수 순으로 정렬")
 
             titles = [p.get("title", "")[:50] for p in papers]
             for i, t in enumerate(titles, 1):
