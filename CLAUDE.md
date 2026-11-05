@@ -508,6 +508,7 @@ DATABASE_URL=                  # postgresql+asyncpg://…  기본값은 로컬 �
 JWT_SECRET_KEY=                # DATABASE_URL이 로컬 기본값이 아니면 필수 (기본 시크릿이면 기동 거부)
 SEMANTIC_SCHOLAR_API_KEY=      # 선택
 OPENALEX_EMAIL=                # 선택 — polite pool
+OPENALEX_API_KEY=              # 선택 — 무료 키. 없으면 부하가 높을 때 검색이 429로 막힌다
 CHROMA_HOST=localhost
 CHROMA_PORT=8001
 CORS_ORIGINS=                  # 선택, 쉼표 구분

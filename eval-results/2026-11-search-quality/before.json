@@ -1,0 +1,416 @@
+{
+ "attention mechanism": {
+  "keywords": [
+   "attention mechanism",
+   "deep learning",
+   "neural networks"
+  ],
+  "papers": [
+   [
+    14,
+    "2023-06-26",
+    true,
+    "The Deep Arbitrary Polynomial Chaos Neural Network or how Deep Artific"
+   ],
+   [
+    35,
+    "2020-04-06",
+    true,
+    "A Learning Framework for n-bit Quantized Neural Networks toward FPGAs"
+   ],
+   [
+    39,
+    "2019-01-20",
+    true,
+    "Hierarchical Attentional Hybrid Neural Networks for Document Classific"
+   ],
+   [
+    12,
+    "2023-07-11",
+    true,
+    "Learning Active Subspaces and Discovering Important Features with Gaus"
+   ],
+   [
+    15,
+    "2022-12-13",
+    true,
+    "Dual Accuracy-Quality-Driven Neural Network for Prediction Interval Ge"
+   ],
+   [
+    28,
+    "2019-11-14",
+    true,
+    "A Recurrent Probabilistic Neural Network with Dimensionality Reduction"
+   ],
+   [
+    818,
+    "2021-01-30",
+    true,
+    "SA-Net: Shuffle Attention for Deep Convolutional Neural Networks"
+   ],
+   [
+    2,
+    "2026-09-05",
+    true,
+    "Interpretable and Fair Generalized Additive Neural Networks via Multi-"
+   ],
+   [
+    548,
+    "2021-02-27",
+    true,
+    "Anomaly Detection on Attributed Networks via Contrastive Self-Supervis"
+   ],
+   [
+    36,
+    "2023-07-15",
+    true,
+    "Graph Embedded Intuitionistic Fuzzy Random Vector Functional Link Neur"
+   ]
+  ]
+ },
+ "LoRA fine-tuning": {
+  "keywords": [
+   "LoRA fine-tuning",
+   "low-rank adaptation",
+   "transfer learning"
+  ],
+  "papers": [
+   [
+    67,
+    "2025-01-01",
+    true,
+    "Transfer Learning in Physics‐Informed Neurals Networks: Full Fine‐Tuni"
+   ],
+   [
+    1,
+    "2025-01-01",
+    false,
+    "Efficient Whisper Fine-Tuning with Low-Rank Adaptation (Lora) for Eval"
+   ],
+   [
+    13,
+    "2025-01-01",
+    false,
+    "Calibration Transfer of Deep Learning Models among Multiple Raman Spec"
+   ],
+   [
+    1,
+    "2026-01-01",
+    false,
+    "Fine-grained emotion recognition using RoBERTa with low-rank adaptatio"
+   ],
+   [
+    4,
+    "2025-01-01",
+    false,
+    "Low-Rank Adaptation vs. Fine-Tuning for Handwritten Text Recognition"
+   ],
+   [
+    6825,
+    "2021-01-01",
+    false,
+    "LoRA: Low-Rank Adaptation of Large Language Models"
+   ],
+   [
+    60,
+    "2025-01-01",
+    false,
+    "Transfer Learning in Physics‐Informed Neurals Networks: Full Fine‐Tuni"
+   ],
+   [
+    1,
+    "2025-01-01",
+    false,
+    "Low-Rank Adaptation for Scalable Fine-Tuning of Pre-Trained Language M"
+   ],
+   [
+    64,
+    "2023-01-01",
+    false,
+    "One-for-All: Generalized LoRA for Parameter-Efficient Fine-tuning"
+   ],
+   [
+    5,
+    "2025-01-01",
+    false,
+    "LoRA-TCN: A pre-trained/fine-tuning learning paradigm for drift adapta"
+   ]
+  ]
+ },
+ "diffusion model": {
+  "keywords": [
+   "diffusion model",
+   "machine learning",
+   "generative models"
+  ],
+  "papers": [
+   [
+    25,
+    "2023-01-01",
+    true,
+    "Diffusion-Model-Assisted Supervised Learning of Generative Models for "
+   ],
+   [
+    41,
+    "2025-01-01",
+    true,
+    "Score as Action: Fine-Tuning Diffusion Generative Models by Continuous"
+   ],
+   [
+    80,
+    "2023-01-01",
+    true,
+    "Generative quantum machine learning via denoising diffusion probabilis"
+   ],
+   [
+    30,
+    "2024-01-01",
+    true,
+    "Machine Learning Emulation of Precipitation From km‐Scale UK Regional "
+   ],
+   [
+    2,
+    "2026-01-01",
+    true,
+    "Regional Climate Model Emulation with Diffusion Approaches: What is th"
+   ],
+   [
+    59,
+    "2024-01-01",
+    false,
+    "Generative Quantum Machine Learning via Denoising Diffusion Probabilis"
+   ],
+   [
+    0,
+    "2026-01-01",
+    false,
+    "Regional Climate Model Emulation with Diffusion Approaches: What is th"
+   ],
+   [
+    0,
+    "2026-01-01",
+    false,
+    "Diffusion-based Generative Machine Learning Model for Predicting Crack"
+   ],
+   [
+    6,
+    "2026-01-01",
+    false,
+    "Explainable machine learning and generative diffusion modeling for imp"
+   ],
+   [
+    677,
+    "2024-01-01",
+    false,
+    "A Survey on Generative Diffusion Models"
+   ]
+  ]
+ },
+ "mixture of experts": {
+  "keywords": [
+   "mixture of experts",
+   "machine learning",
+   "AI"
+  ],
+  "papers": [
+   [
+    19,
+    "2025-01-01",
+    true,
+    "Mixture of Experts for Decentralized Generative AI and Reinforcement L"
+   ],
+   [
+    7,
+    "2025-01-01",
+    true,
+    "Mixture of Experts Provably Detect and Learn the Latent Cluster Struct"
+   ],
+   [
+    0,
+    "2025-01-01",
+    false,
+    "A hybrid model combining the advantages of mixture of experts and ligh"
+   ],
+   [
+    0,
+    "2026-01-01",
+    false,
+    "Source Attribution of AI-Generated Image via Orthogonal Subspace Mixtu"
+   ],
+   [
+    12,
+    "2025-01-01",
+    true,
+    "Optimizing Robustness and Accuracy in Mixture of Experts: A Dual-Model"
+   ],
+   [
+    1,
+    "2023-06-07",
+    true,
+    "Changing Data Sources in the Age of Machine Learning for Official Stat"
+   ],
+   [
+    5,
+    "2020-06-25",
+    true,
+    "DOME: Recommendations for supervised machine learning validation in bi"
+   ],
+   [
+    109,
+    "2022-01-28",
+    true,
+    "Learning Curves for Decision Making in Supervised Machine Learning: A "
+   ],
+   [
+    8,
+    "2022-05-20",
+    true,
+    "Explanatory machine learning for sequential human teaching"
+   ],
+   [
+    1,
+    "2023-04-05",
+    true,
+    "Physics-Inspired Interpretability Of Machine Learning Models"
+   ]
+  ]
+ },
+ "retrieval augmented generation": {
+  "keywords": [
+   "retrieval augmented generation",
+   "information retrieval",
+   "natural language generation"
+  ],
+  "papers": [
+   [
+    null,
+    "2025-06-08",
+    true,
+    "AR-RAG: Autoregressive Retrieval Augmentation for Image Generation"
+   ],
+   [
+    null,
+    "2025-04-07",
+    true,
+    "Lightweight and Direct Document Relevance Optimization for Generative "
+   ],
+   [
+    null,
+    "2024-11-27",
+    true,
+    "Automated Literature Review Using NLP Techniques and LLM-Based Retriev"
+   ],
+   [
+    null,
+    "2018-11-21",
+    true,
+    "Overcoming low-utility facets for complex answer retrieval"
+   ],
+   [
+    null,
+    "2024-02-19",
+    true,
+    "EVOR: Evolving Retrieval for Code Generation"
+   ],
+   [
+    null,
+    "2025-12-30",
+    true,
+    "RAGPart & RAGMask: Retrieval-Stage Defenses Against Corpus Poisoning i"
+   ],
+   [
+    null,
+    "2025-02-01",
+    true,
+    "Riddle Me This! Stealthy Membership Inference for Retrieval-Augmented "
+   ],
+   [
+    null,
+    "2025-10-25",
+    true,
+    "FAIR-RAG: Faithful Adaptive Iterative Refinement for Retrieval-Augment"
+   ],
+   [
+    null,
+    "2023-09-26",
+    true,
+    "Ragas: Automated Evaluation of Retrieval Augmented Generation"
+   ],
+   [
+    null,
+    "2026-01-17",
+    true,
+    "Utilizing Metadata for Better Retrieval-Augmented Generation"
+   ]
+  ]
+ },
+ "어텐션 메커니즘": {
+  "keywords": [
+   "attention mechanism",
+   "transformer",
+   "neural networks"
+  ],
+  "papers": [
+   [
+    12,
+    "2024-01-01",
+    true,
+    "ARTEMIS: A Mixed Analog-Stochastic In-DRAM Accelerator for Transformer"
+   ],
+   [
+    54,
+    "2023-01-01",
+    false,
+    "A Comprehensive Interturn Fault Severity Diagnosis Method for Permanen"
+   ],
+   [
+    254,
+    "2021-01-01",
+    false,
+    "ELSA: Hardware-Software Co-design for Efficient, Lightweight Self-Atte"
+   ],
+   [
+    114,
+    "2022-01-01",
+    false,
+    "Personalized Graph Neural Networks With Attention Mechanism for Sessio"
+   ],
+   [
+    26,
+    "2023-01-01",
+    false,
+    "Anomaly Detection for Data from Unmanned Systems via Improved Graph Ne"
+   ],
+   [
+    39,
+    "2019-01-20",
+    true,
+    "Hierarchical Attentional Hybrid Neural Networks for Document Classific"
+   ],
+   [
+    14,
+    "2023-06-26",
+    true,
+    "The Deep Arbitrary Polynomial Chaos Neural Network or how Deep Artific"
+   ],
+   [
+    55,
+    "2019-05-15",
+    true,
+    "A Neural Network-Evolutionary Computational Framework for Remaining Us"
+   ],
+   [
+    12,
+    "2023-07-11",
+    true,
+    "Learning Active Subspaces and Discovering Important Features with Gaus"
+   ],
+   [
+    138,
+    "2019-06-24",
+    true,
+    "A Review on Neural Network Models of Schizophrenia and Autism Spectrum"
+   ]
+  ]
+ }
+}

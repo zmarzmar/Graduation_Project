@@ -47,6 +47,8 @@ _SYSTEM_PROMPT = """당신은 AI 논문 분석 시스템의 플래너입니다.
 
 규칙:
 - search_keywords는 arXiv 검색에 최적화된 영어 키워드로 작성
+- search_keywords[0]은 사용자 검색어를 그대로 쓴다. 한국어면 영어로 옮기기만 하고, 단어를 덧붙이거나 더 넓은 주제로 바꾸지 않는다
+  (예: "attention mechanism" → "attention mechanism", "어텐션 메커니즘" → "attention mechanism")
 - trend 모드면 최신 트렌드를 반영한 영어 키워드 포함"""
 
 

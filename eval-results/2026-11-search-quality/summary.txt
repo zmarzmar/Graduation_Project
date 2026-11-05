@@ -1,0 +1,99 @@
+키워드 검색 수정 전후 — 화면 기본 정렬 기준 상위 5편
+
+2026-11-05, 로컬, 검색어당 1회. 수정 전 화면 기본은 최신순(발행일), 수정 후는 인용수. 표기: 발행일 · 인용 수 · arXiv 전문 여부 · 제목. 원자료는 before.json / after.json, 한계는 NOTES.txt
+
+## attention mechanism
+
+[수정 전] 키워드 ['attention mechanism', 'deep learning', 'neural networks'], 10편
+  - 2026-09-05 · 2 · arXiv · Interpretable and Fair Generalized Additive Neural Networks via Multi-
+  - 2023-07-15 · 36 · arXiv · Graph Embedded Intuitionistic Fuzzy Random Vector Functional Link Neur
+  - 2023-07-11 · 12 · arXiv · Learning Active Subspaces and Discovering Important Features with Gaus
+  - 2023-06-26 · 14 · arXiv · The Deep Arbitrary Polynomial Chaos Neural Network or how Deep Artific
+  - 2022-12-13 · 15 · arXiv · Dual Accuracy-Quality-Driven Neural Network for Prediction Interval Ge
+
+[수정 후] 키워드 ['attention mechanism', 'transformer architecture', 'self-attention'], 10편
+  - 2021-01-01 · 3202 · — · A review on the attention mechanism of deep learning
+  - 2021-01-01 · 858 · arXiv · Global Attention Mechanism: Retain Information to Enhance Channel-Spat
+  - 2024-01-01 · 522 · arXiv · CrossFuse: A novel cross attention mechanism based infrared and visibl
+  - 2022-01-01 · 339 · arXiv · Interpretable and Generalizable Graph Learning via Stochastic Attentio
+  - 2024-01-01 · 157 · — · DNNAM: Image inpainting algorithm via deep neural networks and attenti
+
+## LoRA fine-tuning
+
+[수정 전] 키워드 ['LoRA fine-tuning', 'low-rank adaptation', 'transfer learning'], 10편
+  - 2026-01-01 · 1 · — · Fine-grained emotion recognition using RoBERTa with low-rank adaptatio
+  - 2025-01-01 · 67 · arXiv · Transfer Learning in Physics‐Informed Neurals Networks: Full Fine‐Tuni
+  - 2025-01-01 · 1 · — · Efficient Whisper Fine-Tuning with Low-Rank Adaptation (Lora) for Eval
+  - 2025-01-01 · 13 · — · Calibration Transfer of Deep Learning Models among Multiple Raman Spec
+  - 2025-01-01 · 4 · — · Low-Rank Adaptation vs. Fine-Tuning for Handwritten Text Recognition
+
+[수정 후] 키워드 ['LoRA fine-tuning', 'low-rank adaptation', 'transfer learning'], 10편
+  - 2023-01-01 · 267 · arXiv · LoftQ: LoRA-Fine-Tuning-Aware Quantization for Large Language Models
+  - 2025-01-01 · 28 · arXiv · LoRA-Edit: Controllable First-Frame-Guided Video Editing via Mask-Awar
+  - 2025-01-01 · 21 · arXiv · Beyond Zero Initialization: Investigating the Impact of Non-Zero Initi
+  - 2025-01-01 · 21 · arXiv · Dynamic Adaptation of LoRA Fine-Tuning for Efficient and Task-Specific
+  - 2025-01-01 · 15 · — · Enhancing Large Language Models for Specialized Domains: A Two-Stage F
+
+## diffusion model
+
+[수정 전] 키워드 ['diffusion model', 'machine learning', 'generative models'], 10편
+  - 2026-01-01 · 2 · arXiv · Regional Climate Model Emulation with Diffusion Approaches: What is th
+  - 2026-01-01 · 0 · — · Regional Climate Model Emulation with Diffusion Approaches: What is th
+  - 2026-01-01 · 0 · — · Diffusion-based Generative Machine Learning Model for Predicting Crack
+  - 2026-01-01 · 6 · — · Explainable machine learning and generative diffusion modeling for imp
+  - 2025-01-01 · 41 · arXiv · Score as Action: Fine-Tuning Diffusion Generative Models by Continuous
+
+[수정 후] 키워드 ['diffusion model', 'generative model', 'machine learning'], 10편
+  - 2022-01-01 · 1519 · arXiv · Human Motion Diffusion Model
+  - 2022-01-01 · 1136 · arXiv · MotionDiffuse: Text-Driven Human Motion Generation With Diffusion Mode
+  - 2023-01-01 · 977 · arXiv · Diffusion Model Alignment Using Direct Preference Optimization
+  - 2023-01-01 · 682 · arXiv · ResShift: Efficient Diffusion Model for Image Super-resolution by Resi
+  - 2024-01-01 · 470 · arXiv · DiffusionDrive: Truncated Diffusion Model for End-to-End Autonomous Dr
+
+## mixture of experts
+
+[수정 전] 키워드 ['mixture of experts', 'machine learning', 'AI'], 10편
+  - 2026-01-01 · 0 · — · Source Attribution of AI-Generated Image via Orthogonal Subspace Mixtu
+  - 2025-01-01 · 19 · arXiv · Mixture of Experts for Decentralized Generative AI and Reinforcement L
+  - 2025-01-01 · 7 · arXiv · Mixture of Experts Provably Detect and Learn the Latent Cluster Struct
+  - 2025-01-01 · 0 · — · A hybrid model combining the advantages of mixture of experts and ligh
+  - 2025-01-01 · 12 · arXiv · Optimizing Robustness and Accuracy in Mixture of Experts: A Dual-Model
+
+[수정 후] 키워드 ['mixture of experts', 'expert models', 'model ensembling'], 10편
+  - 2017-01-01 · 6198 · arXiv · Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Expe
+  - 2018-01-01 · 1852 · — · Modeling Task Relationships in Multi-task Learning with Multi-gate Mix
+  - 2024-01-01 · 1595 · arXiv · DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts La
+  - 2021-01-01 · 1380 · arXiv · GLaM: Efficient Scaling of Language Models with Mixture-of-Experts
+  - 2024-01-01 · 1284 · arXiv · DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Expe
+
+## retrieval augmented generation
+
+[수정 전] 키워드 ['retrieval augmented generation', 'information retrieval', 'natural language generation'], 10편
+  - 2026-01-17 · None · arXiv · Utilizing Metadata for Better Retrieval-Augmented Generation
+  - 2025-12-30 · None · arXiv · RAGPart & RAGMask: Retrieval-Stage Defenses Against Corpus Poisoning i
+  - 2025-10-25 · None · arXiv · FAIR-RAG: Faithful Adaptive Iterative Refinement for Retrieval-Augment
+  - 2025-06-08 · None · arXiv · AR-RAG: Autoregressive Retrieval Augmentation for Image Generation
+  - 2025-04-07 · None · arXiv · Lightweight and Direct Document Relevance Optimization for Generative 
+
+[수정 후] 키워드 ['retrieval augmented generation', 'information retrieval', 'natural language generation'], 10편
+  - 2020-01-01 · 20637 · arXiv · Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+  - 2023-01-01 · 4438 · arXiv · Retrieval-Augmented Generation for Large Language Models: A Survey
+  - 2023-01-01 · 1316 · arXiv · RAGAs: Automated Evaluation of Retrieval Augmented Generation
+  - 2023-01-01 · 961 · arXiv · Active Retrieval Augmented Generation
+  - 2024-01-01 · 697 · arXiv · Benchmarking Retrieval-Augmented Generation for Medicine
+
+## 어텐션 메커니즘
+
+[수정 전] 키워드 ['attention mechanism', 'transformer', 'neural networks'], 10편
+  - 2024-01-01 · 12 · arXiv · ARTEMIS: A Mixed Analog-Stochastic In-DRAM Accelerator for Transformer
+  - 2023-07-11 · 12 · arXiv · Learning Active Subspaces and Discovering Important Features with Gaus
+  - 2023-06-26 · 14 · arXiv · The Deep Arbitrary Polynomial Chaos Neural Network or how Deep Artific
+  - 2023-01-01 · 54 · — · A Comprehensive Interturn Fault Severity Diagnosis Method for Permanen
+  - 2023-01-01 · 26 · — · Anomaly Detection for Data from Unmanned Systems via Improved Graph Ne
+
+[수정 후] 키워드 ['어텐션 메커니즘', 'attention mechanism', 'transformer'], 10편
+  - 2021-01-01 · 3202 · — · A review on the attention mechanism of deep learning
+  - 2021-01-01 · 858 · arXiv · Global Attention Mechanism: Retain Information to Enhance Channel-Spat
+  - 2024-01-01 · 522 · arXiv · CrossFuse: A novel cross attention mechanism based infrared and visibl
+  - 2022-01-01 · 339 · arXiv · Interpretable and Generalizable Graph Learning via Stochastic Attentio
+  - 2024-01-01 · 157 · — · DNNAM: Image inpainting algorithm via deep neural networks and attenti

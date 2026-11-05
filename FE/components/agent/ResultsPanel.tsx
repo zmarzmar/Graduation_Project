@@ -187,7 +187,8 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
   const [tabOverride, setTabOverride] = useState<TabId | null>(null)
   const activeTab: TabId = tabOverride ?? (hasAnalysis ? 'analysis' : 'papers')
   type SortKey = 'newest' | 'oldest' | 'citations'
-  const [sortKey, setSortKey] = useState<SortKey>('newest')
+  // 키워드 검색은 유명한 논문이 먼저 보이게 인용수 순, 트렌드는 최신순
+  const [sortKey, setSortKey] = useState<SortKey>(isTrend ? 'newest' : 'citations')
 
   // 수집 논문 탭에 표시할 논문 목록 — 분석 후에도 검색 결과 유지
   const basePapers = searchedPapers && searchedPapers.length > 0 ? searchedPapers : result.papers
