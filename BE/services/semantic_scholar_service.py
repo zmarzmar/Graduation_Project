@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -25,6 +27,33 @@ def _build_headers() -> dict[str, str]:
     if settings.semantic_scholar_api_key:
         headers["x-api-key"] = settings.semantic_scholar_api_key
     return headers
+
+
+# S2 키 한도: 모든 엔드포인트 합산 초당 1회 (2026-11 발급 메일). 워커가 하나라 프로세스 안의 잠금으로 충분하다.
+# shortcut: 프로세스 단위 간격이라 blue/green이 겹치는 배포 중에는 두 컨테이너가 따로 센다 — 워커를 늘리면 공용 제한으로 바꿀 것
+_MIN_INTERVAL_SECONDS = 1.1
+_RETRY_DELAYS_SECONDS = (1.0, 2.0)  # 429면 간격을 늘려 재시도
+_request_lock = asyncio.Lock()
+_last_request_at = 0.0
+
+
+async def _send(client: httpx.AsyncClient, method: str, url: str, **kwargs) -> httpx.Response:
+    """S2 요청을 직전 요청과 최소 간격을 두고 보내고, 429면 지수적으로 늘린 간격으로 재시도한다."""
+    global _last_request_at
+    for retry_delay in (*_RETRY_DELAYS_SECONDS, None):
+        async with _request_lock:
+            wait = _last_request_at + _MIN_INTERVAL_SECONDS - time.monotonic()
+            if wait > 0:
+                await asyncio.sleep(wait)
+            try:
+                response = await client.request(method, url, **kwargs)
+            finally:
+                _last_request_at = time.monotonic()
+        if response.status_code != 429 or retry_delay is None:
+            return response
+        logger.warning(f"[S2] HTTP 429 — {retry_delay:.0f}초 뒤 재시도")
+        await asyncio.sleep(retry_delay)
+    raise AssertionError("unreachable")
 
 
 def _s2_item_to_dict(item: dict) -> dict:
@@ -60,8 +89,7 @@ async def search_papers(
 ) -> list[dict]:
     """Semantic Scholar 검색 API로 논문을 검색한다.
 
-    arXiv보다 훨씬 관대한 rate limit. API 키 없이도 동작하며,
-    키가 있으면 초당 100 요청으로 상향된다.
+    키 한도는 초당 1회(모든 엔드포인트 합산) — `_send`가 간격과 429 재시도를 맡는다.
     실패 시 빈 리스트를 반환해 arXiv fallback이 동작하도록 한다.
 
     Args:
@@ -77,7 +105,9 @@ async def search_papers(
         params["publicationDateOrYear"] = f"{date_from}:"
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.get(
+            response = await _send(
+                client,
+                "GET",
                 _S2_SEARCH_URL,
                 params=params,
                 headers=_build_headers(),
@@ -117,7 +147,9 @@ async def enrich_papers(arxiv_ids: list[str]) -> dict[str, S2Data]:
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
-            response = await client.post(
+            response = await _send(
+                client,
+                "POST",
                 _S2_BATCH_URL,
                 params={"fields": _S2_BATCH_FIELDS},
                 json={"ids": ids_payload},
