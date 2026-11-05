@@ -82,11 +82,18 @@ def _oa_item_to_dict(item: dict) -> dict:
     }
 
 
+def _build_headers() -> dict[str, str]:
+    """키는 쿼리가 아니라 헤더로 보낸다 — httpx가 요청 URL을 로그에 남기므로 쿼리에 두면 키가 로그에 찍힌다."""
+    headers = {"User-Agent": "arxiv-analyst/0.1 (graduation-project; contact@example.com)"}
+    if key := settings.openalex_api_key.strip():
+        headers["Authorization"] = f"Bearer {key}"
+    return headers
+
+
 async def search_papers(query: str, max_results: int = 5) -> list[dict]:
     """OpenAlex Works 검색 API로 논문을 검색한다.
 
-    완전 무료, API 키 불필요. 이메일을 mailto 파라미터로 넘기면
-    polite pool(100 req/sec)로 자동 전환된다.
+    무료 키(`openalex_api_key`)가 있으면 하루 한도가 10배다. 키 없는 검색은 부하가 높을 때 429로 막힌다.
     실패 시 빈 리스트를 반환해 다음 fallback이 동작하도록 한다.
     """
     params = _build_params(query, max_results)
@@ -95,7 +102,7 @@ async def search_papers(query: str, max_results: int = 5) -> list[dict]:
             response = await client.get(
                 _OA_WORKS_URL,
                 params=params,
-                headers={"User-Agent": "arxiv-analyst/0.1 (graduation-project; contact@example.com)"},
+                headers=_build_headers(),
             )
             response.raise_for_status()
         items = response.json().get("results", [])
@@ -106,5 +113,6 @@ async def search_papers(query: str, max_results: int = 5) -> list[dict]:
         logger.warning(f"[OpenAlex] HTTP {e.response.status_code} — 다음 소스로 fallback")
         return []
     except Exception as e:
-        logger.warning(f"[OpenAlex] 실패: {e} — 다음 소스로 fallback")
+        # 예외 문구에 요청 헤더(키)가 들어갈 수 있어 종류만 남긴다
+        logger.warning(f"[OpenAlex] 실패: {type(e).__name__} — 다음 소스로 fallback")
         return []

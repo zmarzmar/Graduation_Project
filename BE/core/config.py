@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     # OpenAlex (선택) — 이메일 등록 시 polite pool(100 req/sec) 적용
     openalex_email: str = ""
+    openalex_api_key: str = ""  # 무료 키 — 키 없는 검색은 부하가 높을 때 429로 막힌다 (2026-11 관측)
 
     # 데이터베이스 — postgresql+asyncpg:// 형식 사용
     database_url: str = _LOCAL_DB_URL
