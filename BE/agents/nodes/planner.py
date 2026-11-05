@@ -88,7 +88,7 @@ async def planner_node(state: AgentState) -> dict:
             plan = _extract_json(response.content) or _fallback_plan
 
     keywords = plan.get('search_keywords', [])
-    emit_log("planner", f"키워드 후보: {', '.join(keywords)}")
+    # 화면에는 실제 검색어 하나만 보인다 (Researcher가 표시). 후보 키워드는 서버 로그에만 남긴다
     logger.info(f"[Planner] 완료 — 키워드: {keywords}")
 
     return {

@@ -131,6 +131,89 @@ class SearchQueryAndOrderTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([p["citation_count"] for p in result["papers"]], [267])
 
 
+class TrendQueryTest(unittest.IsolatedAsyncioTestCase):
+    async def test_trend_uses_first_keyword_for_search_and_hf_matching(self) -> None:
+        # 2026-11-05 관측: Planner가 덧붙인 "Generative Adversarial Networks video"가 GAN 논문을 끌고 왔다
+        state = {
+            "mode": "trend",
+            "plan": json.dumps({"search_keywords": ["video generation", "deep learning video generation", "Generative Adversarial Networks video"]}),
+            "user_query": "video generation",
+        }
+        hf = [
+            {"title": "Streaming Video Generation at Speed", "abstract": "fast video generation", "published_at": "2026-11-01T00:00:00", "upvotes": 5},
+            {"title": "Generative Adversarial Networks for Tabular Data", "abstract": "gan networks", "published_at": "2026-11-01T00:00:00", "upvotes": 50},
+        ]
+        s2 = AsyncMock(return_value=[])
+        arxiv = AsyncMock(return_value=[])
+        with (
+            patch.object(researcher, "_fetch_hf_trending", AsyncMock(return_value=hf)),
+            patch.object(researcher.semantic_scholar_service, "search_papers", s2),
+            patch.object(researcher.arxiv_service, "search_papers", arxiv),
+        ):
+            result = await researcher.researcher_node(state)
+
+        self.assertEqual(s2.await_args.args[0], "video generation")
+        self.assertEqual(arxiv.await_args.args[0], "video generation")
+        self.assertEqual([p["title"] for p in result["papers"]], ["Streaming Video Generation at Speed"])
+
+
+    async def test_trend_short_acronym_query_still_matches_hf(self) -> None:
+        # "RL"은 관련도 계산이 버리는 두 글자 — Planner 키워드로 대신 매칭해 HF 논문을 다 잃지 않는다
+        state = {
+            "mode": "trend",
+            "plan": json.dumps({"search_keywords": ["RL", "reinforcement learning", "policy optimization"]}),
+            "user_query": "RL",
+        }
+        hf = [{"title": "Scaling Reinforcement Learning for Reasoning", "abstract": "rl", "published_at": "2026-11-01T00:00:00", "upvotes": 5}]
+        s2 = AsyncMock(return_value=[])
+        with (
+            patch.object(researcher, "_fetch_hf_trending", AsyncMock(return_value=hf)),
+            patch.object(researcher.semantic_scholar_service, "search_papers", s2),
+            patch.object(researcher.arxiv_service, "search_papers", AsyncMock(return_value=[])),
+        ):
+            result = await researcher.researcher_node(state)
+
+        self.assertEqual(s2.await_args.args[0], "RL")
+        self.assertEqual([p["title"] for p in result["papers"]], ["Scaling Reinforcement Learning for Reasoning"])
+
+
+    async def test_trend_ranks_s2_by_query_not_planner_extras(self) -> None:
+        # S2 결과의 관련도도 검색어 기준 — Planner가 덧붙인 말에만 맞는 논문이 위로 오지 않는다
+        state = {
+            "mode": "trend",
+            "plan": json.dumps({"search_keywords": ["video generation", "Generative Adversarial Networks video"]}),
+            "user_query": "video generation",
+        }
+        s2 = [
+            {"title": "Generative Adversarial Networks for Video Deepfake Detection", "abstract": "generative adversarial networks video", "published_at": "2026-10-01T00:00:00"},
+            {"title": "Long Video Generation with Causal Forcing", "abstract": "video generation", "published_at": "2026-10-01T00:00:00"},
+        ]
+        with (
+            patch.object(researcher, "_fetch_hf_trending", AsyncMock(return_value=[])),
+            patch.object(researcher.semantic_scholar_service, "search_papers", AsyncMock(return_value=s2)),
+            patch.object(researcher.arxiv_service, "search_papers", AsyncMock(return_value=[])),
+        ):
+            result = await researcher.researcher_node(state)
+
+        self.assertEqual(result["papers"][0]["title"], "Long Video Generation with Causal Forcing")
+
+
+class PlannerLogTest(unittest.IsolatedAsyncioTestCase):
+    async def test_planner_does_not_show_keyword_candidates(self) -> None:
+        # 화면에는 Researcher의 검색어 한 줄만 — Planner의 후보 키워드 목록은 보이지 않는다
+        from agents.nodes import planner
+
+        logs: list[str] = []
+        reply = type("R", (), {"content": json.dumps({"summary": "s", "search_keywords": ["video generation", "deep learning video", "GAN video"]})})()
+        with (
+            patch.object(planner, "_llm", type("L", (), {"ainvoke": AsyncMock(return_value=reply)})()),
+            patch.object(planner, "emit_log", lambda node, msg: logs.append(msg)),
+        ):
+            await planner.planner_node({"mode": "trend", "user_query": "video generation"})
+
+        self.assertFalse([m for m in logs if "GAN video" in m or "deep learning video" in m], logs)
+
+
 class S2RateLimitTest(unittest.IsolatedAsyncioTestCase):
     async def test_send_retries_429_and_keeps_interval(self) -> None:
         statuses = iter([429, 429, 200])
