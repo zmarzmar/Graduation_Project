@@ -1,0 +1,416 @@
+{
+ "attention mechanism": {
+  "keywords": [
+   "attention mechanism",
+   "transformer architecture",
+   "self-attention"
+  ],
+  "papers": [
+   [
+    3202,
+    "2021-01-01",
+    false,
+    "A review on the attention mechanism of deep learning"
+   ],
+   [
+    858,
+    "2021-01-01",
+    true,
+    "Global Attention Mechanism: Retain Information to Enhance Channel-Spat"
+   ],
+   [
+    522,
+    "2024-01-01",
+    true,
+    "CrossFuse: A novel cross attention mechanism based infrared and visibl"
+   ],
+   [
+    339,
+    "2022-01-01",
+    true,
+    "Interpretable and Generalizable Graph Learning via Stochastic Attentio"
+   ],
+   [
+    157,
+    "2024-01-01",
+    false,
+    "DNNAM: Image inpainting algorithm via deep neural networks and attenti"
+   ],
+   [
+    151,
+    "2025-01-01",
+    true,
+    "FlexPrefill: A Context-Aware Sparse Attention Mechanism for Efficient "
+   ],
+   [
+    135,
+    "2024-01-01",
+    false,
+    "Image semantic segmentation approach based on DeepLabV3 plus network w"
+   ],
+   [
+    133,
+    "2024-01-01",
+    false,
+    "End-to-end multi-scale residual network with parallel attention mechan"
+   ],
+   [
+    111,
+    "2024-01-01",
+    false,
+    "TCN-attention-HAR: human activity recognition based on attention mecha"
+   ],
+   [
+    62,
+    "2025-01-01",
+    false,
+    "Power Grid Load Forecasting Using a CNN-LSTM Network Based on a Multi-"
+   ]
+  ]
+ },
+ "LoRA fine-tuning": {
+  "keywords": [
+   "LoRA fine-tuning",
+   "low-rank adaptation",
+   "transfer learning"
+  ],
+  "papers": [
+   [
+    267,
+    "2023-01-01",
+    true,
+    "LoftQ: LoRA-Fine-Tuning-Aware Quantization for Large Language Models"
+   ],
+   [
+    28,
+    "2025-01-01",
+    true,
+    "LoRA-Edit: Controllable First-Frame-Guided Video Editing via Mask-Awar"
+   ],
+   [
+    21,
+    "2025-01-01",
+    true,
+    "Beyond Zero Initialization: Investigating the Impact of Non-Zero Initi"
+   ],
+   [
+    21,
+    "2025-01-01",
+    true,
+    "Dynamic Adaptation of LoRA Fine-Tuning for Efficient and Task-Specific"
+   ],
+   [
+    15,
+    "2025-01-01",
+    false,
+    "Enhancing Large Language Models for Specialized Domains: A Two-Stage F"
+   ],
+   [
+    15,
+    "2025-01-01",
+    false,
+    "Intelligent Recommendation Systems Using Multi-Scale LoRA Fine-Tuning "
+   ],
+   [
+    14,
+    "2025-01-01",
+    false,
+    "Enhancing privacy-preserving deployable large language models for peri"
+   ],
+   [
+    14,
+    "2025-01-01",
+    true,
+    "Fed-SB: A Silver Bullet for Extreme Communication Efficiency and Perfo"
+   ],
+   [
+    13,
+    "2025-01-01",
+    true,
+    "LUNE: Efficient LLM Unlearning via LoRA Fine-Tuning with Negative Exam"
+   ],
+   [
+    12,
+    "2025-01-01",
+    true,
+    "LowRA: Accurate and Efficient LoRA Fine-Tuning of LLMs under 2 Bits"
+   ]
+  ]
+ },
+ "diffusion model": {
+  "keywords": [
+   "diffusion model",
+   "generative model",
+   "machine learning"
+  ],
+  "papers": [
+   [
+    1519,
+    "2022-01-01",
+    true,
+    "Human Motion Diffusion Model"
+   ],
+   [
+    1136,
+    "2022-01-01",
+    true,
+    "MotionDiffuse: Text-Driven Human Motion Generation With Diffusion Mode"
+   ],
+   [
+    977,
+    "2023-01-01",
+    true,
+    "Diffusion Model Alignment Using Direct Preference Optimization"
+   ],
+   [
+    682,
+    "2023-01-01",
+    true,
+    "ResShift: Efficient Diffusion Model for Image Super-resolution by Resi"
+   ],
+   [
+    470,
+    "2024-01-01",
+    true,
+    "DiffusionDrive: Truncated Diffusion Model for End-to-End Autonomous Dr"
+   ],
+   [
+    437,
+    "2023-01-01",
+    true,
+    "MagicAnimate: Temporally Consistent Human Image Animation using Diffus"
+   ],
+   [
+    393,
+    "2023-01-01",
+    true,
+    "SE(3) diffusion model with application to protein backbone generation"
+   ],
+   [
+    389,
+    "2023-01-01",
+    true,
+    "FreeDoM: Training-Free Energy-Guided Conditional Diffusion Model"
+   ],
+   [
+    373,
+    "2024-01-01",
+    true,
+    "Guiding a Diffusion Model with a Bad Version of Itself"
+   ],
+   [
+    99,
+    "2025-01-01",
+    true,
+    "Latent Diffusion Model without Variational Autoencoder"
+   ]
+  ]
+ },
+ "mixture of experts": {
+  "keywords": [
+   "mixture of experts",
+   "expert models",
+   "model ensembling"
+  ],
+  "papers": [
+   [
+    6198,
+    "2017-01-01",
+    true,
+    "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Expe"
+   ],
+   [
+    1852,
+    "2018-01-01",
+    false,
+    "Modeling Task Relationships in Multi-task Learning with Multi-gate Mix"
+   ],
+   [
+    1595,
+    "2024-01-01",
+    true,
+    "DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts La"
+   ],
+   [
+    1380,
+    "2021-01-01",
+    true,
+    "GLaM: Efficient Scaling of Language Models with Mixture-of-Experts"
+   ],
+   [
+    1284,
+    "2024-01-01",
+    true,
+    "DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Expe"
+   ],
+   [
+    1276,
+    "2021-01-01",
+    true,
+    "Scaling Vision with Sparse Mixture of Experts"
+   ],
+   [
+    735,
+    "2024-01-01",
+    true,
+    "DeepSeek-VL2: Mixture-of-Experts Vision-Language Models for Advanced M"
+   ],
+   [
+    441,
+    "2024-01-01",
+    true,
+    "Time-MoE: Billion-Scale Time Series Foundation Models with Mixture of "
+   ],
+   [
+    387,
+    "2024-01-01",
+    true,
+    "OLMoE: Open Mixture-of-Experts Language Models"
+   ],
+   [
+    325,
+    "2024-01-01",
+    true,
+    "Boosting Continual Learning of Vision-Language Models via Mixture-of-E"
+   ]
+  ]
+ },
+ "retrieval augmented generation": {
+  "keywords": [
+   "retrieval augmented generation",
+   "information retrieval",
+   "natural language generation"
+  ],
+  "papers": [
+   [
+    20637,
+    "2020-01-01",
+    true,
+    "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks"
+   ],
+   [
+    4438,
+    "2023-01-01",
+    true,
+    "Retrieval-Augmented Generation for Large Language Models: A Survey"
+   ],
+   [
+    1316,
+    "2023-01-01",
+    true,
+    "RAGAs: Automated Evaluation of Retrieval Augmented Generation"
+   ],
+   [
+    961,
+    "2023-01-01",
+    true,
+    "Active Retrieval Augmented Generation"
+   ],
+   [
+    697,
+    "2024-01-01",
+    true,
+    "Benchmarking Retrieval-Augmented Generation for Medicine"
+   ],
+   [
+    584,
+    "2024-01-01",
+    true,
+    "LightRAG: Simple and Fast Retrieval-Augmented Generation"
+   ],
+   [
+    546,
+    "2024-01-01",
+    false,
+    "Benchmarking Large Language Models in Retrieval-Augmented Generation"
+   ],
+   [
+    473,
+    "2025-01-01",
+    true,
+    "Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG"
+   ],
+   [
+    422,
+    "2025-01-01",
+    false,
+    "Graph Retrieval-Augmented Generation: A Survey"
+   ],
+   [
+    420,
+    "2024-01-01",
+    true,
+    "G-Retriever: Retrieval-Augmented Generation for Textual Graph Understa"
+   ]
+  ]
+ },
+ "어텐션 메커니즘": {
+  "keywords": [
+   "어텐션 메커니즘",
+   "attention mechanism",
+   "transformer"
+  ],
+  "papers": [
+   [
+    3202,
+    "2021-01-01",
+    false,
+    "A review on the attention mechanism of deep learning"
+   ],
+   [
+    858,
+    "2021-01-01",
+    true,
+    "Global Attention Mechanism: Retain Information to Enhance Channel-Spat"
+   ],
+   [
+    522,
+    "2024-01-01",
+    true,
+    "CrossFuse: A novel cross attention mechanism based infrared and visibl"
+   ],
+   [
+    339,
+    "2022-01-01",
+    true,
+    "Interpretable and Generalizable Graph Learning via Stochastic Attentio"
+   ],
+   [
+    157,
+    "2024-01-01",
+    false,
+    "DNNAM: Image inpainting algorithm via deep neural networks and attenti"
+   ],
+   [
+    151,
+    "2025-01-01",
+    true,
+    "FlexPrefill: A Context-Aware Sparse Attention Mechanism for Efficient "
+   ],
+   [
+    135,
+    "2024-01-01",
+    false,
+    "Image semantic segmentation approach based on DeepLabV3 plus network w"
+   ],
+   [
+    133,
+    "2024-01-01",
+    false,
+    "End-to-end multi-scale residual network with parallel attention mechan"
+   ],
+   [
+    111,
+    "2024-01-01",
+    false,
+    "TCN-attention-HAR: human activity recognition based on attention mecha"
+   ],
+   [
+    62,
+    "2025-01-01",
+    false,
+    "Power Grid Load Forecasting Using a CNN-LSTM Network Based on a Multi-"
+   ]
+  ]
+ }
+}

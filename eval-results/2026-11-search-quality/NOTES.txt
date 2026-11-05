@@ -1,0 +1,18 @@
+키워드 검색 품질 수정 전후 비교 (2026-11-05, 로컬)
+
+- before.json: main(ee0e3af) — Planner 키워드 3개를 이어 붙여 검색, S2·OpenAlex 각 5편
+- after.json: feature/search-quality 최종 코드 — 한글 없는 첫 키워드 하나로 검색, 각 10편, 인용 수 순, 소스 간 중복 제거
+- summary.txt: 화면 기본 정렬(수정 전 최신순, 수정 후 인용수)을 적용한 상위 5편
+- 두 실행 모두 같은 새 S2 키. 검색어 6개 (마지막은 한국어)
+- 실행: BE 폴더에서 `PYTHONPATH=. uv run python <경로>/search_eval.py <출력.json>` (.env 필요, 실제 API 사용)
+- 각 논문: [인용 수, 연도, arXiv ID 유무, 제목]
+
+중간 실행에서 본 것 (최종 결과 아님)
+- after 1차: LoRA에 LoftQ가 두 번 (S2는 arXiv ID 있음, OpenAlex는 없음) → 소스 간 중복 제거 수정
+- after 2차: Planner가 "어텐션 메커니즘"을 옮기지 않고 첫 키워드로 둬 0편 → 한글 없는 첫 키워드를 쓰도록 수정
+- 같은 코드라도 실행마다 상위가 달라진다: mixture of experts는 1차에 Sparsely-Gated MoE(인용 6198)가 1위였고 최종 실행에서는 서베이 논문이 1위였다
+
+한계
+- 검색어 6개 × 1회. 외부 API(S2 429, OpenAlex 요청 한도)와 Planner 출력에 따라 결과가 달라진다
+- "attention mechanism"으로 Attention Is All You Need, "LoRA fine-tuning"으로 LoRA 원 논문은 수정 후에도 나오지 않았다 (후보에 없음)
+- 수정 전 실행도 새 S2 키를 썼다 — 운영의 수정 전 상태(S2 403)보다 좋은 조건이다
