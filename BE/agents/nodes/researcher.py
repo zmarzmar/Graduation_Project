@@ -191,6 +191,20 @@ async def _fetch_hf_trending(limit: int = 5) -> list[dict]:
     return papers
 
 
+async def _enrich_or_empty(arxiv_ids: list[str]) -> dict:
+    """S2 인용 수 보완. 선택 기능이라 실패해도 수집한 arXiv 논문은 버리지 않는다."""
+    try:
+        async with log_elapsed(logger, "external_call", node="researcher", external="semantic_scholar_enrich"):
+            enrichments = await semantic_scholar_service.enrich_papers(arxiv_ids)
+    except Exception as e:
+        logger.warning(f"[Researcher] 인용 수 보완 실패 (무시): {e}")
+        emit_log("researcher", "인용 수 보완 실패 — 인용 수 없이 계속 진행")
+        return {}
+    logger.info(f"[Researcher] S2 보완 완료 — {len(enrichments)}/{len(arxiv_ids)}편 매칭")
+    emit_log("researcher", f"인용 수 보완 완료 ({len(enrichments)}편 매칭)")
+    return enrichments
+
+
 async def researcher_node(state: AgentState) -> dict:
     """plan을 바탕으로 논문을 수집하고 papers를 state에 저장한다."""
     mode = state["mode"]
@@ -252,15 +266,12 @@ async def researcher_node(state: AgentState) -> dict:
                 if arxiv_papers:
                     emit_log("researcher", "arXiv 논문 인용 수 보완 중...")
                     arxiv_ids = [p["arxiv_id"] for p in arxiv_papers if p.get("arxiv_id")]
-                    async with log_elapsed(logger, "external_call", node="researcher", external="semantic_scholar_enrich"):
-                        enrichments = await semantic_scholar_service.enrich_papers(arxiv_ids)
+                    enrichments = await _enrich_or_empty(arxiv_ids)
                     for paper in arxiv_papers:
                         aid = (paper.get("arxiv_id") or "").split("v")[0]
                         if s2 := enrichments.get(aid):
                             paper["citation_count"] = s2.citation_count
                             paper["tldr"] = s2.tldr
-                    logger.info(f"[Researcher] S2 보완 완료 — {len(enrichments)}/{len(arxiv_ids)}편 매칭")
-                    emit_log("researcher", f"인용 수 보완 완료 ({len(enrichments)}편 매칭)")
             except Exception as e:
                 logger.warning(f"[Researcher] arXiv 수집 실패 (무시): {e}")
                 emit_log("researcher", "arXiv 수집 실패 — 계속 진행")
@@ -345,9 +356,7 @@ async def researcher_node(state: AgentState) -> dict:
 
                     # arXiv 논문에 S2 인용 정보 보완
                     arxiv_ids = [p.arxiv_id for p in arxiv_results]
-                    async with log_elapsed(logger, "external_call", node="researcher", external="semantic_scholar_enrich"):
-                        enrichments = await semantic_scholar_service.enrich_papers(arxiv_ids)
-                    logger.info(f"[Researcher] S2 보완 완료 — {len(enrichments)}/{len(arxiv_ids)}편 매칭")
+                    enrichments = await _enrich_or_empty(arxiv_ids)
 
                     for paper in arxiv_results:
                         aid = paper.arxiv_id.split("v")[0]
