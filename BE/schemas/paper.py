@@ -24,3 +24,17 @@ class SearchResponse(BaseModel):
     query: str
     total: int
     papers: list[PaperResult]
+
+
+class TrendTopicsBasis(BaseModel):
+    label: str
+    source: str
+    observed_from: str
+    observed_to: str
+    updated_at: str
+    paper_count: int
+
+
+class DailyKeywordsResponse(BaseModel):
+    keywords: list[str]
+    basis: TrendTopicsBasis | None  # None이면 근거 없는 일반 검색 예시
