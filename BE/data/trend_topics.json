@@ -1,0 +1,107 @@
+{
+  "label": "최근 논문에서 고른 추천 주제",
+  "source": "Hugging Face Daily Papers",
+  "observed_from": "2026-10-08",
+  "observed_to": "2026-11-04",
+  "updated_at": "2026-11-05",
+  "paper_count": 1159,
+  "selection": "수집한 논문 안에서 Claude·Codex가 후보를 제안하고 사용자가 확정했다. 인기 순위가 아니다. 근거 자료: eval-results/2026-11-trend-topics/",
+  "topics": [
+    {
+      "keyword": "LLM reinforcement learning",
+      "reason": "LLM 추론을 강화학습으로 끌어올리는 연구 — 성능이 어디서 오는지, 탐색을 어떻게 개선할지",
+      "evidence": [
+        {
+          "id": "2610.14270",
+          "title": "The Thinking Leakage in Reinforcement Learning for LLMs",
+          "url": "https://huggingface.co/papers/2610.14270"
+        },
+        {
+          "id": "2610.16105",
+          "title": "Beyond Policy Rollouts: Embedding-Space Directional Exploration with Anchored Noise for LLM RLVR",
+          "url": "https://huggingface.co/papers/2610.16105"
+        }
+      ]
+    },
+    {
+      "keyword": "coding agents",
+      "reason": "장기 코딩 작업을 위한 학습 데이터와 실제 저장소 기반 평가",
+      "evidence": [
+        {
+          "id": "2610.13166",
+          "title": "Scaling Agentic Data for Long-Horizon Terminal Intelligence",
+          "url": "https://huggingface.co/papers/2610.13166"
+        },
+        {
+          "id": "2610.12569",
+          "title": "SWE-Duel: Towards a Self-Scaling Arena for Coding Agents",
+          "url": "https://huggingface.co/papers/2610.12569"
+        }
+      ]
+    },
+    {
+      "keyword": "on-policy distillation",
+      "reason": "학생 모델이 만든 답에 교사가 신호를 주는 학습의 안정성과 붕괴 문제",
+      "evidence": [
+        {
+          "id": "2610.03185",
+          "title": "Gains and Collapse in On-Policy Distillation:A Reinforcement Learning Perspective",
+          "url": "https://huggingface.co/papers/2610.03185"
+        },
+        {
+          "id": "2610.13521",
+          "title": "Beyond Domain-Routed Supervision: Cross-Teacher Guarding for Multi-Teacher On-Policy Distillation",
+          "url": "https://huggingface.co/papers/2610.13521"
+        }
+      ]
+    },
+    {
+      "keyword": "vision-language-action",
+      "reason": "시각·언어 입력으로 로봇 행동을 만드는 모델, 미래 동역학 활용",
+      "evidence": [
+        {
+          "id": "2610.37381",
+          "title": "PDRVLA: A Vision-Language-Action Model with Physical Dynamics Representations",
+          "url": "https://huggingface.co/papers/2610.37381"
+        },
+        {
+          "id": "2610.40373",
+          "title": "HiFOR: Hierarchical Foresight with Action-Guided World Grounding for Vision-Language-Action Model",
+          "url": "https://huggingface.co/papers/2610.40373"
+        }
+      ]
+    },
+    {
+      "keyword": "world models",
+      "reason": "행동 뒤의 미래 상태를 예측해 계획·시뮬레이션에 쓰는 모델",
+      "evidence": [
+        {
+          "id": "2610.10515",
+          "title": "RoboJEPA: Scaling Robotic Latent World Models",
+          "url": "https://huggingface.co/papers/2610.10515"
+        },
+        {
+          "id": "2610.12468",
+          "title": "DreamTrue: Action-Faithful Robot World Model with Counterfactual Post-Training",
+          "url": "https://huggingface.co/papers/2610.12468"
+        }
+      ]
+    },
+    {
+      "keyword": "video generation",
+      "reason": "영상 생성의 압축·처리 속도·실시간 출력",
+      "evidence": [
+        {
+          "id": "2610.10524",
+          "title": "GRACE: Generation-aware latent compression for efficient video generation",
+          "url": "https://huggingface.co/papers/2610.10524"
+        },
+        {
+          "id": "2611.00859",
+          "title": "Wave Forcing: Towards Speed-of-Light Streaming Video Generation",
+          "url": "https://huggingface.co/papers/2611.00859"
+        }
+      ]
+    }
+  ]
+}

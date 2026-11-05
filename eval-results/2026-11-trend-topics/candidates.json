@@ -1,0 +1,340 @@
+{
+ "total_papers": 1159,
+ "topics": {
+  "RL for LLM reasoning (RLVR · GRPO)": {
+   "pattern": "\\bgrpo\\b|group relative policy optimi|verifiable reward|\\brlvr\\b|reinforcement learning[^.]{0,60}(reasoning|llm|language model)",
+   "matched": 90,
+   "title_matched": 10,
+   "examples": [
+    {
+     "id": "2610.14448",
+     "title": "KV4-RL: Unlocking Faster Asynchronous Rollouts for RLVR with INT4 KV Cache Quantization",
+     "upvotes": 34,
+     "date": "2026-10-15"
+    },
+    {
+     "id": "2610.16811",
+     "title": "X-Ragent: Tool-Augmented Reinforcement Learning for Evidence-Grounded Chest X-Ray Reasoning",
+     "upvotes": 27,
+     "date": "2026-10-14"
+    },
+    {
+     "id": "2610.14270",
+     "title": "The Thinking Leakage in Reinforcement Learning for LLMs",
+     "upvotes": 25,
+     "date": "2026-10-15"
+    },
+    {
+     "id": "2610.16105",
+     "title": "Beyond Policy Rollouts: Embedding-Space Directional Exploration with Anchored Noise for LLM RLVR",
+     "upvotes": 12,
+     "date": "2026-10-16"
+    }
+   ]
+  },
+  "LLM agents / coding agents": {
+   "pattern": "\\b(llm|coding|software|web|gui|computer[- ]use|deep research) agents?\\b|agentic",
+   "matched": 256,
+   "title_matched": 131,
+   "examples": [
+    {
+     "id": "2611.01860",
+     "title": "Advances in Agentic Computer Graphics",
+     "upvotes": 138,
+     "date": "2026-11-03"
+    },
+    {
+     "id": "2610.13166",
+     "title": "Scaling Agentic Data for Long-Horizon Terminal Intelligence",
+     "upvotes": 126,
+     "date": "2026-10-13"
+    },
+    {
+     "id": "2610.18356",
+     "title": "Urbex: Agentic Spatial Grounding for City-Scale 3D Scenes",
+     "upvotes": 117,
+     "date": "2026-10-14"
+    },
+    {
+     "id": "2610.26860",
+     "title": "OpenVLHarness: Real World Visual Agentic Tool-Use with Multimodal Memory",
+     "upvotes": 101,
+     "date": "2026-10-20"
+    }
+   ]
+  },
+  "On-policy distillation / self-distillation": {
+   "pattern": "on-policy (self-)?distillation|self-distillation",
+   "matched": 67,
+   "title_matched": 31,
+   "examples": [
+    {
+     "id": "2610.13521",
+     "title": "Beyond Domain-Routed Supervision: Cross-Teacher Guarding for Multi-Teacher On-Policy Distillation",
+     "upvotes": 64,
+     "date": "2026-10-15"
+    },
+    {
+     "id": "2610.19789",
+     "title": "More Methods, Better Agents? A Reality Check on Self-Distillation in Agentic Reinforcement Learning",
+     "upvotes": 42,
+     "date": "2026-10-15"
+    },
+    {
+     "id": "2610.13113",
+     "title": "Continually Post-training Small Models via Synthetic Self-distillation",
+     "upvotes": 37,
+     "date": "2026-10-12"
+    },
+    {
+     "id": "2610.21601",
+     "title": "Waypoint-OPD: Transferring RL-Induced Policy Shifts via Gated On-Policy Distillation",
+     "upvotes": 37,
+     "date": "2026-10-16"
+    }
+   ]
+  },
+  "Vision-language-action models (robotics)": {
+   "pattern": "vision-language-action|\\bvla\\b",
+   "matched": 56,
+   "title_matched": 22,
+   "examples": [
+    {
+     "id": "2610.37381",
+     "title": "PDRVLA: A Vision-Language-Action Model with Physical Dynamics Representations",
+     "upvotes": 153,
+     "date": "2026-10-28"
+    },
+    {
+     "id": "2610.31162",
+     "title": "HiSTEVE 1.0: Harnessing Human-Interface VLA Agents for Open-World Games",
+     "upvotes": 38,
+     "date": "2026-10-26"
+    },
+    {
+     "id": "2610.40373",
+     "title": "HiFOR: Hierarchical Foresight with Action-Guided World Grounding for Vision-Language-Action Model",
+     "upvotes": 24,
+     "date": "2026-11-02"
+    },
+    {
+     "id": "2610.18568",
+     "title": "WAVE-0: Bridging VLA Policies and WAMs with Lightweight Latent Future Prediction",
+     "upvotes": 18,
+     "date": "2026-10-14"
+    }
+   ]
+  },
+  "Multimodal LLMs / vision-language models": {
+   "pattern": "multimodal large language model|\\bmllms?\\b|vision-language models?\\b|\\bvlms?\\b",
+   "matched": 137,
+   "title_matched": 24,
+   "examples": [
+    {
+     "id": "2610.36671",
+     "title": "Look Only When Needed: Certificate-Guided Visual Routing for Efficient Diffusion VLMs",
+     "upvotes": 115,
+     "date": "2026-10-30"
+    },
+    {
+     "id": "2610.26659",
+     "title": "SpatialScout: Can VLM Agents Actively Explore and Map 3D Scenes?",
+     "upvotes": 98,
+     "date": "2026-10-22"
+    },
+    {
+     "id": "2610.23479",
+     "title": "HexaShell: A Thin Harness for Exploring the Limits of VLM Agents as Robot Coding Agents",
+     "upvotes": 79,
+     "date": "2026-10-19"
+    },
+    {
+     "id": "2610.07987",
+     "title": "VisionWeave: Weaving Elastic Visual Representations as a Native Capability of MLLMs",
+     "upvotes": 55,
+     "date": "2026-10-12"
+    }
+   ]
+  },
+  "Mixture-of-experts": {
+   "pattern": "mixture[- ]of[- ]experts|\\bmoe\\b",
+   "matched": 30,
+   "title_matched": 8,
+   "examples": [
+    {
+     "id": "2610.19975",
+     "title": "LatentLoop: Scaling Looped MoE Models with Asymmetric Compute Allocation",
+     "upvotes": 42,
+     "date": "2026-10-15"
+    },
+    {
+     "id": "2610.27598",
+     "title": "Meta Expert: Cross-Layer Expert Sharing for Storage- and Retrieval-Efficient MoE",
+     "upvotes": 28,
+     "date": "2026-10-23"
+    },
+    {
+     "id": "2511.14102",
+     "title": "Specter: Fast MoE Inference via Quantization-Enabled Multi-Step Speculative Offloading",
+     "upvotes": 22,
+     "date": "2026-10-21"
+    },
+    {
+     "id": "2610.37386",
+     "title": "Channel Selection for Mixture-of-Experts Decoding Needs No Calibration Data",
+     "upvotes": 17,
+     "date": "2026-10-28"
+    }
+   ]
+  },
+  "Speculative decoding / efficient inference": {
+   "pattern": "speculative decoding|kv[- ]cache|efficient inference",
+   "matched": 37,
+   "title_matched": 10,
+   "examples": [
+    {
+     "id": "2610.14448",
+     "title": "KV4-RL: Unlocking Faster Asynchronous Rollouts for RLVR with INT4 KV Cache Quantization",
+     "upvotes": 34,
+     "date": "2026-10-15"
+    },
+    {
+     "id": "2610.12570",
+     "title": "Contextual Correction of Parallel Drafts for Speculative Decoding",
+     "upvotes": 27,
+     "date": "2026-10-12"
+    },
+    {
+     "id": "2610.23787",
+     "title": "DLite: History-free Speculative Decoding for Agentic AI",
+     "upvotes": 21,
+     "date": "2026-10-19"
+    },
+    {
+     "id": "2611.02501",
+     "title": "SpecPilot: Autonomous Algorithm Discovery and Systems Optimization for Speculative Decoding",
+     "upvotes": 18,
+     "date": "2026-11-04"
+    }
+   ]
+  },
+  "Flow matching / diffusion generation": {
+   "pattern": "flow matching|diffusion (model|transformer)s?",
+   "matched": 78,
+   "title_matched": 16,
+   "examples": [
+    {
+     "id": "2610.12572",
+     "title": "DiffusionART: Efficient, Stable and Scalable Reinforcement of Diffusion Models",
+     "upvotes": 82,
+     "date": "2026-10-12"
+    },
+    {
+     "id": "2611.05377",
+     "title": "DreamX: Video Diffusion Model is a Universal Latent Action Learner",
+     "upvotes": 54,
+     "date": "2026-11-04"
+    },
+    {
+     "id": "2610.01496",
+     "title": "SALD: Self-Referenced Advantage Learning for Diffusion Models",
+     "upvotes": 49,
+     "date": "2026-10-14"
+    },
+    {
+     "id": "2610.17227",
+     "title": "AReA: Adaptive Receptive-Field Attention for Efficient High-Resolution Diffusion Transformers",
+     "upvotes": 44,
+     "date": "2026-10-14"
+    }
+   ]
+  },
+  "Recursive self-improvement": {
+   "pattern": "self-improv",
+   "matched": 56,
+   "title_matched": 33,
+   "examples": [
+    {
+     "id": "2610.36077",
+     "title": "The Trinity:Capability-Driven Recursive Self-Improvement for Multimodal Agents",
+     "upvotes": 128,
+     "date": "2026-10-28"
+    },
+    {
+     "id": "2610.11959",
+     "title": "MiMo-V2.6: Scaling Reinforcement Learning Towards Self-Improvement",
+     "upvotes": 81,
+     "date": "2026-10-09"
+    },
+    {
+     "id": "2610.40191",
+     "title": "Video Generation Meets Agent Harness: Agentic Video Generation, Agentic World Modeling and Recursive Self-Improvement",
+     "upvotes": 77,
+     "date": "2026-11-03"
+    },
+    {
+     "id": "2610.38568",
+     "title": "A-RSI: Adaptive Task Refresh for Zero-Data Multimodal Self-Improvement",
+     "upvotes": 67,
+     "date": "2026-10-30"
+    }
+   ]
+  },
+  "World models": {
+   "pattern": "world models?\\b",
+   "matched": 77,
+   "title_matched": 42,
+   "examples": [
+    {
+     "id": "2610.26828",
+     "title": "Agent World Model in the Wild: Computer-Use Agent Environment Synthesis",
+     "upvotes": 68,
+     "date": "2026-10-22"
+    },
+    {
+     "id": "2610.17201",
+     "title": "Multics: Generative Multi-Player World Model with Hierarchical Communication",
+     "upvotes": 56,
+     "date": "2026-10-14"
+    },
+    {
+     "id": "2610.12299",
+     "title": "Multi-Agent Egocentric World Model with Fine-Grained Embodied Interaction",
+     "upvotes": 54,
+     "date": "2026-10-09"
+    },
+    {
+     "id": "2610.26855",
+     "title": "Ropedia W0: Scaling Loco-Manipulation World Models across Embodiments with Human Experience",
+     "upvotes": 54,
+     "date": "2026-10-21"
+    }
+   ]
+  },
+  "Test-time scaling": {
+   "pattern": "test-time (scaling|compute)",
+   "matched": 12,
+   "title_matched": 3,
+   "examples": [
+    {
+     "id": "2610.09684",
+     "title": "From Pareto to Preference: Personalized Test-Time Scaling via Amortized Agentic Policy Discovery",
+     "upvotes": 16,
+     "date": "2026-10-08"
+    },
+    {
+     "id": "2610.06829",
+     "title": "CLIFT: Conformal Self-Verification for Web Agent Training and Test-Time Scaling",
+     "upvotes": 6,
+     "date": "2026-10-16"
+    },
+    {
+     "id": "2610.25519",
+     "title": "ATEST: Adaptive Resource-Aware Test-Time Scaling for LLM Inference",
+     "upvotes": 5,
+     "date": "2026-10-21"
+    }
+   ]
+  }
+ }
+}
