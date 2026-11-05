@@ -1,0 +1,31 @@
+트렌드 화면 추천 주제 선정 기록 (2026-11-05)
+
+왜: 예전 추천어는 gpt-4o-mini에 "오늘 뜨는 키워드 6개"를 날짜만 주고 물은 답이었다(실제 데이터를 보지 않음).
+2026-11-05 화면: neural architecture search, self-supervised learning, transformer models, federated learning,
+graph neural networks, explainable AI. arXiv cs.LG 초록 수(2026-08~10 vs 2025-08~10): neural architecture search
+30/28, graph neural network 289/402, federated learning 279/323 — 낡았다는 사용자 판단과 맞는다 (cs.LG 전체 수로
+정규화하지 않은 원시 수, 단어 매칭이라 '사용한' 논문과 '연구한' 논문을 구분하지 못한다)
+
+설계 (Codex 제안, 사용자 승인): 월 1회, 선정일 이전 4주 HF Daily Papers를 근거로 Claude·Codex가 후보를 내고 사용자가
+확정한다. 주제마다 근거 논문 2편 이상. 순위를 주장하지 않는다. 화면에 근거·관측 기간·갱신일을 표시한다
+
+파일
+- papers.json: HF Daily Papers 2026-10-08 ~ 11-04, 1,159편 (주말 8일은 HF가 올리지 않아 0편). 논문별 url 포함
+- collect_hf.py: 수집 스크립트 — `python3 -I collect_hf.py <시작일> <종료일> papers.json`
+- candidates.py / candidates.json: Claude의 1차 후보 11개 (정규식 — 넓게 잡힌다, 일치 수는 대략값)
+- check_trend_search.py / trend_search_check.json: 확정 6개로 트렌드 모드 Planner+Researcher를 돌린 결과
+  (BE 폴더에서 `PYTHONPATH=. uv run python <경로>/check_trend_search.py <출력.json>`, .env 필요)
+- 최종: BE/data/trend_topics.json
+
+확정 (사용자, 2026-11-05): LLM reinforcement learning, coding agents, on-policy distillation, vision-language-action,
+world models, video generation. 근거 논문 12편은 Codex가 제목·초록을 읽고 고른 것이고, Claude가 ID·제목이 papers.json에
+있는지 프로그램으로 확인했다. 예비: agent memory, looped language models, mixture of experts, speculative decoding
+
+트렌드 검색 확인에서 본 것 (고치지 않음)
+- on-policy distillation·vision-language-action·coding agents는 거의 전부 관련 논문
+- LLM reinforcement learning·world models에는 무관한 응용 논문이 섞였고, video generation은 Planner가 "Generative
+  Adversarial Networks video"를 덧붙여 GAN·딥페이크 탐지 논문이 섞였다
+- "What Does Multi-Turn RL Really Improve in LLM Agents?"가 6개 중 5개 결과에 나왔다 — 트렌드 모드가 Planner 키워드
+  3개(넓은 말 포함)로 HF 논문을 매칭하고 검색어를 이어 붙인다. #53이 검색 모드에서 고친 것과 같은 원인
+
+한계: 표본은 HF에 올라온 논문(AI 연구 전체가 아니다). HF ai_keywords는 HF의 AI가 붙였다. 1회 선정
