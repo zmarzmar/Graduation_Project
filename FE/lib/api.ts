@@ -196,12 +196,26 @@ export function runAnalyzeAgent(
   })
 }
 
-/** 오늘 날짜 기준 AI 트렌드 키워드 5개 반환 */
-export async function fetchDailyKeywords(): Promise<string[]> {
+export interface TrendTopicsBasis {
+  label: string
+  source: string
+  observed_from: string
+  observed_to: string
+  updated_at: string
+  paper_count: number
+}
+
+export interface TrendTopics {
+  keywords: string[]
+  /** null이면 근거 없는 일반 검색 예시 */
+  basis: TrendTopicsBasis | null
+}
+
+/** 트렌드 화면 추천어 — 최근 논문을 근거로 사람이 고른 주제와 그 근거 */
+export async function fetchDailyKeywords(): Promise<TrendTopics> {
   const res = await fetch(`${API_BASE}/papers/daily-keywords`)
   if (!res.ok) throw new Error('daily-keywords fetch failed')
-  const data: { keywords: string[] } = await res.json()
-  return data.keywords
+  return res.json()
 }
 
 export interface SearchHistoryPaper {

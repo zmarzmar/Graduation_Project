@@ -10,7 +10,7 @@ import { DocumentStorageNotice } from '@/components/agent/DocumentStorageNotice'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
 import { useAnalysisStore } from '@/store/analysis-store'
-import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent, fetchDailyKeywords } from '@/lib/api'
+import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent, fetchDailyKeywords, type TrendTopics } from '@/lib/api'
 import type { AgentResult, ArxivPaper, AgentMode } from '@/lib/types/agent-run'
 
 const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description: string }[] = [
@@ -36,7 +36,6 @@ const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description:
 
 const SEARCH_EXAMPLES = ['LoRA fine-tuning', 'diffusion model', 'attention mechanism', 'retrieval augmented generation', 'vision language model', 'mixture of experts']
 const TREND_FALLBACK = ['large language model', 'vision transformer', 'reinforcement learning', 'multimodal', 'agent', 'mixture of experts']
-const DAILY_KEYWORDS_CACHE_KEY = `daily_trend_${new Date().toISOString().slice(0, 10)}`
 
 export default function HomePage() {
   // 페이지 이탈 후 복귀 시 상태를 유지하기 위해 Zustand 스토어 사용
@@ -52,24 +51,12 @@ export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 오늘의 트렌드 키워드 — lazy initializer로 localStorage 우선 읽기, 없으면 API fetch
-  const [trendKeywords, setTrendKeywords] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return TREND_FALLBACK
-    try {
-      const cached = localStorage.getItem(DAILY_KEYWORDS_CACHE_KEY)
-      if (cached) return JSON.parse(cached)
-    } catch { /* 파싱 실패 시 폴백 */ }
-    return TREND_FALLBACK
-  })
+  // 트렌드 추천어 — 서버의 추천 주제 파일(월 1회 갱신). 근거(basis)가 없으면 일반 예시로 표시한다
+  const [trendTopics, setTrendTopics] = useState<TrendTopics>({ keywords: TREND_FALLBACK, basis: null })
   useEffect(() => {
-    // 캐시가 이미 있으면 API 호출 스킵
-    if (localStorage.getItem(DAILY_KEYWORDS_CACHE_KEY)) return
     fetchDailyKeywords()
-      .then((keywords) => {
-        setTrendKeywords(keywords)
-        localStorage.setItem(DAILY_KEYWORDS_CACHE_KEY, JSON.stringify(keywords))
-      })
-      .catch(() => { /* 실패 시 폴백 유지 */ })
+      .then(setTrendTopics)
+      .catch(() => { /* 실패 시 일반 예시 유지 */ })
   }, [])
 
   // 논문 분석 결과 캐시 — 같은 논문 재클릭 시 스트림 없이 바로 표시
@@ -311,7 +298,7 @@ export default function HomePage() {
               disabled={activeStream.isRunning}
             />
             <div className="grid grid-cols-3 gap-2">
-              {trendKeywords.map((ex) => (
+              {trendTopics.keywords.map((ex) => (
                 <button
                   key={ex}
                   onClick={() => setTopic(ex)}
@@ -326,6 +313,11 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
+            <p className="text-xs text-gray-400">
+              {trendTopics.basis
+                ? `${trendTopics.basis.label} · ${trendTopics.basis.source} ${trendTopics.basis.paper_count.toLocaleString()}편 (${trendTopics.basis.observed_from} ~ ${trendTopics.basis.observed_to}) 기준 · 갱신 ${trendTopics.basis.updated_at}`
+                : '일반 검색 예시'}
+            </p>
           </div>
         )}
 
