@@ -1,0 +1,116 @@
+{
+ "LLM reinforcement learning": {
+  "keywords": [
+   "LLM reinforcement learning",
+   "large language model reinforcement learning",
+   "reinforcement learning for NLP"
+  ],
+  "papers": [
+   "What Does Multi-Turn Reinforcement Learning Really Improve in LLM Agents?",
+   "EvoRubrics: Dynamic Rubrics as Rewards via Adversarial Co-Evolution for LLM Reinforcement Learning",
+   "Diagnosing Training Inference Mismatch in LLM Reinforcement Learning",
+   "How Off-Policy Can GRPO Be? Mu-GRPO for Efficient LLM Reinforcement Learning",
+   "ARES: Automated Rubric Synthesis for Scalable LLM Reinforcement Learning",
+   "RolloutPipe: Overlapping Pipelined Rollout and Training in Disaggregated On-Policy LLM Reinforcement Learning",
+   "Le Critique: Privileged Value Functions for LLM Reinforcement Learning",
+   "Beyond Uniform Token-Level Trust Region in LLM Reinforcement Learning",
+   "Start Classifying: Categorical Critics for LLM Reinforcement Learning",
+   "Toward Plasticity-Preserving KL Regularization for Capability Retention in LLM Reinforcement Learning"
+  ]
+ },
+ "coding agents": {
+  "keywords": [
+   "coding agents",
+   "AI programming agents",
+   "automated code generation"
+  ],
+  "papers": [
+   "DeepSWE: Measuring Frontier Coding Agents on Original, Long-Horizon Engineering Tasks",
+   "SpecBench: Measuring Reward Hacking in Long-Horizon Coding Agents",
+   "SWE-Together: Evaluating Coding Agents in Interactive User Sessions",
+   "PyRUA-REAL: Robot Exploration and Adaptive Learning through RSI in the Real World",
+   "SWE-Explore: Benchmarking How Coding Agents Explore Repositories",
+   "How Coding Agents Fail Their Users: A Large-Scale Analysis of Developer-Agent Misalignment in 20,574 Real-World Sessions",
+   "CODESKILL: Learning Self-Evolving Skills for Coding Agents",
+   "The Scaffold Effect in Coding Agents: Harness Choice as a Hidden Variable in Coding-Agent Evaluation",
+   "WebGameBench: Requirement-to-Application Evaluation for Coding Agents via Browser-Native Games",
+   "EvoCode-Bench: Evaluating Coding Agents in Multi-Turn Iterative Interactions"
+  ]
+ },
+ "on-policy distillation": {
+  "keywords": [
+   "on-policy distillation",
+   "policy learning",
+   "distillation techniques"
+  ],
+  "papers": [
+   "MOPD: Multi-Teacher On-Policy Distillation for Capability Integration in LLM Post-Training",
+   "Not All Disagreement Is Learnable: Token Teachability in On-Policy Distillation",
+   "Uni-OPD: Unifying On-Policy Distillation with a Dual-Perspective Recipe",
+   "The Many Faces of On-Policy Distillation: Pitfalls, Mechanisms, and Fixes",
+   "Flow-OPD: On-Policy Distillation for Flow Matching Models",
+   "SEED: Self-Evolving On-Policy Distillation for Agentic Reinforcement Learning",
+   "Filter, Then Reweight: Rethinking Optimization Granularity in On-Policy Distillation",
+   "Asymmetric On-Policy Distillation: Bridging Exploitation and Imitation at the Token Level",
+   "On-Policy Distillation with Curriculum Turn-level Guidance for Multi-turn Agents",
+   "Open-MOPD: Diagnosing and Fixing Capability Imbalance in Multi-Teacher On-Policy Distillation"
+  ]
+ },
+ "vision-language-action": {
+  "keywords": [
+   "vision-language-action",
+   "multimodal learning",
+   "transformers for vision-language"
+  ],
+  "papers": [
+   "Qwen-VLA: Unifying Vision-Language-Action Modeling across Tasks, Environments, and Robot Embodiments",
+   "Xiaomi-Robotics-1: Scaling Vision-Language-Action Models with over 100K Hours of Real-World Trajectories",
+   "EventVLA: Event-Driven Visual Evidence Memory for Long-Horizon Vision-Language-Action Policies",
+   "VLA-Touch: Enhancing Vision-Language-Action Model With Dual-Level Tactile Feedback",
+   "AT-VLA: Adaptive Tactile Injection for Enhanced Feedback Reaction in Vision-Language-Action Models",
+   "Evo-Depth: A Lightweight Depth-Enhanced Vision-Language-Action Model",
+   "VLA-Trace: Diagnosing Vision-Language-Action Models through Representation and Behavior Tracing",
+   "Towards Long-horizon Embodied Agents with Tool-Aligned Vision-Language-Action Models",
+   "SafeVLA-Bench: A Benchmark for the Success-Safety Gap in Vision-Language-Action Models",
+   "LIBERO-Safety: A Comprehensive Benchmark for Physical and Semantic Safety in Vision-Language-Action Models"
+  ]
+ },
+ "world models": {
+  "keywords": [
+   "world models",
+   "latent variable models",
+   "reinforcement learning"
+  ],
+  "papers": [
+   "Cosmos 3: Omnimodal World Models for Physical AI",
+   "Causal-rCM: A Unified Teacher-Forcing and Self-Forcing Open Recipe for Autoregressive Diffusion Distillation in Streaming Video Generation and Interactive World Models",
+   "Qwen-AgentWorld: Language World Models for General Agents",
+   "minWM: A Full-Stack Open-Source Framework for Real-Time Interactive Video World Models",
+   "Latent Spatial Memory for Video World Models",
+   "Delta-JEPA: Learning Action-Sensitive World Models via Latent Difference Decoding",
+   "MBench: A Comprehensive Benchmark on Memory Capability for Video World Models",
+   "Sub-JEPA: Subspace Gaussian Regularization for Stable End-to-End World Models",
+   "Matrix-Game 3.5: Enhancing Real-Time Streaming Interactive World Models with Patch Memory",
+   "Latent Geometry Beyond Search: Amortizing Planning in World Models"
+  ]
+ },
+ "video generation": {
+  "keywords": [
+   "video generation",
+   "deep learning video generation",
+   "generative adversarial networks for video"
+  ],
+  "papers": [
+   "Causal Forcing++: Scalable Few-Step Autoregressive Diffusion Distillation for Real-Time Interactive Video Generation",
+   "EmoReward: Self-Evolving Reward Calibration for Emotional Video Generation RL",
+   "ImageWAM: Do World Action Models Really Need Video Generation, or Just Image Editing?",
+   "VA-TDM: A Unified View for Improving Few-Step Diffusion Models by Velocity Adversarial Distillation",
+   "Causal-rCM: A Unified Teacher-Forcing and Self-Forcing Open Recipe for Autoregressive Diffusion Distillation in Streaming Video Generation and Interactive World Models",
+   "LongLive-2.0: An NVFP4 Parallel Infrastructure for Long Video Generation",
+   "LongLive-RAG: A General Retrieval-Augmented Framework for Long Video Generation",
+   "One-Forcing: Towards Stable One-Step Autoregressive Video Generation",
+   "ViMax: Agentic Video Generation",
+   "Do Joint Audio-Video Generation Models Understand Physics?"
+  ]
+ }
+}

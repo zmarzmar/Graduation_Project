@@ -1,0 +1,12 @@
+트렌드 모드 검색어 수정 전후 (2026-11-05, 로컬, 실제 API, 추천어 6개 × 1회)
+
+- before.json: main(7eed75c) — Planner 키워드 3개를 이어 붙여 S2·arXiv 검색, HF·결과 관련도도 키워드 3개로 매칭
+- after.json: fix/trend-search-single-query — 한글 없는 첫 키워드 하나로 검색·매칭 (#53의 검색 모드와 같은 규칙)
+- 스크립트: eval-results/2026-11-trend-topics/check_trend_search.py (#55에서 추가 — 이 브랜치에는 없다). 각 항목은 트렌드 Researcher가 고른 논문 제목 10개
+
+관찰
+- video generation: 수정 전 딥페이크 탐지 2편·GAN 수어 생성·얼굴 생성 리뷰가 섞임(Planner가 "Generative Adversarial Networks video"를 덧붙임) → 수정 후 영상 생성 연구
+- 수정 전 "What Does Multi-Turn RL Really Improve in LLM Agents?"가 6개 중 4개 결과에 나옴(넓은 키워드 "reinforcement learning"으로 HF 매칭) → 수정 후 LLM RL에만
+- LLM RL·world models의 무관한 응용 논문(전력·수소 스케줄링, OFDMA 등)이 사라짐
+
+한계: 1회 실행. 제목만 보고 판단했다. 외부 API 상태와 Planner 출력에 따라 실행마다 달라진다
