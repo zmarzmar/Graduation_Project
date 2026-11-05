@@ -301,7 +301,7 @@ async def researcher_node(state: AgentState) -> dict:
             )
             logger.info(f"[Researcher] 검색 모드 검색어: \"{primary_query}\"")
             # S2 + OpenAlex 병렬 수집 (각 최대 10개) → 인용 수 순으로 상위 10개
-            emit_log("researcher", f"Semantic Scholar + OpenAlex 동시 검색 중... ({primary_query})")
+            emit_log("researcher", f"검색어 \"{primary_query}\"로 Semantic Scholar + OpenAlex 동시 검색 중...")
 
             async def _search_semantic_scholar() -> list[dict]:
                 async with log_elapsed(logger, "external_call", node="researcher", external="semantic_scholar"):

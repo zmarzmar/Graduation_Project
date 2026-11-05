@@ -88,7 +88,7 @@ async def planner_node(state: AgentState) -> dict:
             plan = _extract_json(response.content) or _fallback_plan
 
     keywords = plan.get('search_keywords', [])
-    emit_log("planner", f"검색 키워드: {', '.join(keywords)}")
+    emit_log("planner", f"키워드 후보: {', '.join(keywords)}")
     logger.info(f"[Planner] 완료 — 키워드: {keywords}")
 
     return {
