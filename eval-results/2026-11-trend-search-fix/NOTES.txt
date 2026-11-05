@@ -2,7 +2,7 @@
 
 - before.json: main(7eed75c) — Planner 키워드 3개를 이어 붙여 S2·arXiv 검색, HF·결과 관련도도 키워드 3개로 매칭
 - after.json: fix/trend-search-single-query — 한글 없는 첫 키워드 하나로 검색·매칭 (#53의 검색 모드와 같은 규칙)
-- 스크립트: eval-results/2026-11-trend-topics/check_trend_search.py (#55에서 추가 — 이 브랜치에는 없다). 각 항목은 트렌드 Researcher가 고른 논문 제목 10개
+- 스크립트: eval-results/2026-11-trend-topics/check_trend_search.py (#55에서 추가). 각 항목은 트렌드 Researcher가 고른 논문 제목 10개
 
 관찰
 - video generation: 수정 전 딥페이크 탐지 2편·GAN 수어 생성·얼굴 생성 리뷰가 섞임(Planner가 "Generative Adversarial Networks video"를 덧붙임) → 수정 후 영상 생성 연구
