@@ -1,0 +1,22 @@
+구현 대상이 아닌 논문이면 Coder가 코드를 만들지 않는지 — 실제 API 확인 (2026-11-06)
+
+모델: Coder·Reviewer gpt-5.4-mini (medium). 도구: evals/loop_eval.run_paper. 각 논문 1회 실행.
+summary.json: 지시문 단계별 결과 (종료 사유, 생략 이유, 첫 코드 길이). 생성 코드 원문은 남기지 않았다.
+
+1_permissive — "구현할 방법이 하나라도 있거나 애매하면 코드를 작성"
+  6편 모두 코드 생성. 서베이(Efficient Transformers)는 일부 방법을 골라 구현,
+  연구 방향 논문(Concrete Problems in AI Safety)은 논문에 없는 SafetyAwareAgent를 지어냄.
+2_tightened — "스스로 제안·정의한 방법" 기준 + 서베이·연구 방향·순수 이론을 명시
+  Concrete Problems만 생략. 서베이는 여전히 일부를 골라 구현.
+3_final — "서베이는 방법을 자세히 설명해도 일부를 골라 구현하지 않는다", 마지막 줄을 "위 경우가 아니고 제안한 방법이 있으면"으로
+  생략: Efficient Transformers 서베이, RAG 서베이, Concrete Problems
+  구현: Turing Completeness(증명의 구성), MMLU(평가 절차), LoRA, AVQ
+
+한계
+- 지시문을 앞 단계와 같은 논문을 보며 고쳤다. 처음 보는 논문은 3_final의 RAG 서베이·LoRA 두 편뿐이다
+- 각 1회 실행. 같은 논문도 다시 돌리면 판단이 바뀔 수 있다
+- 서베이·연구 방향 논문의 정의(어디까지를 '제안한 방법'으로 볼지)는 LLM 판단이다. MMLU처럼 벤치마크의 평가 절차는 구현 대상으로 둔다
+
+결정 (2026-11-06, 사용자)
+- 처음 계획은 벤치마크·데이터셋 공개, 실험 분석 논문도 생략 대상이었다. 실제로 MMLU에는 평가 코드, Scaling Laws에는 작은 모델·법칙 피팅 코드가 나와
+  이 둘은 구현 대상으로 두기로 했다. 생략 대상은 서베이, 연구 방향·입장 논문, 구성 없는 순수 이론 셋이다

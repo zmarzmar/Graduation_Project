@@ -1,0 +1,141 @@
+{
+ "1_permissive": [
+  {
+   "paper": "mmlu_benchmark",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 14779
+  },
+  {
+   "paper": "efficient_transformers_survey",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 21199
+  },
+  {
+   "paper": "scaling_laws",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 17235
+  },
+  {
+   "paper": "avq_attention",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 20955
+  },
+  {
+   "paper": "turing_completeness",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 11316
+  },
+  {
+   "paper": "concrete_problems",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 13257
+  }
+ ],
+ "2_tightened": [
+  {
+   "paper": "mmlu_benchmark",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 17395
+  },
+  {
+   "paper": "efficient_transformers_survey",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 16535
+  },
+  {
+   "paper": "scaling_laws",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 14590
+  },
+  {
+   "paper": "turing_completeness",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 16038
+  },
+  {
+   "paper": "concrete_problems",
+   "end_reason": "not_implementable",
+   "rounds": 1,
+   "skip_reason": "이 논문은 구체적인 새로운 모델이나 알고리즘을 제안하기보다 AI 안전의 다섯 가지 문제를 정리·리뷰하고 향후 연구 방향을 제시하는 서베이 성격의 논문입니다. 따라서 논문 고유의 단일 구현 대상으로 삼을 수 있는 방법론이 없습니다.",
+   "first_code_chars": 0
+  },
+  {
+   "paper": "avq_attention",
+   "end_reason": "passed",
+   "rounds": 2,
+   "skip_reason": null,
+   "first_code_chars": 17874
+  }
+ ],
+ "3_final": [
+  {
+   "paper": "efficient_transformers_survey",
+   "end_reason": "not_implementable",
+   "rounds": 1,
+   "skip_reason": "이 논문은 효율적인 Transformer 계열 방법들을 정리한 서베이로, 자신만의 새 모델·모듈·학습 절차를 구체적으로 제안하지 않습니다. 따라서 구현할 단일 방법이 없어 코드 스켈레톤을 작성할 수 없습니다.",
+   "first_code_chars": 0
+  },
+  {
+   "paper": "rag_survey",
+   "end_reason": "not_implementable",
+   "rounds": 1,
+   "skip_reason": "이 논문은 RAG의 기존 방법들을 체계적으로 정리·비교하는 서베이 논문으로, 저자들이 새로 제안한 단일 모델/알고리즘/학습 절차를 구체적으로 정의하지 않습니다. 따라서 구현할 대상이 되는 고유한 Methods가 없고, 여러 기존 논문 방법을 임의로 조합해 새 시스템을 만드는 것은 요구 조건에 맞지 않습니다.",
+   "first_code_chars": 0
+  },
+  {
+   "paper": "concrete_problems",
+   "end_reason": "not_implementable",
+   "rounds": 1,
+   "skip_reason": "이 논문은 AI 안전의 다섯 가지 문제를 정리하고 연구 방향과 실험 아이디어를 제안하는 입장/문제 제기 논문입니다. 저자들이 하나의 구체적 모델·모듈·알고리즘을 새로 정의해 제안한 내용이 없어 실행 가능한 단일 PyTorch 구현 대상으로 만들기 어렵습니다.",
+   "first_code_chars": 0
+  },
+  {
+   "paper": "turing_completeness",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 17930
+  },
+  {
+   "paper": "mmlu_benchmark",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 11548
+  },
+  {
+   "paper": "lora",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 10732
+  },
+  {
+   "paper": "avq_attention",
+   "end_reason": "passed",
+   "rounds": 1,
+   "skip_reason": null,
+   "first_code_chars": 16428
+  }
+ ]
+}
