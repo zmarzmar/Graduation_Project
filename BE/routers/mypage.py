@@ -100,6 +100,7 @@ class AnalysisDetail(BaseModel):
     paper_review: dict
     key_formulas: list
     generated_code: str
+    code_skip_reason: str
     review_feedback: str
     review_passed: bool
     iteration_count: int
@@ -138,6 +139,7 @@ async def get_analysis_detail(
         paper_review=analysis.paper_review,
         key_formulas=analysis.key_formulas,
         generated_code=analysis.generated_code,
+        code_skip_reason=analysis.code_skip_reason,
         review_feedback=analysis.review_feedback,
         review_passed=analysis.review_passed,
         iteration_count=analysis.iteration_count,

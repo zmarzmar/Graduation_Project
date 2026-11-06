@@ -33,6 +33,33 @@ _SYSTEM_PROMPT = """당신은 AI 논문을 PyTorch 코드로 구현하는 전문
 - 설명이 필요하면 반드시 Python 주석(#)으로만 작성할 것"""
 
 
+# 구현 대상이 아닌 논문의 표시 — 최초 생성 요청에만 이 선택지를 준다 (수정 회차에서 코드를 버리지 않게)
+_SKIP_MARKER = "NOT_IMPLEMENTABLE:"
+_SKIP_INSTRUCTION = (
+    "먼저 이 논문이 스스로 제안하거나 구체적으로 정의한 모델·모듈·알고리즘·학습/평가 절차가 있는지 판단하세요 "
+    "(이론 논문이 증명에서 구체적으로 구성한 구조도 포함). 다음 경우에는 코드를 쓰지 말고 "
+    f"첫 줄에 `{_SKIP_MARKER} <이유 한두 문장, 한국어>`만 쓰세요.\n"
+    "- 서베이·리뷰: 다른 논문들의 방법을 정리한 논문. 그 방법들을 자세히 설명하더라도 논문이 제안한 방법이 아니므로, 일부를 골라 구현하지 않는다\n"
+    "- 연구 방향·문제 제기·입장 논문: 구체적인 방법 없이 과제나 방향을 제시하는 논문. 여러 아이디어를 엮어 새 시스템을 지어내지 않는다\n"
+    "- 구체적인 구성이 없는 순수 이론·증명 논문\n"
+    "위 경우가 아니고 논문이 제안한 방법이 있으면 그 방법을 구현하세요.\n\n"
+)
+
+
+def _skip_reason(text: str) -> str | None:
+    """응답의 첫 줄(코드 블록 표시 제외)이 구현 대상 아님 표시면 그 이유를, 아니면 None을 돌려준다."""
+    for line in text.splitlines():
+        line = line.strip()
+        # 빈 줄과 코드 블록 시작 줄(```, ```python)은 건너뛴다
+        if not line or line.startswith("```"):
+            continue
+        line = line.strip("`").strip()  # 지시문의 예시처럼 한 줄을 백틱으로 감싼 경우
+        if line.startswith(_SKIP_MARKER):
+            return line[len(_SKIP_MARKER):].strip() or "구현할 방법을 찾지 못했습니다."
+        return None
+    return None
+
+
 def _extract_code(text: str) -> str:
     """LLM 응답에서 Python 코드 블록만 추출한다.
     ```python ... ``` 블록이 있으면 그 내용만 반환하고,
@@ -69,7 +96,8 @@ async def coder_node(state: AgentState) -> dict:
 
     if iteration == 0:
         user_content = (
-            "다음 논문을 바탕으로 PyTorch 코드 스켈레톤을 작성하세요.\n\n"
+            _SKIP_INSTRUCTION
+            + "다음 논문을 바탕으로 PyTorch 코드 스켈레톤을 작성하세요.\n\n"
             + (f"### 논문 요약:\n{summary}\n\n" if summary else "")
             + (f"{formula_context}\n\n" if formula_context else "")
             + f"{paper_context}"
@@ -97,6 +125,17 @@ async def coder_node(state: AgentState) -> dict:
             ensure_request_fits(_MODEL, messages, REASONING_OUTPUT_BUDGET)
             response = await _llm.ainvoke(messages)
             ensure_complete(response, REASONING_OUTPUT_BUDGET)
+        skip_reason = _skip_reason(response.content) if iteration == 0 else None
+        if skip_reason:
+            emit_log("coder", f"구현 대상이 아닌 논문 — 코드 생성 생략: {skip_reason}")
+            logger.info(f"[Coder] 구현 대상 아님 — {skip_reason}")
+            return {
+                "generated_code": "",
+                "code_skip_reason": skip_reason,
+                "iteration_count": iteration + 1,
+                "current_node": "coder",
+                "error": None,
+            }
         generated_code = _extract_code(response.content)
         emit_log("coder", f"코드 생성 완료 ({len(generated_code)}자)")
         logger.info(f"[Coder] 완료 — 코드 {len(generated_code)}자 생성")

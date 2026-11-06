@@ -14,6 +14,8 @@ import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, 
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
+import { CodeDraftNotice } from '@/components/agent/CodeDraftNotice'
+import { CodeSkipNotice } from '@/components/agent/CodeSkipNotice'
 import { useAuth } from '@/lib/hooks/useAuth'
 
 const MODE_LABEL: Record<string, string> = {
@@ -245,9 +247,16 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
                   </div>
                 </div>
               )}
+              {!detail.generated_code && detail.code_skip_reason && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-gray-600">💻 생성 코드</p>
+                  <CodeSkipNotice reason={detail.code_skip_reason} />
+                </div>
+              )}
               {detail.generated_code && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-gray-600">💻 생성 코드</p>
+                  <CodeDraftNotice />
                   <div className="max-h-60 overflow-auto rounded-lg">
                     <SyntaxHighlighter
                       language="python"
