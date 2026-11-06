@@ -10,3 +10,10 @@
 - LLM RL·world models의 무관한 응용 논문(전력·수소 스케줄링, OFDMA 등)이 사라짐
 
 한계: 1회 실행. 제목만 보고 판단했다. 외부 API 상태와 Planner 출력에 따라 실행마다 달라진다
+
+정정과 추가 (2026-11-06)
+- 위 before/after는 로컬에서 S2가 응답한 실행이다. #56 배포 뒤 운영에서는 S2가 첫 요청부터 429(재시도 2번 포함)여서 arXiv 결과만
+  남았고, "video generation"에 Gaia 천체 측정·랜덤 그래프 논문이 나왔다. 원인: arxiv_service가 `all:video generation`을 보냈고
+  arXiv는 이를 `all:video OR all:generation`으로 해석한다(응답에 해석 쿼리가 찍힌다). 최신순 정렬에서 무관한 최신 논문이 채워졌다
+- arxiv_only_after.json: 초록 구절 검색(`abs:"…"`)으로 고친 뒤, S2를 0편으로 막고(운영 재현) 트렌드 Researcher만 돌린 결과 (LLM 없음).
+  video generation·OPD·VLA·world models는 대부분 해당 주제, coding agents는 초록에서 지나가듯 언급한 논문이 섞인다

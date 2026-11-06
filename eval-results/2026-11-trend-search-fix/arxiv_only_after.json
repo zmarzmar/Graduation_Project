@@ -1,0 +1,74 @@
+{
+ "LLM reinforcement learning": [
+  "Harness-S: Learning from Sibling Harnesses for Generalizable Agent Training",
+  "Towards Foundation Decision Models: Drex",
+  "When Shards Fly: Cross-Tensor In-Flight Conversion for Low-Latency, Low-Memory Weight Updates in Disaggregated RL",
+  "FSPO: Policy-Consistent Risk and Pareto-Feasible Control for Budgeted LLM RL Post-Training",
+  "CARM: Cancellation-Aware Response Masking for LLM Reinforcement Learning",
+  "Parameter Exploration for RLVR via Variational Learning",
+  "Teach the Way It Thinks: Guiding LLM Post-training Data Engineering with Sparse Autoencoders",
+  "FuRA: Full-Rank Parameter-Efficient Fine-Tuning with Spectral Preconditioning",
+  "How Off-Policy Can GRPO Be? Mu-GRPO for Efficient LLM Reinforcement Learning",
+  "Questioning Instrumental Convergence in RLVR: Checkpoint Evidence from OLMo-3"
+ ],
+ "coding agents": [
+  "ReproBridge: Building Reproducibility into ML Research Artifacts",
+  "Benchmarks as Software: Terminal-Bench and the Case for Continuous Benchmarks",
+  "Learning the Task or Learning the Verifier? Rethinking Criteria Exposure in Embodied Self-Improvement",
+  "Create Your Own Work Stack: Deploying Self-hosted AI and Tooling in a Tech Startup",
+  "FINCOSMOS: An Open-World Evaluation Paradigm for Agents in Finance",
+  "Adversarial Multiplicity: Cherry-Picked Models and the Limits of Disclosure",
+  "Take It From Here: Evaluating Coding Agents On Project Takeover",
+  "ControlAnything: Generative UI and On-Demand Device Integration for Mixed-Reality Hand Interaction by a Coding Agent",
+  "An Agent-Driven, Cross-Validated Inverse-Design Pipeline for Dielectric Metasurfaces",
+  "A Low Similarity Score Does Not Show Independence after Source-Conditioned Repository Rewriting"
+ ],
+ "on-policy distillation": [
+  "WeLM-Image: A Unified Image Generation Model towards Visual Intelligence",
+  "Unpacking the Compute Efficiency of Strong-to-Weak OPD against GRPO",
+  "Learning Dynamics of On-Policy Distillation",
+  "CoRD: Coupled Rollouts Fill the Blind Spot of On-Policy Distillation",
+  "O$^2$PD: Overlap-Gated On-Policy Distillation on Reliable Prefix",
+  "Reinforcing What the Student Has Learned: Teacher-Guided On-Policy Distillation",
+  "SKIM: Pruning Large Language Model Agents via Selective Knowledge Informed Masking",
+  "$D^2$-OPD: Separating Direction and Distance in Extrapolative On-Policy Distillation",
+  "EvoOPD: Evolving Privileged Information Strategies for Black-Box On-Policy Distillation",
+  "Value-oriented policy distillation for interpretable wind farm power control"
+ ],
+ "vision-language-action": [
+  "VFlash: Fast, Accurate Visual Planning via Flash Primitive Decoding",
+  "Towards Foundation Decision Models: Drex",
+  "SLA: Scaling Spatial-Language-Action Model via Continual Pre-training",
+  "OopsieRecover: Learning Transferable VLA Corrections from Semantic Interventions",
+  "Failure Prediction and Classification in Vision-Language-Action Models Via Calibrated Latent Probing",
+  "T3R: Training-Free Two-Stage Token Refinement Towards Efficient and Robust VLA Models",
+  "La-JEPA: Compact Robot Policies with Latent World Modeling",
+  "AffectiveVLA: Safe and Intent-Aware VLA Control for Human-Humanoid Social Interaction",
+  "Concertina: Embodying Manipulation and Cognition in One Diffusion Vision-Language Model",
+  "Kinematic Hypothesis Context: Embodiment-Conditioned Learned Video Coding for Bandwidth-Limited Robot Policy Uplinks"
+ ],
+ "world models": [
+  "VFlash: Fast, Accurate Visual Planning via Flash Primitive Decoding",
+  "GPWM: Modeling the World as 3D Particle Motion",
+  "FreeOcc: Decoupling Ego-Motion for Efficient 4D Occupancy Forecasting via Continuous Flow Matching",
+  "WAM-Sim0.1: World Anchored Memory Meets Online RL for Consistent and Realistic Driving Simulation",
+  "PVDepth: Panoramic Video Depth Estimation via Geometry-Aware Spatiotemporal Adaptation",
+  "Learning Robotic World Models with Semantic and Visual Feedback",
+  "Seeing Beyond the Next Step: World-Model-Guided Human-Like Navigation in Multi-Agent Scenes",
+  "Open-HumanScale: An Open Recipe for Scaling Human and Robot Experience for Embodied Foundation Models",
+  "Future Representation Distillation for Imagination-free World Action Models",
+  "Learning a patient world model for health system simulation in intensive care"
+ ],
+ "video generation": [
+  "TaoMate-HD: Progressive-Resolution Autoregressive Audio-Video Generation",
+  "EgoGeneralist: Unifying Egocentric Action-Video Tasks through Video-Native Modeling",
+  "ManimCode: Learning Visual Self-Correction for Educational Animation",
+  "Training-Free Predictive Spatio-Temporal Token Pruning for Few-Step Autoregressive Video Diffusion",
+  "ArtiVidRM: Verifiable Artifact-as-Rubric Reward Modeling for Explicit Quality Articulation in Video Generation",
+  "Householder Motion Embedding: Noise Modulation for Motion-Controllable Video Generation",
+  "VA-TDM: A Unified View for Improving Few-Step Diffusion Models by Velocity Adversarial Distillation",
+  "NextGAN: Towards Simple and Scalable GAN Training for Image and Video Generation",
+  "ReactWorld: Structuring Interaction Responses for Embodied Video Generation",
+  "Chronos: Sequential Identity-Preserving Video Generation by Temporal Anchoring"
+ ]
+}
