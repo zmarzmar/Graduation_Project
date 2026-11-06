@@ -1,0 +1,69 @@
+실행 검사 피드백 실험 (2026-11-06)
+
+질문: 생성 코드를 실제로 실행해 보고, 실패하면 오류를 Coder에게 돌려주면 자기수정 루프가 나아지는가.
+도구: BE/evals/exec_loop_eval.py, BE/evals/exec_check.py, BE/evals/exec_check/(Dockerfile, runner.py)
+조건: 같은 최초 코드(Analyzer → Coder 1회차, smoke_test 포함)에서 두 조건으로 갈라 진행. 첫 작성 포함 최대 3회.
+  exec    — 실행 검사가 실패하면 오류를 Coder에게 (Reviewer 건너뜀). 통과하면 Reviewer → 지금 루프
+  control — 지금 루프 그대로 (Reviewer만 피드백). 실행 결과는 기록만
+smoke_test는 처음 나온 회차의 것으로 고정. Coder·Reviewer gpt-5.4-mini(medium). 운영 코드는 바꾸지 않음(지시문은 실험에서만 덧붙임).
+실행 환경: 개발자 맥의 Docker. --network none, 메모리 2g(스왑 포함), CPU 2, pids 128, 읽기 전용, cap-drop ALL, no-new-privileges, 일반 사용자, 컨테이너 안 100초 / 호스트 130초.
+
+파일
+- pilot_explicit_dropout.json — 1편 시험 실행 (검사 규칙 1판)
+- main_9.json / main_9.log    — 나머지 9편 (검사 규칙 1판)
+- rerun_3.json / rerun_3.log  — 검사 규칙 2판으로 3편 재실행 (아래 '검사 규칙 수정')
+  rerun_3은 새로 생성한 코드다 — 1판의 같은 논문과 최초 코드가 다르다
+
+검사 규칙 수정 (결과를 본 뒤에 고쳤다)
+- 1판에서 Cubit·Rotated LoRA는 smoke_test가 grad_params에 파라미터 대신 gradient 텐서(param.grad.clone())를 넣어
+  "gradient 없음"으로 실패했다 — 계약 설명이 모호했던 검사 쪽 문제. 테스트를 고정해 둬서 Coder는 고칠 수 없었고,
+  Rotated LoRA는 3회차에 RecursionError가 나는 코드로 나빠졌다 (실행 피드백이 코드를 망친 사례)
+- Sampler는 진단용 출력의 빈칸을 NaN으로 채워 실패했다 — 버그가 아니었다. 실행 피드백 조건은 NaN을 0으로 바꿔 통과(무해하지만 개선 아님)
+- 2판: 테스트 반환 형식 위반(파라미터가 아닌 텐서 등)은 test_error로 따로 분류해 Coder에게 보내지 않고 Reviewer로 넘긴다.
+  지시문에 'grad_params에는 nn.Parameter 자체, zero_grad 금지', 'outputs에 NaN 빈칸 금지'를 추가
+- 2판으로 그 3편만 다시 돌렸다. 2판 재실행에서 test_error는 0건
+
+결과 (10편 × 1회 — 1판 7편 + 2판 재실행 3편을 합침)
+| 논문 | 1회차 실행 | exec 조건 | control 조건 |
+| Poly Sketch | 통과 | 통과·검토통과 | 통과·검토통과 |
+| GAPE | 통과 | 통과·검토통과 | 통과·검토통과 |
+| TACO | 통과 | 통과·검토통과 | 통과·검토통과 |
+| SSL | 통과 | 통과·검토통과 | 통과·검토통과 |
+| AVQ | 오류(배치 차원 모양 불일치) | 2회차 고침 | 오류인 채 1회차 검토통과 |
+| Explicit Dropout | 오류(FFN 2층 차원) | 3회차 고침 | 오류인 채 1회차 검토통과 |
+| Token-Adaptive | 오류(테스트의 생성자 인자가 구현에 없음) | 2회차 고침 | 1회차 낙제 → 2회차 고침 |
+| Cubit (2판) | 오류(from __future__가 2번째 줄) | 2회차 고침 | 1회차 낙제 → 2회차 고침 |
+| Rotated LoRA (2판) | 오류(정의 안 된 변수 V, 반복된 깨진 줄) | 2회차 고침 | 오류인 채 1회차 검토통과 |
+| Sampler (2판) | 오류(in-place 수정으로 gradient 계산 실패) | 2회차 고침 | 오류인 채 1회차 검토통과 |
+
+- 1회차 실행 통과 4/10. 최종 실행 통과: exec 10/10, control 6/10
+- control에서 실행하면 멈추는 코드가 "LLM 검토 통과"로 끝난 것 4편 (AVQ, Explicit Dropout, Rotated LoRA, Sampler)
+- Cubit의 오류는 ast.parse 기반 정적 검사가 '문법 통과'로 보는 종류다 (컴파일 단계 오류)
+- 실행 시간은 회당 1.5초 이하, 프로세스 최대 메모리 약 340MB 이하 (runner의 ru_maxrss)
+
+수정 내용 확인 (diff를 읽어서, Claude)
+- AVQ: 배치 합산 뒤 EMA 갱신 — 계산을 빼지 않은 수정
+- Explicit Dropout: FFN 2층에 hidden 활성값의 Gram 사용 — 체크리스트 D6 충족 방향
+- Token-Adaptive: 생성자에 호환용 activation 인자 추가 — 테스트·구현 이름 맞춤 수준, 논문 계산 변화 없음
+- Rotated LoRA: 깨진 반복 줄을 다시 씀 / Sampler: in-place 마스크를 새 마스크로
+- 체크리스트 74항목 전체 재채점은 하지 않았다 (계획에서 줄였다). 위 diff 확인만 했다
+
+한계
+- 10편 × 1회. 같은 논문도 다시 돌리면 달라진다
+- 검사 규칙을 결과를 본 뒤 고쳤고 그 3편만 다시 돌렸다 — 2판 규칙을 처음 보는 논문으로 확인하지 않았다
+- 실행 통과는 'Coder가 만든 smoke_test의 해당 경로가 이 환경에서 돌았다'까지다. 논문대로 구현했다는 뜻이 아니고, smoke_test가 쉬울 수 있다
+- '진짜 버그 / 검사 탓' 분류와 수정 확인은 Claude가 코드를 읽어 판단했다
+- LLM 비용·토큰은 기록하지 않았다. 결과 JSON의 coder_calls·reviewer_calls는 두 조건으로 갈라진 뒤의 호출 수다 —
+  최초 Coder 1회와 공통 1회차 Reviewer는 여기 저장된 결과에 들어 있지 않다 (이후 실행부터 first.calls에 기록)
+- 검사가 확인하는 학습 경로는 smoke_test가 grad_params로 넘긴 파라미터뿐이다. 여러 테스트가 grad가 있는 파라미터만 골라 넘겼고,
+  옵티마이저의 갱신 전후 변화는 검사하지 않는다 (TACO 테스트는 step()이 아무 일도 안 해도 통과할 수 있다). 입력 크기·seed 변형도 없다
+
+Codex 리뷰 뒤 수정 (커밋 전, 결과에는 영향 없음)
+- 결과 줄에 호스트가 준 nonce를 붙이고 필수 필드·타입을 검증한다 (생성 코드가 찍은 가짜 성공 줄을 인정하지 않는다)
+- Coder·Reviewer 호출 오류는 판정 실패로 세지 않고 그 조건을 'error'로 멈춘다
+- 실행 실패 피드백에 아직 반영 안 된 이전 Reviewer 지적을 함께 넘긴다
+- docker kill·inspect·rm에 30초 제한, 취소·예외에도 컨테이너·임시 폴더 정리
+- 위 결함이 이번 결과에 끼쳤는지 원자료로 확인: LLM 호출 오류 0건, 'Reviewer 낙제 뒤 실행 실패' 순서 0건, 정리 실패 0건.
+  저장된 결과는 수정 전 코드로 만든 것이다
+- Codex 재검토 뒤 추가 수정: 논문 전체 시간 초과로 멈춘 조건은 'error'로 닫고, 최종 집계는 끝까지 간 조건(통과·횟수 상한)만 센다 /
+  컨테이너 정리에 실패하면 결과 대신 infra_error. 바뀐 집계로 저장된 결과를 다시 세도 같은 숫자(4/10 → exec 10/10, control 6/10)
