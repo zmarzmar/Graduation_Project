@@ -10,6 +10,7 @@ import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-r
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
+import { CodeDraftNotice } from '@/components/agent/CodeDraftNotice'
 
 interface ResultsPanelProps {
   result: AgentResult
@@ -372,6 +373,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
 
         {activeTab === 'code' && result.generated_code && (
           <div>
+            <CodeDraftNotice />
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs text-gray-500">
                 반복 횟수: {result.iteration_count ?? 1}회
