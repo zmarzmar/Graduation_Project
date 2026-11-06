@@ -19,6 +19,7 @@ async def create_analysis_result(
     key_formulas: list | None = None,
     user_id: int | None = None,
     document_id: int | None = None,
+    code_skip_reason: str = "",
 ) -> AnalysisResult:
     """분석 결과 저장"""
     result = AnalysisResult(
@@ -28,6 +29,7 @@ async def create_analysis_result(
         query=query,
         generated_code=generated_code,
         review_feedback=review_feedback,
+        code_skip_reason=code_skip_reason,
         review_passed=review_passed,
         iteration_count=iteration_count,
         paper_summary=paper_summary,

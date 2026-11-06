@@ -25,6 +25,8 @@ class AnalysisResult(Base):
     query: Mapped[str] = mapped_column(Text, nullable=False, default="")
     generated_code: Mapped[str] = mapped_column(Text, nullable=False, default="")
     review_feedback: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Coder가 구현 대상이 아니라고 판단한 이유. 비어 있으면 코드 생성을 시도한 기록이다
+    code_skip_reason: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     review_passed: Mapped[bool] = mapped_column(nullable=False, default=False)
     iteration_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     paper_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")

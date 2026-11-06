@@ -11,6 +11,7 @@ import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
 import { CodeDraftNotice } from '@/components/agent/CodeDraftNotice'
+import { CodeSkipNotice } from '@/components/agent/CodeSkipNotice'
 
 interface ResultsPanelProps {
   result: AgentResult
@@ -146,6 +147,7 @@ function TrendAnalysisPanel({ analysis }: { analysis: TrendAnalysis }) {
 export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperKeys }: ResultsPanelProps) {
   const isTrend = result.mode === 'trend'
   const hasCoding = !!result.generated_code
+  const codeSkipReason = result.code_skip_reason
   const hasTrendAnalysis = isTrend && !!result.trend_analysis
   const hasAnalysis = !isTrend && !!(
     result.paper_summary ||
@@ -172,7 +174,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
     ...(isPdf && result.papers.length === 0 ? [] : ['papers' as TabId]),
     ...(hasAnalysis ? ['analysis' as TabId] : []),
     ...(hasTrendAnalysis ? ['trend' as TabId] : []),
-    ...(hasCoding ? ['code' as TabId, 'review' as TabId] : []),
+    ...(hasCoding ? ['code' as TabId, 'review' as TabId] : codeSkipReason ? ['code' as TabId] : []),
     ...(hasQa ? ['qa' as TabId] : []),
   ]
   const labels: Record<TabId, string> = {
@@ -369,6 +371,10 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
 
         {activeTab === 'trend' && result.trend_analysis && (
           <TrendAnalysisPanel analysis={result.trend_analysis} />
+        )}
+
+        {activeTab === 'code' && !result.generated_code && codeSkipReason && (
+          <CodeSkipNotice reason={codeSkipReason} />
         )}
 
         {activeTab === 'code' && result.generated_code && (

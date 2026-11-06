@@ -18,6 +18,11 @@ def _after_researcher(state: AgentState) -> str:
     return "trend_analyzer" if state.get("mode") == "trend" else END
 
 
+def _after_coder(state: AgentState) -> str:
+    """구현 대상이 아닌 논문이면 검토할 코드가 없으므로 끝내고, 아니면 Reviewer로 간다."""
+    return END if state.get("code_skip_reason") else "reviewer"
+
+
 def build_analyze_graph() -> StateGraph:
     """Analyzer → Coder → Reviewer 분석 전용 그래프.
     분석할 본문이 이미 정해진 경우에 사용한다 — 검색 후 논문 선택(/agent/analyze), PDF 업로드(/agent/pdf).
@@ -29,7 +34,7 @@ def build_analyze_graph() -> StateGraph:
 
     graph.add_edge(START, "analyzer")
     graph.add_edge("analyzer", "coder")
-    graph.add_edge("coder", "reviewer")
+    graph.add_conditional_edges("coder", _after_coder, ["reviewer", END])
     graph.add_conditional_edges("reviewer", route)
 
     return graph.compile()

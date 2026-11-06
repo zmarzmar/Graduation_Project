@@ -61,6 +61,7 @@ def collect_rounds(events: Iterable[tuple[str, dict]]) -> list[dict]:
                 "iteration": updates.get("iteration_count"),
                 "code": code,
                 "coder_error": updates.get("error"),
+                "skip_reason": updates.get("code_skip_reason") or None,
                 "static": static_check(code),
                 "reviewed": False,
                 "review_passed": None,
@@ -81,6 +82,8 @@ def end_reason(rounds: list[dict], run_error: str | None) -> str:
     """루프가 끝난 이유. 회차 안의 오류(coder_error·reviewer_error)는 회차에 따로 남는다."""
     if run_error:
         return "error"
+    if rounds and rounds[-1].get("skip_reason"):
+        return "not_implementable"
     if rounds and rounds[-1]["review_passed"]:
         return "passed"
     if len(rounds) >= MAX_ITERATIONS and rounds[-1]["reviewed"]:

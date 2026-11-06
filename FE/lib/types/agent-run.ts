@@ -57,6 +57,8 @@ export interface AgentResult {
   paper_review?: PaperReview
   key_formulas?: KeyFormula[]
   generated_code?: string
+  // Coder가 구현 대상이 아니라고 판단한 이유 — 있으면 코드가 없다
+  code_skip_reason?: string
   review_feedback?: string
   review_passed?: boolean
   iteration_count?: number

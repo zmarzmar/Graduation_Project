@@ -265,6 +265,7 @@ export interface AnalysisDetail extends AnalysisHistoryItem {
   paper_review: { strengths?: string[]; limitations?: string[]; significance?: string }
   key_formulas: { name: string; latex: string; description: string }[]
   generated_code: string
+  code_skip_reason: string
   review_feedback: string
   iteration_count: number
 }

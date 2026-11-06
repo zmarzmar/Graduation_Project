@@ -197,6 +197,7 @@ def _make_initial_state(
         "paper_review": {},
         "key_formulas": [],
         "generated_code": "",
+        "code_skip_reason": "",
         "review_feedback": "",
         "review_passed": False,
         "iteration_count": 0,
@@ -229,6 +230,8 @@ def _build_node_done_event(node_name: str, updates: dict) -> dict:
         event["key_formulas_count"] = len(updates.get("key_formulas", []))
     elif node_name == "coder":
         event["iteration"] = updates.get("iteration_count", 1)
+        if skip_reason := updates.get("code_skip_reason"):
+            event["code_skip_reason"] = skip_reason
     elif node_name == "reviewer":
         event["review_passed"] = updates.get("review_passed", False)
         event["review_feedback"] = updates.get("review_feedback", "")
@@ -327,6 +330,7 @@ async def stream_agent(
         "paper_review": accumulated.get("paper_review", {}),
         "key_formulas": accumulated.get("key_formulas", []),
         "generated_code": accumulated.get("generated_code", ""),
+        "code_skip_reason": accumulated.get("code_skip_reason", ""),
         "review_feedback": accumulated.get("review_feedback", ""),
         "mode": mode,
     })
@@ -430,6 +434,7 @@ async def _save_to_db(
             mode=mode,
             query=user_query,
             generated_code=accumulated.get("generated_code", ""),
+            code_skip_reason=accumulated.get("code_skip_reason", ""),
             review_feedback=accumulated.get("review_feedback", ""),
             review_passed=accumulated.get("review_passed", False),
             iteration_count=accumulated.get("iteration_count", 0),
@@ -555,6 +560,7 @@ async def stream_analyze(
         "paper_review": accumulated.get("paper_review", {}),
         "key_formulas": accumulated.get("key_formulas", []),
         "generated_code": accumulated.get("generated_code", ""),
+        "code_skip_reason": accumulated.get("code_skip_reason", ""),
         "review_feedback": accumulated.get("review_feedback", ""),
         "review_passed": accumulated.get("review_passed", False),
         "iteration_count": accumulated.get("iteration_count", 0),
@@ -600,6 +606,7 @@ async def _save_analyze_to_db(
             mode="analyze",
             query=user_query,
             generated_code=accumulated.get("generated_code", ""),
+            code_skip_reason=accumulated.get("code_skip_reason", ""),
             review_feedback=accumulated.get("review_feedback", ""),
             review_passed=accumulated.get("review_passed", False),
             iteration_count=accumulated.get("iteration_count", 0),

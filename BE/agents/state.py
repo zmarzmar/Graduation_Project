@@ -17,6 +17,7 @@ class AgentState(TypedDict):
     paper_review: dict  # Analyzer 논문 리뷰 {"strengths": [...], "limitations": [...], "significance": "..."}
     key_formulas: list[dict]  # Analyzer 핵심 수식 [{"name": "...", "latex": "...", "description": "..."}]
     generated_code: str # Coder 생성 코드
+    code_skip_reason: str  # Coder가 구현 대상이 아니라고 판단한 이유 — 있으면 코드 없이 Reviewer를 건너뛴다
     review_feedback: str# Reviewer 피드백
     review_passed: bool # Reviewer 검증 통과 여부
 
