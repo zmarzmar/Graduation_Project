@@ -43,6 +43,13 @@ def _parse_entry(entry: feedparser.FeedParserDict) -> PaperResult:
     )
 
 
+def _build_search_query(query: str) -> str:
+    """초록에 그 구절이 있는 논문. arXiv는 `all:video generation`을 "video OR generation"으로 해석해
+    최신순 정렬에서 무관한 논문이 채워졌다 (2026-11-05 운영 관측)."""
+    phrase = " ".join(query.replace('"', " ").split())
+    return f'abs:"{phrase}"'
+
+
 async def search_papers(
     query: str,
     max_results: int = 10,
@@ -64,7 +71,7 @@ async def search_papers(
     # recent_months 설정 시 최신순 정렬로 전환
     sort_by = "submittedDate" if recent_months else "relevance"
     params = {
-        "search_query": f"all:{query}",
+        "search_query": _build_search_query(query),
         "start": 0,
         "max_results": max_results,
         "sortBy": sort_by,
