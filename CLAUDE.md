@@ -280,7 +280,7 @@ RAG 3단계(① 문서 보관 #38 → ② RAG 백엔드 #39 → ③ 프런트엔
 ### 5. 로컬 환경 메모
 
 - 로컬 개발 DB는 마이그레이션 **0010**(현재 `main`의 head)까지 적용돼 있다
-- 실행 검사 실험용 로컬 Docker 이미지 `paperpilot-exec-check:dev` (`docker build -t paperpilot-exec-check:dev BE/evals/exec_check`). E2B 템플릿은 `cd BE && uv run python -m sandbox.build_template`
+- 실행 검사 실험용 로컬 Docker 이미지 `paperpilot-exec-check:dev` (`cd BE && docker build -t paperpilot-exec-check:dev -f evals/exec_check/Dockerfile .`). E2B 템플릿은 `cd BE && uv run python -m sandbox.build_template`
 - 로컬 Chroma 컨테이너는 `chromadb/chroma:1.5.5`, 볼륨은 `/data`에 마운트돼 있다
 - 로컬 DB에 검증용 계정 `canceltest`가 남아 있다
 - FE `node_modules`는 브랜치를 바꾼 뒤 `npm ci`로 맞춘다 (#36에서 의존성이 빠졌다)
