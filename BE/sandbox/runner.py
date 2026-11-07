@@ -1,7 +1,8 @@
 """컨테이너 안에서 생성 코드와 고정된 smoke_test를 실행하고 결과를 JSON 한 줄로 출력한다.
 
-/work/generated.py — 구현 코드 (smoke_test 제외)
-/work/smoke_test.py — 고정된 smoke_test 함수 소스
+실행: python -I runner.py [작업 폴더] (기본 /work — 평가용 Docker. 운영 E2B는 /home/user/work를 넘긴다)
+<작업 폴더>/generated.py — 구현 코드 (smoke_test 제외)
+<작업 폴더>/smoke_test.py — 고정된 smoke_test 함수 소스
 결과는 표준 출력의 마지막 줄에 RESULT_PREFIX로 시작하는 JSON으로 쓴다. 생성 코드의 출력은 버퍼에 가둔다.
 생성 코드와 같은 프로세스라 완전한 신뢰 경계는 아니다 — 호스트는 종료 코드·결과 형식을 함께 확인한다.
 """
@@ -83,6 +84,7 @@ def _check_returned(value, torch) -> tuple[list[str], list[str]]:  # noqa: ANN00
 def main() -> None:
     # 생성 코드를 실행하기 전에 호스트가 준 일회용 값을 읽는다 — 생성 코드가 찍은 가짜 결과 줄과 구분한다
     nonce = sys.stdin.readline().strip()
+    work = sys.argv[1] if len(sys.argv) > 1 else "/work"
     result: dict = {"passed": False, "stage": "start", "error": None, "problems": [], "test_problems": []}
     captured = _CappedBuffer()
     real_stdout = sys.stdout
@@ -96,12 +98,12 @@ def main() -> None:
         result["torch_version"] = torch.__version__
         sys.stdout = sys.stderr = captured
         module = types.ModuleType("generated")
-        module.__file__ = "/work/generated.py"
+        module.__file__ = os.path.join(work, "generated.py")
         sys.modules["generated"] = module
         result["stage"] = "import"
-        exec(compile(open("/work/generated.py").read(), "generated.py", "exec"), module.__dict__)
+        exec(compile(open(os.path.join(work, "generated.py")).read(), "generated.py", "exec"), module.__dict__)
         result["stage"] = "define_test"
-        exec(compile(open("/work/smoke_test.py").read(), "smoke_test.py", "exec"), module.__dict__)
+        exec(compile(open(os.path.join(work, "smoke_test.py")).read(), "smoke_test.py", "exec"), module.__dict__)
         if not callable(module.__dict__.get("smoke_test")):
             raise RuntimeError("smoke_test 함수가 정의되지 않았습니다")
         result["stage"] = "run_test"

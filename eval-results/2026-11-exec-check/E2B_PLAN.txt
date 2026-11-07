@@ -1,0 +1,52 @@
+생성 코드 실행 검사를 운영에 넣는 계획 (E2B) — 2026-11-06 확정, 구현은 다음 세션
+사용자 승인: 계획 방향 + "codex한테도 먼저 검사 맡고" → Codex 계획 검토 반영본이 이 문서다. 구현 시작 전 사용자에게 한 번 더 "시작" 확인을 받는다.
+
+배경
+- 로컬 Docker 실험(NOTES.txt): 같은 최초 코드에서 실행 피드백 루프 최종 실행 통과 10/10, 지금 루프 6/10.
+  지금 루프는 실행하면 멈추는 코드 4편을 "LLM 검토 통과"로 냈다
+- 운영 서버는 Oracle VM.Standard.E2.1.Micro (1 OCPU, 1GB, 여유 약 273MB, 스왑 사용 중). 실행 1회 RSS 약 320MB라 서버에서 직접 못 돌린다.
+  무료 ARM(Standard.A1) 한도는 이 계정에서 0 (콘솔 한도 페이지, 2026-11-06 확인) → 외부 샌드박스 E2B
+- E2B: 사용자가 가입, 인증 결제 5달러(크레딧으로 돌아옴), 사용 한도 5달러(넘으면 API 차단, 50/80/90/100% 이메일 알림). Hobby 플랜(동시 20, 세션 최대 1시간).
+  로컬 BE/.env에 E2B_API_KEY 있음. 운영 서버 backend.env에는 아직 없음 (넣을 때 사용자 확인)
+- 템플릿 paperpilot-exec-check (BE/sandbox/build_template.py): python 3.11 + torch 2.15.0+cpu + numpy, CPU 2, 메모리 2GB.
+  pip를 root로 설치해야 python -I에서 보인다 (처음엔 ~/.local에 깔려 실패). template_id eq84nicqa9hyjmenbmud, build cdfc4b0b-2296-4aa6-90ab-ca8cdb87d07d
+- 측정 (Explicit Dropout 생성 코드 3회, allow_internet_access=False): 생성 0.6~1.3s, 업로드 0.5~0.8s, 실행 8~17s(대부분 torch 로딩), 삭제 0.2~0.3s
+  → 검사 1회 약 10~19s, runner 프로세스 최대 RSS 약 320MB. 버그 코드는 로컬 Docker와 같은 einsum 오류, 수정본은 통과. 외부 접속은 DNS 단계에서 실패.
+  한 논문 3회 관측이다 — 일반화하지 않는다
+
+흐름
+  Analyzer → Coder(코드 + smoke_test) → Executor(E2B)
+    ├ code_error / timeout / oom → 오류를 Coder에게 (Coder 최초 생성 포함 최대 3회)
+    ├ passed / test_error / 실행 불가 → Reviewer → 지금 판정
+    └ E2B 키 없음·장애·한도 소진 → "실행 확인 못 함", Reviewer만으로 (지금과 같음)
+  - 구현 대상이 아닌 논문(#59)은 코드 없이 끝 → 실행 상태 "검사 대상 없음"
+  - 실험 규칙 유지: smoke_test는 처음 나온 회차의 것으로 고정 / 실행 실패 피드백에 이전 Reviewer 지적 함께 / 반환 형식 위반(test_error)은 Coder에게 안 보냄
+
+Codex 계획 검토(2026-11-06)에서 반영하기로 한 것 — 6건 모두 타당(Claude 확인)
+1. 최종 상태 정의: 실행 결과는 최종 표시·저장 코드에 대응. Reviewer를 안 거친 최종 코드는 "LLM 검토 안 함"으로 ("미통과"와 구분).
+   지금 PDF 응답은 Reviewer가 만든 final_result에서 값을 가져온다(agent_service.py) → 실행 실패로 끝나면 이전 회차 값이 남을 수 있다. 이전 기록은 "당시 실행 검사 안 함"
+2. LLM 오류 분리: 지금 router는 error를 보지 않는다. Coder·Reviewer 호출 오류는 판정과 분리해 오류로 끝내고 표시. E2B 장애만 Reviewer로 우회
+3. 정리 보장: finally만으로 부족(취소, 생성 요청만 도착한 경우). 샌드박스 자체 수명을 짧게(약 3분) 지정해 우리가 못 지워도 끝나게.
+   명령 실행·API 대기·삭제 제한을 따로. 취소(CancelledError)를 장애로 잡아 Reviewer를 계속 돌리지 않는다.
+   화면 취소 뒤 진행 중 실행이 몇 분 더 돌 수 있다는 한계는 기록
+4. 동시 실행·한도: 프로세스 안 semaphore로 동시 상한(예: 4), 짧은 대기, 초과 시 "실행 확인 못 함". 인증 실패·잔액 부족이면 그 분석에서는 실행 검사 중단(재시도 반복 금지).
+   E2B 호출은 비동기(AsyncSandbox). 배포 중 두 인스턴스·수동 실험도 슬롯을 쓴다는 점 기록
+5. 분류 이식: Docker 전용(종료 코드 137·OOMKilled·130초)을 그대로 쓰지 않는다. 환경별 관측을 정규화하고 runner 결과 해석만 공유.
+   "테스트 결함 판별"은 반환 형식 위반에 한정된다고 정확히 쓴다
+6. 화면: Executor 칸 추가 시 FE/store/analysis-store.ts(nodeLogs 초기값), FE/lib/hooks/useAgentStream.ts, BE agent_service의 노드 허용 목록, FE/lib/api.ts 타입까지.
+   PDF·선택 논문 두 경로의 SSE·저장·목록·상세 확인
+템플릿·보안
+- torch·numpy 버전을 명시해 고정하고 템플릿 build ID를 기록 (uv.lock은 템플릿 안을 고정하지 않는다)
+- 샌드박스 생성마다 allow_internet_access=False. IP 직접 접속 차단도 한 번 확인
+- E2B 키를 샌드박스 envs로 넘기지 않는다. 코드·고정 테스트·runner만 업로드. 실제 실행은 일반 사용자
+- "생성 코드를 외부 실행 서비스(E2B)로 보낸다" 안내는 분석 시작 전에도
+- runner는 /work 대신 경로를 받게 (측정 때는 문자열 치환으로 /home/user/work)
+테스트
+- 가짜 샌드박스: 분기, 분류, 생성·업로드·실행 중 취소, 삭제 실패, 한도 소진, 출력 폭주, 마지막 회차 실패 시 이전 성공 배지가 남지 않음
+- 실제 E2B 통합 테스트는 명시적 실행 조건(예: RUN_E2B_TESTS=1)일 때만 — 키가 있다는 이유만으로 과금 테스트를 돌리지 않는다
+확인
+- 실제 E2B로 기존 10편(같은 코드·테스트를 E2B에 재실행해 환경 차이 확인) + 처음 보는 논문 3편(규칙 고정 후 따로 집계)
+- 소요 시간 측정, 로컬 화면, Codex 리뷰(최초 + 재검토)
+범위 밖: 별도 테스트 생성기, 논문 정확성 재채점, 분산 작업 큐
+남는 한계: 실행 통과 ≠ 논문대로 구현 (Coder가 쓴 테스트, 갱신 미검사) / 취소 후 짧은 비용 지속 / 분석 시간 증가(검사 1회 10~19s 관측, 1~3회)
+작업량(Claude 작업 기준, 추정): 반나절~하루. 처음에 "이틀"이라 한 것은 사람 기준 추정이었다

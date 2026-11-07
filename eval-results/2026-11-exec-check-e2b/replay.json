@@ -1,0 +1,492 @@
+{
+  "summary": {
+    "pairs": 28,
+    "same_status": 23,
+    "different": [
+      {
+        "file": "main_9.json",
+        "paper": "cubit",
+        "where": [
+          "exec#1",
+          "control#1"
+        ],
+        "docker": "code_error",
+        "docker_all": [
+          "code_error"
+        ],
+        "e2b": "test_error",
+        "e2b_error": "",
+        "seconds": 9.1
+      },
+      {
+        "file": "main_9.json",
+        "paper": "cubit",
+        "where": [
+          "exec#2"
+        ],
+        "docker": "code_error",
+        "docker_all": [
+          "code_error"
+        ],
+        "e2b": "test_error",
+        "e2b_error": "",
+        "seconds": 8.2
+      },
+      {
+        "file": "main_9.json",
+        "paper": "cubit",
+        "where": [
+          "exec#3"
+        ],
+        "docker": "code_error",
+        "docker_all": [
+          "code_error"
+        ],
+        "e2b": "test_error",
+        "e2b_error": "",
+        "seconds": 9.4
+      },
+      {
+        "file": "main_9.json",
+        "paper": "rotated_lora_optimizer",
+        "where": [
+          "exec#1",
+          "control#1"
+        ],
+        "docker": "code_error",
+        "docker_all": [
+          "code_error"
+        ],
+        "e2b": "test_error",
+        "e2b_error": "",
+        "seconds": 6.8
+      },
+      {
+        "file": "main_9.json",
+        "paper": "rotated_lora_optimizer",
+        "where": [
+          "exec#2"
+        ],
+        "docker": "code_error",
+        "docker_all": [
+          "code_error"
+        ],
+        "e2b": "test_error",
+        "e2b_error": "",
+        "seconds": 7.7
+      }
+    ],
+    "seconds_min_median_max": [
+      4.1,
+      7.7,
+      10.1
+    ]
+  },
+  "items": [
+    {
+      "file": "pilot_explicit_dropout.json",
+      "paper": "explicit_dropout",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "ib/python3.11/site-packages/torch/functional.py\", line 372, in einsum\n    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nRuntimeError: einsum(): subscript j has size 32 for operand 1 which does not broadcast with previously seen size 16\n",
+      "seconds": 10.1
+    },
+    {
+      "file": "pilot_explicit_dropout.json",
+      "paper": "explicit_dropout",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "f2)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"generated.py\", line 43, in _trace_product\n    raise ValueError(f\"Trace-product requires same-shaped matrices, got {tuple(a.shape)} and {tuple(b.shape)}\")\nValueError: Trace-product requires same-shaped matrices, got (16, 16) and (32, 32)\n",
+      "seconds": 9.0
+    },
+    {
+      "file": "pilot_explicit_dropout.json",
+      "paper": "explicit_dropout",
+      "where": [
+        "exec#3"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 8.8
+    },
+    {
+      "file": "main_9.json",
+      "paper": "avq_attention",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "e 158, in no_grad\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"generated.py\", line 167, in ema_update\n    self.parent_sums.mul_(decay).add_(stats.parent_batch_sums, alpha=one_minus)\nRuntimeError: output with shape [2, 4, 4] doesn't match the broadcast shape [2, 2, 4, 4]\n",
+      "seconds": 7.7
+    },
+    {
+      "file": "main_9.json",
+      "paper": "avq_attention",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 7.5
+    },
+    {
+      "file": "main_9.json",
+      "paper": "poly_sketch_attention",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 4.1
+    },
+    {
+      "file": "main_9.json",
+      "paper": "cubit",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "test_error",
+      "e2b_error": "",
+      "seconds": 9.1
+    },
+    {
+      "file": "main_9.json",
+      "paper": "cubit",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "test_error",
+      "e2b_error": "",
+      "seconds": 8.2
+    },
+    {
+      "file": "main_9.json",
+      "paper": "cubit",
+      "where": [
+        "exec#3"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "test_error",
+      "e2b_error": "",
+      "seconds": 9.4
+    },
+    {
+      "file": "main_9.json",
+      "paper": "gated_adaptive_pe",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 9.6
+    },
+    {
+      "file": "main_9.json",
+      "paper": "token_adaptive_activation",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "r.py\", line 110, in main\n    value = module.__dict__[\"smoke_test\"]()\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"smoke_test.py\", line 23, in smoke_test\n    type1_moa = TypeIMoAFFN(\n                ^^^^^^^^^^^^\nTypeError: TypeIMoAFFN.__init__() got an unexpected keyword argument 'activation'\n",
+      "seconds": 7.2
+    },
+    {
+      "file": "main_9.json",
+      "paper": "token_adaptive_activation",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 10.0
+    },
+    {
+      "file": "main_9.json",
+      "paper": "token_adaptive_activation",
+      "where": [
+        "control#2"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 9.5
+    },
+    {
+      "file": "main_9.json",
+      "paper": "taco_optimizer",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 9.1
+    },
+    {
+      "file": "main_9.json",
+      "paper": "rotated_lora_optimizer",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "test_error",
+      "e2b_error": "",
+      "seconds": 6.8
+    },
+    {
+      "file": "main_9.json",
+      "paper": "rotated_lora_optimizer",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "test_error",
+      "e2b_error": "",
+      "seconds": 7.7
+    },
+    {
+      "file": "main_9.json",
+      "paper": "rotated_lora_optimizer",
+      "where": [
+        "exec#3"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/torch/_tensor.py\", line 1538, in <genexpr>\n    if not all(issubclass(cls, t) for t in types):\n               ^^^^^^^^^^^^^^^^^^\nRecursionError: maximum recursion depth exceeded while calling a Python object\n",
+      "seconds": 6.7
+    },
+    {
+      "file": "main_9.json",
+      "paper": "dataset_level_ssl_reg",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 8.5
+    },
+    {
+      "file": "main_9.json",
+      "paper": "attention_discounted_sampler",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "",
+      "seconds": 5.5
+    },
+    {
+      "file": "main_9.json",
+      "paper": "attention_discounted_sampler",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 8.4
+    },
+    {
+      "file": "main_9.json",
+      "paper": "attention_discounted_sampler",
+      "where": [
+        "control#2"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "",
+      "seconds": 6.9
+    },
+    {
+      "file": "rerun_3.json",
+      "paper": "cubit",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "exec\"), module.__dict__)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"generated.py\", line 2\n    from __future__ import annotations\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: from __future__ imports must occur at the beginning of the file\n",
+      "seconds": 6.1
+    },
+    {
+      "file": "rerun_3.json",
+      "paper": "cubit",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 7.7
+    },
+    {
+      "file": "rerun_3.json",
+      "paper": "cubit",
+      "where": [
+        "control#2"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 7.8
+    },
+    {
+      "file": "rerun_3.json",
+      "paper": "rotated_lora_optimizer",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": " line 725, in _project_and_rotate\n    F = _conditioning_frame(U, M.S, M.Up, M.Vp)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"generated.py\", line 701, in _conditioning_frame\n    right_factors = torch.cat([V, Vp], dim=1)\n                               ^\nNameError: name 'V' is not defined\n",
+      "seconds": 6.1
+    },
+    {
+      "file": "rerun_3.json",
+      "paper": "rotated_lora_optimizer",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 7.1
+    },
+    {
+      "file": "rerun_3.json",
+      "paper": "attention_discounted_sampler",
+      "where": [
+        "exec#1",
+        "control#1"
+      ],
+      "docker": "code_error",
+      "docker_all": [
+        "code_error"
+      ],
+      "e2b": "code_error",
+      "e2b_error": "ariables needed for gradient computation has been modified by an inplace operation: [CPUBoolType [8]] is at version 3; expected version 2 instead. Hint: enable anomaly detection to find the operation that failed to compute its gradient, with torch.autograd.set_detect_anomaly(True, check_nan=False).\n",
+      "seconds": 6.8
+    },
+    {
+      "file": "rerun_3.json",
+      "paper": "attention_discounted_sampler",
+      "where": [
+        "exec#2"
+      ],
+      "docker": "passed",
+      "docker_all": [
+        "passed"
+      ],
+      "e2b": "passed",
+      "e2b_error": "",
+      "seconds": 7.1
+    }
+  ]
+}

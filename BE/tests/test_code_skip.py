@@ -10,7 +10,8 @@ from unittest.mock import AsyncMock, patch
 from langchain_core.messages import AIMessage
 from langgraph.graph import END
 
-from agents.graph import _after_coder, build_analyze_graph
+from agents.graph import build_analyze_graph
+from agents.nodes.router import after_coder as _after_coder
 from agents.nodes import coder
 from agents.nodes.coder import _skip_reason, coder_node
 from evals.loop_eval import collect_rounds, end_reason
@@ -65,8 +66,8 @@ class CoderNodeSkipTest(unittest.TestCase):
 class GraphSkipTest(unittest.TestCase):
     def test_after_coder(self) -> None:
         self.assertEqual(_after_coder({"code_skip_reason": "서베이"}), END)
-        self.assertEqual(_after_coder({"code_skip_reason": ""}), "reviewer")
-        self.assertEqual(_after_coder({}), "reviewer")
+        self.assertEqual(_after_coder({"code_skip_reason": ""}), "executor")
+        self.assertEqual(_after_coder({}), "executor")
 
     def test_graph_ends_without_reviewer_when_skipped(self) -> None:
         # 실제 그래프로 돌려 Reviewer가 불리지 않는지 본다 (Analyzer·Coder LLM은 가짜)

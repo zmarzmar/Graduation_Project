@@ -1,14 +1,14 @@
 """실행 검사 피드백 실험 (평가 전용, 실제 LLM·Docker 사용, CI에서는 실행하지 않는다).
 
 실행: cd BE && caffeinate -i uv run python -u -m evals.exec_loop_eval --out <파일> [--papers ...]
-먼저 이미지를 만든다: docker build -t paperpilot-exec-check:dev evals/exec_check
+먼저 이미지를 만든다: docker build -t paperpilot-exec-check:dev -f evals/exec_check/Dockerfile .
 
 논문마다 Analyzer → Coder 1회차(smoke_test 포함 작성) → 실행 검사까지는 한 번만 돌리고, 같은 최초 코드에서 두 조건으로 갈라 진행한다.
 - exec    — 실행 검사가 실패하면 그 결과를 Coder에게 돌려준다 (Reviewer 건너뜀). 통과하면 Reviewer → 지금과 같은 루프
 - control — 지금 루프 그대로 (Reviewer만 피드백). 실행 검사는 회차마다 기록만 한다
 두 조건 모두 첫 작성 포함 최대 3회. smoke_test는 처음 나온 회차의 것으로 고정하고, 이후 Coder가 다시 써도 버린다.
 
-운영 코드는 바꾸지 않는다 — Coder 지시문은 이 실험에서만 덧붙인다 (patch).
+Coder 지시문의 실행 검사 규칙은 2026-11 이후 운영에도 들어갔다 — 실험 당시(#60)에는 이 실험에서만 덧붙였다.
 이 실험이 말해 주지 않는 것
 - 실행 통과는 'Coder가 만든 smoke_test의 해당 경로가 이 환경에서 돌았다'까지다. 논문대로 구현했다는 뜻이 아니다
 - smoke_test도 Coder가 쓰므로 쉬운 테스트일 수 있다
@@ -21,8 +21,8 @@ import json
 import subprocess
 import time
 from collections.abc import Awaitable, Callable
-from unittest.mock import patch
 
+from agents.exec_check import SMOKE_RULES
 from agents.nodes import coder, reviewer
 from agents.nodes.analyzer import analyzer_node
 from evals import exec_check
@@ -33,17 +33,7 @@ from services.agent_service import _make_initial_state, download_pdf_pages
 ARMS = ("exec", "control")
 PAPER_TIMEOUT_SECONDS = 45 * 60  # 두 조건을 이어서 돌린다
 
-SMOKE_RULES = """
-
-실행 검사 규칙 (반드시 지킬 것):
-- 코드 끝에 모듈 수준 함수 `def smoke_test() -> dict:`를 작성한다. CPU에서 작은 입력(예: 배치 2, 길이 8 수준)으로 이 논문의 핵심 모듈·알고리즘을 실제로 호출한다. 논문의 핵심 계산 경로를 건너뛰는 단순한 예제로 쓰지 않는다
-- 학습 가능한 파라미터가 있으면 손실을 만들어 backward까지 실행한다. 옵티마이저·갱신 규칙이 핵심이면 한 번 갱신까지 실행한다
-- 반환값: {"outputs": [핵심 출력 텐서들], "grad_params": [backward 뒤 gradient가 있어야 하는 파라미터들]} — 학습 대상이 없으면 grad_params는 빈 리스트
-- grad_params에는 nn.Parameter 자체를 넣는다 (param.grad나 그 복사본이 아니다). backward 뒤 반환할 때까지 gradient를 지우지 않는다(zero_grad 금지)
-- outputs에는 실제로 계산된 값만 넣는다. 쓰지 않는 칸을 NaN·inf로 채운 텐서를 넣지 않는다
-- 사용할 수 있는 패키지는 표준 라이브러리, torch, numpy뿐이다. 네트워크·파일 읽기·모델 다운로드를 하지 않는다. GPU를 쓰지 않는다
-- 1분 안에 끝나고 메모리 1GB를 넘지 않게 크기를 작게 잡는다
-- 피드백에 '고정된 smoke_test'가 있으면 smoke_test를 다시 쓰지 말고, 그 테스트가 호출하는 이름·인자를 유지한 채 구현을 고친다"""
+# 실행 검사 규칙은 운영 Coder 지시문에 들어갔다 (agents/exec_check.SMOKE_RULES) — 이 실험도 같은 지시문을 쓴다
 
 
 class InfraError(Exception):
@@ -166,32 +156,31 @@ async def run_paper(name: str, on_update: Callable[[dict], None],
             state = _make_initial_state("analyze", paper["title"], pdf_pages=pages)
             state["papers"] = [paper]
             state["analysis_source"] = "pdf"
-            with patch.object(coder, "_SYSTEM_PROMPT", coder._SYSTEM_PROMPT + SMOKE_RULES):
-                state.update(await analyzer_node(state))
-                out["analyzer_error"] = state.get("error")
-                first = await coder.coder_node(state)
-                state.update(first)
-                if first.get("code_skip_reason"):
-                    out["first"] = {"skip_reason": first["code_skip_reason"]}
-                    out["end_reason"] = "not_implementable"
-                    return out
-                if first.get("error"):
-                    raise LLMError(f"Coder: {first['error']}")
-                impl, test_src = exec_check.split_smoke_test(first.get("generated_code", ""))
-                first_exec = await _checked(impl, test_src, run_exec)
-                out["first"] = {"coder_error": first.get("error"), "exec": first_exec,
-                                "calls": {"coder": 1, "reviewer": 0}}
+            state.update(await analyzer_node(state))
+            out["analyzer_error"] = state.get("error")
+            first = await coder.coder_node(state)
+            state.update(first)
+            if first.get("code_skip_reason"):
+                out["first"] = {"skip_reason": first["code_skip_reason"]}
+                out["end_reason"] = "not_implementable"
+                return out
+            if first.get("error"):
+                raise LLMError(f"Coder: {first['error']}")
+            impl, test_src = exec_check.split_smoke_test(first.get("generated_code", ""))
+            first_exec = await _checked(impl, test_src, run_exec)
+            out["first"] = {"coder_error": first.get("error"), "exec": first_exec,
+                            "calls": {"coder": 1, "reviewer": 0}}
+            on_update(out)
+            # 두 조건의 1회차 Reviewer가 같은 입력이면 한 번만 부른다
+            shared_review = None
+            if first_exec["status"] == "passed":
+                shared_review = await reviewer.reviewer_node(
+                    {**state, "generated_code": _combined(impl, test_src), "iteration_count": 1})
+                out["first"]["calls"]["reviewer"] = 1
+            for arm in ARMS:
+                out["arms"][arm] = await run_arm(arm, state, first.get("generated_code", ""), first_exec,
+                                                 shared_review, run_exec, save_arm(arm))
                 on_update(out)
-                # 두 조건의 1회차 Reviewer가 같은 입력이면 한 번만 부른다
-                shared_review = None
-                if first_exec["status"] == "passed":
-                    shared_review = await reviewer.reviewer_node(
-                        {**state, "generated_code": _combined(impl, test_src), "iteration_count": 1})
-                    out["first"]["calls"]["reviewer"] = 1
-                for arm in ARMS:
-                    out["arms"][arm] = await run_arm(arm, state, first.get("generated_code", ""), first_exec,
-                                                     shared_review, run_exec, save_arm(arm))
-                    on_update(out)
     except Exception as e:
         out["run_error"] = f"{type(e).__name__}: {e}"
         # 도중에 멈춘 조건은 이전 회차의 통과로 집계되지 않게 오류로 닫는다

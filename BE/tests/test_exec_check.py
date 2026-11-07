@@ -1,7 +1,7 @@
 """실행 검사 실험의 분류·피드백·루프 분기 테스트 (LLM을 부르지 않는다).
 
 Docker와 실행 이미지가 있으면 실제 컨테이너 테스트도 돈다 (없으면 건너뛴다 — 그 경우 격리 동작은 검증되지 않은 것이다).
-이미지: docker build -t paperpilot-exec-check:dev evals/exec_check
+이미지: docker build -t paperpilot-exec-check:dev -f evals/exec_check/Dockerfile .
 """
 
 import asyncio

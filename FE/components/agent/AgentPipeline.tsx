@@ -22,12 +22,13 @@ const ALL_NODES: NodeConfig[] = [
   { name: 'trend_analyzer', label: 'TrendAnalyzer', description: '트렌드 분석' },
   { name: 'analyzer',       label: 'Analyzer',      description: '논문 분석' },
   { name: 'coder',          label: 'Coder',         description: '코드 생성' },
+  { name: 'executor',       label: 'Executor',      description: '실행 검사' },
   { name: 'reviewer',       label: 'Reviewer',      description: '코드 검토' },
 ]
 
 const SEARCH_NODES: NodeName[]  = ['planner', 'researcher']
-const ANALYZE_NODES: NodeName[] = ['analyzer', 'coder', 'reviewer']
-const PDF_NODES: NodeName[]     = ['analyzer', 'coder', 'reviewer']
+const ANALYZE_NODES: NodeName[] = ['analyzer', 'coder', 'executor', 'reviewer']
+const PDF_NODES: NodeName[]     = ['analyzer', 'coder', 'executor', 'reviewer']
 const TREND_NODES: NodeName[]   = ['planner', 'researcher', 'trend_analyzer']
 
 function NodeIcon({ status }: { status: string }) {

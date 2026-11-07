@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle, XCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, CheckCircle, HelpCircle, XCircle, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -11,6 +11,8 @@ import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
 import { CodeDraftNotice } from '@/components/agent/CodeDraftNotice'
+import { ExecCheckStatus } from '@/components/agent/ExecCheckStatus'
+import { isReviewSkipped } from '@/lib/exec-check'
 import { CodeSkipNotice } from '@/components/agent/CodeSkipNotice'
 
 interface ResultsPanelProps {
@@ -148,6 +150,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
   const isTrend = result.mode === 'trend'
   const hasCoding = !!result.generated_code
   const codeSkipReason = result.code_skip_reason
+  const reviewSkipped = isReviewSkipped(result.exec_status)
   const hasTrendAnalysis = isTrend && !!result.trend_analysis
   const hasAnalysis = !isTrend && !!(
     result.paper_summary ||
@@ -174,7 +177,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
     ...(isPdf && result.papers.length === 0 ? [] : ['papers' as TabId]),
     ...(hasAnalysis ? ['analysis' as TabId] : []),
     ...(hasTrendAnalysis ? ['trend' as TabId] : []),
-    ...(hasCoding ? ['code' as TabId, 'review' as TabId] : codeSkipReason ? ['code' as TabId] : []),
+    ...(hasCoding ? ['code' as TabId, 'review' as TabId] : codeSkipReason || result.error ? ['code' as TabId] : []),
     ...(hasQa ? ['qa' as TabId] : []),
   ]
   const labels: Record<TabId, string> = {
@@ -377,8 +380,15 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
           <CodeSkipNotice reason={codeSkipReason} />
         )}
 
+        {activeTab === 'code' && !result.generated_code && !codeSkipReason && result.error && (
+          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            코드 생성 중 LLM 호출 오류로 중단됐습니다: {result.error}
+          </p>
+        )}
+
         {activeTab === 'code' && result.generated_code && (
           <div>
+            <ExecCheckStatus execStatus={result.exec_status} execDetail={result.exec_detail} />
             <CodeDraftNotice />
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs text-gray-500">
@@ -427,16 +437,29 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
             <div className="flex items-center gap-2">
               {result.review_passed ? (
                 <CheckCircle className="h-5 w-5 text-green-500" />
+              ) : reviewSkipped || result.error ? (
+                <HelpCircle className="h-5 w-5 text-gray-400" />
               ) : (
                 <XCircle className="h-5 w-5 text-red-500" />
               )}
               <span className="text-sm font-semibold">
-                {result.review_passed ? 'LLM 검토 통과' : 'LLM 검토 미통과'}
+                {result.review_passed
+                  ? 'LLM 검토 통과'
+                  : reviewSkipped
+                    ? 'LLM 검토 안 함'
+                    : result.error
+                      ? 'LLM 호출 오류로 중단'
+                      : 'LLM 검토 미통과'}
               </span>
             </div>
             <p className="text-xs text-gray-500">
-              Reviewer(LLM)가 논문과 코드를 읽고 대조한 결과입니다. 코드를 실행해 확인하지는 않았습니다.
+              {reviewSkipped
+                ? '마지막 코드가 실행 검사에서 실패해 Reviewer(LLM) 검토를 하지 않았습니다. 실행 결과는 생성 코드 탭에 있습니다.'
+                : 'Reviewer(LLM)가 논문과 코드를 읽고 대조한 결과입니다. 실행 결과는 생성 코드 탭에 따로 표시합니다.'}
             </p>
+            {result.error && !reviewSkipped && (
+              <p className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{result.error}</p>
+            )}
             {result.review_feedback && (
               <p className="whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">
                 <MathText text={result.review_feedback} />

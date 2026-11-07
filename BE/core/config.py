@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     openalex_email: str = ""
     openalex_api_key: str = ""  # 무료 키 — 키 없는 검색은 부하가 높을 때 429로 막힌다 (2026-11 관측)
 
+    # 생성 코드 실행 검사 (E2B 샌드박스). 키가 없으면 검사를 건너뛰고 "실행 확인 못 함"으로 표시한다
+    e2b_api_key: str = ""
+    exec_check_template: str = "paperpilot-exec-check"  # sandbox/build_template.py로 만든 템플릿
+    exec_check_max_concurrent: int = 4  # 이 프로세스에서 동시에 띄우는 샌드박스 상한 — 자리가 잠깐 안에 나지 않으면 건너뛴다
+
     # 데이터베이스 — postgresql+asyncpg:// 형식 사용
     database_url: str = _LOCAL_DB_URL
 

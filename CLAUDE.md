@@ -10,31 +10,38 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 논문을 여러 출처(arXiv, Semantic Scholar, OpenAlex, Hugging Face)에서 수집하고, 논문 전문을 읽어 요약·리뷰·핵심 수식을 뽑고, **논문 기반 PyTorch 구현 초안**을 생성한 뒤 LangGraph의 **자기수정 루프**(Coder ↔ Reviewer)로 다듬는다. 분석한 논문에 질문하는 **논문 Q&A(RAG)** 를 추가하는 중이다.
 
-표현 원칙: 현재 수준은 "코드 재현"이 아니라 **"논문 기반 구현 초안 생성"**, Reviewer의 판정은 "검증 통과"가 아니라 **"LLM 검토 통과"** 다. 코드를 실행해 검증하지 않는다.
+표현 원칙: 현재 수준은 "코드 재현"이 아니라 **"논문 기반 구현 초안 생성"**, Reviewer의 판정은 "검증 통과"가 아니라 **"LLM 검토 통과"** 다. 실행 검사(E2B, `feature/exec-check-e2b` — 운영 미배포)는 Coder가 쓴 smoke_test를 작은 입력으로 돌려 오류 없이 끝나는지만 본다 — "실행 통과"는 논문대로 구현됐다는 뜻이 아니다.
 
 ---
 
-## 🚧 현재 상태와 이어서 할 일 (2026-11-06 기준)
+## 🚧 현재 상태와 이어서 할 일 (2026-11-07 기준)
 
 **새 세션은 여기부터 읽는다.** 아래는 결정이 끝난 내용이다 — 다시 논의하지 말고 이어서 진행한다.
 
 ### ▶ 지금 바로 이어서 할 일
 
-**열린 PR·작업 브랜치가 없다** (`main`이 이 문서의 기준, #57까지 머지·운영 배포 완료). 2026-11-05~06에 한 일: 운영 확인(아래 2-3) → 키워드 검색 0편 수정(#52) → 검색 품질(#53) → 로그 문구(#54) → 트렌드 추천 주제를 최근 논문 근거로(#55, 2-4) → 트렌드 검색어 하나로(#56) → arXiv 구절 검색(#57). #57 뒤 운영에서 트렌드 "video generation"이 10편 모두 영상 생성 연구로 나오는 것까지 확인했다 (2026-11-06)
+**작업 브랜치 `feature/exec-check-e2b` — 생성 코드 실행 검사(E2B) 구현·확인 완료, 원격 push 전 (2026-11-07).** `main`은 #60까지 머지·운영 배포 완료 (2026-11-06).
 
-**"완성" 기준의 사용자 확인 두 가지 중 1번은 끝났다 (2026-11-05).** 운영에서 PDF 업로드·키워드 검색 → 선택 → 분석·트렌드·Q&A를 모두 돌려 "LLM 검토 통과"와 구현 초안까지 확인했다 (아래 2-3). 그 과정에서 키워드 검색이 0편이던 문제를 찾아 #52·#53으로 고쳤다.
+**새 세션은 먼저 이것부터: 사용자에게 다음 단계를 묻는다 — push → PR → 머지·배포. 매번 사용자가 정한다.**
+- 확인 기록: `eval-results/2026-11-exec-check-e2b/NOTES.txt` (실제 E2B 경계 사례, #60 코드 28쌍 E2B 재실행 — 환경 차이 0, 처음 보는 논문 3편, 로컬 화면, Codex 리뷰 최초 4건 + 재검토 1건 모두 반영)
+- **배포 전에 할 일 (사용자 확인 필요):** 운영 `deploy/env/backend.env`에 `E2B_API_KEY` 추가. 없으면 배포돼도 실행 검사는 "실행 확인 못 함"으로 건너뛰고 지금처럼 Reviewer만 돈다(테스트로 확인). 서버 env는 앞에 공백 두 칸 형식이다 — 기존 백업처럼 먼저 백업한다
+- 마이그레이션 0011(`exec_status`·`exec_detail`·`run_error`)이 배포 때 적용된다. 추가만 하는 변경
+- 머지하면 `BE/**`·`FE/**`가 함께 바뀌어 운영 배포 + Vercel 배포가 나간다. 배포 뒤 운영 화면에서 분석 1회로 Executor 칸·실행 결과를 확인한다
+- 계획 원문: `eval-results/2026-11-exec-check/E2B_PLAN.txt`. 왜 E2B인지(서버 1GB, 무료 ARM 한도 0)도 거기 있다
+- E2B 계정: 사용 한도 5달러(넘으면 API 차단, 이메일 알림). 템플릿 `paperpilot-exec-check`(template_id `eq84nicqa9hyjmenbmud`)는 이번에 다시 만들지 않았다 — 버전만 실행으로 확인해 `BE/sandbox/build_template.py`에 고정
+- 로컬에 실수로 만든 `git stash` 항목이 하나 있다 (`WIP on feature/exec-check-e2b: b9466a7`, 내용은 커밋된 변경과 같음) — 지워도 된다
 
-**새 세션은 먼저 이것부터: 판정표 확정 — 사용자가 2026-11-06에 다음 세션으로 미뤘다.** `eval-results/2026-11-loop-eval/verdicts.csv` (89건 = 1회차 74 + 수정 회차 15, 채점자는 AI — 보조 에이전트 20, 보조 에이전트+Claude 재확인 39, Claude 30). 사용자에게 설명한 것: 이 숫자(1회차 63/74, 최종 64/74)는 자기수정 루프의 유일한 정량 근거이고 README·발표에 쓰인다. 지금은 AI가 만든 코드를 AI가 채점한 "잠정 채점"이다. 사용자가 고를 선택지:
-  - A. 그대로 승인 → "AI 채점, 사용자 승인" (사람이 채점했다고 쓰지 않는다)
-  - **B. 경계 사례 7건만 같이 보기 (Claude 권장, 10~15분)** — TACO T8, Rotated R1, Cubit C5, Explicit Dropout D5, SSL S6, Sampler A2, Poly Sketch P7(해당없음 여지). 항목마다 논문 요구사항(`BE/evals/loop_checklists.py`) / 생성 코드 줄(`code/<논문>_r<회차>.py`) / 현재 판정과 근거를 짧게 보여주고 사용자가 고른다
-  - C. 89건 전부 검토 / D. 확정하지 않고 "AI가 채점한 잠정 결과"로 둔다
-  - 사용자가 판단 기준으로 쓸 질문: 이 평가 숫자를 발표에 쓸 것인가. 판정이 바뀌면 CSV, 이 문서 2-2, `README.md`의 합계를 함께 고친다
+**판정표(`eval-results/2026-11-loop-eval/verdicts.csv`)는 확정하지 않았다.** 사용자가 "논문을 다 알지 못하는데 같이 봐도 의미가 있나"라고 해서 Codex와 상의했고, 승인 서명보다 실행 검사로 근거를 보강하는 쪽으로 갔다. 사용자가 A~D 중 명시적으로 고른 것은 없다 — 지금은 "AI가 채점한 잠정 결과"로 쓴다. 판정이 바뀌면 CSV, 이 문서 2-2, `README.md`의 합계를 함께 고친다
+
+**2026-11-06에 한 일:** 생성 코드 경고문 + 구현 대상이 아닌 논문(서베이·연구 방향·순수 이론)은 코드를 만들지 않음(#59, 마이그레이션 0010, `eval-results/2026-11-code-skip/`) → 로컬 Docker 실행 피드백 실험(#60) → E2B 가입·템플릿·측정 → 운영 반영 계획 + Codex 계획 검토
+
+**"완성" 기준의 사용자 확인 두 가지 중 1번은 끝났다 (2026-11-05).** 운영에서 PDF 업로드·키워드 검색 → 선택 → 분석·트렌드·Q&A를 모두 돌려 "LLM 검토 통과"와 구현 초안까지 확인했다 (아래 2-3).
 
 **보류: 대표 논문 목록 (PR 3, 사용자 결정 2026-11-05 — 지금은 하지 않는다).** "attention mechanism"으로 Attention Is All You Need가, "LoRA fine-tuning"으로 LoRA 원 논문이 검색 후보에 아예 없다 (인용 수 정렬로도 못 올린다). 사용자 아이디어: 전문이 있는 유명 논문을 저장해 두고 보여준다. 2026-11-05에 계획을 냈고(코드 상수 목록 ~30편, 검색어 키워드 매칭으로 최대 3편을 "대표 논문" 배지와 함께 앞에, 메타데이터·인용 수는 그때그때 조회) 사용자가 보류했다. 다시 하자고 할 때만 시작한다
 
 **그다음은 정해지지 않았다 — 사용자에게 고르게 한다. 임의로 시작하지 않는다.** 모두 "완성 뒤의 개선 과제"이고, 발표에서는 한계·개선 방향으로 쓸 수 있다.
 - **Reviewer 기준 강화 → 같은 10편으로 재측정.** 프롬프트가 "통과 기준 (관대하게 적용)"이고 TODO를 문제로 보지 않는다. 본 평가에서 1회차에 통과시킨 8편 중 5편에 체크리스트 미충족이 있었다. 2026-11-05 운영 확인에서도 같았다: AVQ는 V3 미충족을 지적 없이 통과, GAM은 "채널 attention이 논문 방식과 다르다"고 적고 통과. 재측정: `cd BE && caffeinate -i uv run python -u -m evals.loop_eval --out <파일>` (논문당 약 1분, 10편이 몇 달러 이하 — 어림)
-- **생성 코드 실행 검사** — 네트워크 없는 격리 컨테이너. LLM 검토를 통과한 2편이 실행하면 멈추는 코드였다(코드를 읽어 판단). 2026-11-05 운영의 AVQ 초안도 `scatter_add_`에 float index를 넘겨 학습 갱신에서 멈출 것으로 보인다(읽어서 판단)
+- ~~생성 코드 실행 검사~~ → 진행 중 (위 "새 세션은 먼저 이것부터")
 - **LLM 호출 시간 제한 없음** (아래 4번)
 - **다른 노드의 `_extract_json` 복사본**(Analyzer·Planner·TrendAnalyzer) — 해석 실패를 조용히 넘기는 구조가 Reviewer에만 고쳐졌다
 - **전문 vs 검색 컨텍스트 코드 생성 비교** (아래 3번의 5, 미착수) — 하지 않기로 하면 "향후 과제"로 기록한다
@@ -81,6 +88,10 @@ This file provides guidance to Claude Code when working with code in this reposi
 | #55 | **트렌드 추천어를 최근 논문 근거로** — `BE/data/trend_topics.json`, 화면에 근거 줄, 매일 LLM 추측 제거 (2-4) | 2026-11-05 머지·운영 배포 (`bce44f9`). 운영 API·화면 확인 |
 | #56 | 트렌드 브리핑도 검색어 하나로 검색·매칭, Planner 키워드 후보 화면 줄 제거 | 2026-11-05 머지·운영 배포 (`67b2ede`). 배포 뒤 운영에서 S2 429 + arXiv 해석 버그로 무관한 논문 → #57 |
 | #57 | **arXiv 검색을 초록 구절 검색으로** (`all:a b`가 arXiv에서 `a OR b`) | 2026-11-06 머지·운영 배포 (`bf5d587`). 운영 트렌드 "video generation" 10편 모두 해당 주제 확인 |
+| #58 | 핸드오프 문서 (판정표 확정을 다음 세션으로) | 2026-11-06 머지 |
+| #59 | **생성 코드 경고문 + 구현 대상이 아닌 논문은 코드 생략** (Coder `NOT_IMPLEMENTABLE`, Reviewer 건너뜀, 마이그레이션 0010 `code_skip_reason`). 생략 대상은 서베이·연구 방향/입장·구성 없는 순수 이론 — 벤치마크·실험 분석은 구현 대상(사용자 결정) | **2026-11-06 머지·운영 배포 완료** (`e9e6ba7`). 운영 DB 0010 확인. 운영 화면에서 분석은 미확인 (로컬 화면만) |
+| #60 | 실행 피드백 실험: 격리 Docker 실행 검사 + exec/control 비교 (평가 전용, 운영 동작 변화 없음) | 2026-11-06 머지·배포 (`c9d1db9`) |
+| `feature/exec-check-e2b` | **생성 코드 실행 검사 (E2B)**: Executor 노드, 실행 오류를 Coder에게(최대 3회), LLM 호출 오류 분리, 마지막 코드 기준 판정, 마이그레이션 0011, 화면 표시·사전 안내 | 구현·확인 완료, push 전 (2026-11-07). 기록: `eval-results/2026-11-exec-check-e2b/NOTES.txt` |
 | `feature/related-passages` | 분석 결과의 요약·수식에 '관련 원문' 연결 | **공개 보류. 원격에 올려만 두었다 (PR 없음).** 상위 1개 구절이 관련 있음 14/24 — 자세한 수치와 결정 사항은 그 브랜치의 CLAUDE.md에 있다. 나중에 올리려면 `PaperQa.tsx`·`lib/api.ts`·`routers/qa.py`·`CLAUDE.md`의 충돌을 풀어야 한다 |
 
 RAG 3단계(① 문서 보관 #38 → ② RAG 백엔드 #39 → ③ 프런트엔드 #41)는 모두 운영에 있고, 운영에서 분석 → 질문 → 문장별 출처 펼침 → 근거 부족 안내까지 확인했다.
@@ -254,7 +265,7 @@ RAG 3단계(① 문서 보관 #38 → ② RAG 백엔드 #39 → ③ 프런트엔
   - 따로 결정할 것: 기동 시간 자체(`uv run`으로 앱과 마이그레이션을 띄우는 방식 — 측정 먼저), 서버 사양과 모니터링 컨테이너(cadvisor·prometheus·grafana) 유지 여부
 - 논문 Q&A의 남은 한계: 응답 없는 Chroma 호출이 스레드를 최대 75초 잡는다(클라이언트 타임아웃 미설정, 종료 지연 가능) / 삭제 요청마다 컬렉션 전체 대조가 요청 안에서 돈다 / 본문의 `</passage>`가 구절 구분자를 흉내 낼 수 있다(영향은 올린 본인의 Q&A)
 - Reviewer 프롬프트가 "통과 기준 (관대하게 적용)"이고 TODO를 문제로 보지 않는다 (화면 문구는 `feature/finish-touches`에서 "LLM 검토 통과"로 바꿨다)
-- 코드 실행 검증 없음. 도입한다면 1단계는 `ast.parse` + import **구문의 정적 확인**(실제 import는 코드를 실행하므로 금지), 실제 실행은 네트워크 없는 격리 컨테이너에서
+- ~~코드 실행 검증 없음~~ → `feature/exec-check-e2b`에서 E2B 실행 검사 도입 (운영 미배포). 남은 한계는 `eval-results/2026-11-exec-check-e2b/NOTES.txt`
 - OpenAI TPM: 루프 3회면 Coder·Reviewer 모델에 2분 남짓 동안 ~17만 토큰이 들어간다 (o4-mini 때 측정)
 - Reviewer 응답 해석 실패가 조용히 '낙제'가 되던 문제 (2026-11-01 본 평가에서 관측) → `feature/finish-touches`에서 수정: 형식이 틀린 응답은 `error`와 사유로 돌려준다. 다른 노드(Analyzer·Planner·TrendAnalyzer)의 `_extract_json` 복사본은 그대로다. 오류 회차도 Router는 낙제처럼 Coder로 돌린다(최대 3회)
 - **LLM 호출에 시간 제한이 없다** (`ChatOpenAI`에 `timeout` 미지정 → OpenAI 클라이언트 기본값: 요청당 최대 600초, 재시도 2번). 2026-10-28 로컬 평가에서 잠자기 뒤 응답 없는 연결 하나에 23분 넘게 매달렸다(CPU 0%). 운영 노드도 같은 설정이다 — 운영에서 일어났는지는 관측한 적 없다. 미수정
@@ -270,7 +281,8 @@ RAG 3단계(① 문서 보관 #38 → ② RAG 백엔드 #39 → ③ 프런트엔
 
 ### 5. 로컬 환경 메모
 
-- 로컬 개발 DB는 마이그레이션 **0009**(현재 `main`의 head)까지 적용돼 있다
+- 로컬 개발 DB는 마이그레이션 **0011**(`feature/exec-check-e2b`의 head, `main`은 0010)까지 적용돼 있다
+- 실행 검사 실험용 로컬 Docker 이미지 `paperpilot-exec-check:dev` (`cd BE && docker build -t paperpilot-exec-check:dev -f evals/exec_check/Dockerfile .`). E2B 템플릿은 `cd BE && uv run python -m sandbox.build_template`
 - 로컬 Chroma 컨테이너는 `chromadb/chroma:1.5.5`, 볼륨은 `/data`에 마운트돼 있다
 - 로컬 DB에 검증용 계정 `canceltest`가 남아 있다
 - FE `node_modules`는 브랜치를 바꾼 뒤 `npm ci`로 맞춘다 (#36에서 의존성이 빠졌다)
@@ -343,7 +355,7 @@ Graduation_Project/
     ├── models/                     # SQLAlchemy: user, paper, analysis, search_history, paper_document
     ├── crud/                       # DB 쿼리 (commit은 호출자가 한다)
     ├── schemas/                    # Pydantic DTO
-    ├── alembic/versions/           # 0001 … 0009
+    ├── alembic/versions/           # 0001 … 0011
     ├── tests/                      # unittest
     └── evals/                      # qa_eval.py, loop_eval.py — 실제 API를 쓰는 평가, CI에서 돌리지 않는다
 ```
@@ -360,18 +372,20 @@ Graduation_Project/
                        → (search) END   ← 사용자가 논문을 고르면 분석 그래프로
 
 분석 그래프 (pdf 업로드 / 선택한 논문 분석)
-  Analyzer → Coder → Reviewer → Router ─ 통과 또는 3회 → END
-                ↑                  │
-                └──── 낙제 ────────┘
+  Analyzer → Coder → Executor ─ 실행 오류 → Coder (3회째면 END, Reviewer 없이)
+                ↑         └ 통과·테스트 형식 위반·실행 확인 못 함 → Reviewer → Router ─ 통과 또는 3회 → END
+                └──── 낙제 ─────────────────────────────────────────────┘
+  Coder·Reviewer 호출 오류는 그 자리에서 END (판정과 분리, run_error)
 ```
 
 1. **Planner** — 검색 키워드와 계획 요약을 만든다. 출력은 `summary`, `search_keywords`뿐이다
 2. **Researcher** — Semantic Scholar / OpenAlex / arXiv / Hugging Face에서 수집
 3. **TrendAnalyzer** — 트렌드 논문 요약과 키워드
 4. **Analyzer** — 논문 요약, 리뷰(강점·한계), 핵심 수식(LaTeX)
-5. **Coder** — 논문 전문으로 PyTorch 구현 초안 생성, 2회차부터는 리뷰 피드백 반영
-6. **Reviewer** — 생성 코드와 논문을 LLM이 대조해 피드백 작성 (코드를 실행하지 않는다)
-7. **Router** — 통과 시 종료, 낙제 시 Coder로 (최대 3회)
+5. **Coder** — 논문 전문으로 PyTorch 구현 초안 + `smoke_test` 생성, 2회차부터는 실행 오류 또는 리뷰 피드백 반영
+6. **Executor** — 코드와 처음 나온 smoke_test를 E2B 샌드박스(인터넷 끔)에서 실행 (`services/sandbox_service.py`)
+7. **Reviewer** — 생성 코드와 논문을 LLM이 대조해 피드백 작성 (코드를 실행하지 않는다)
+8. **Router** — 통과 시 종료, 낙제 시 Coder로 (최대 3회)
 
 ---
 
@@ -567,6 +581,7 @@ POST   /api/v1/analyses/{analysis_id}/ask        # 논문 Q&A — 401 / 404 / 40
 OPENAI_API_KEY=
 DATABASE_URL=                  # postgresql+asyncpg://…  기본값은 로컬 개발 DB
 JWT_SECRET_KEY=                # DATABASE_URL이 로컬 기본값이 아니면 필수 (기본 시크릿이면 기동 거부)
+E2B_API_KEY=                   # 선택 — 생성 코드 실행 검사. 없으면 검사를 건너뛰고 Reviewer만
 SEMANTIC_SCHOLAR_API_KEY=      # 선택
 OPENALEX_EMAIL=                # 선택 — polite pool
 OPENALEX_API_KEY=              # 선택 — 무료 키. 없으면 부하가 높을 때 검색이 429로 막힌다

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, FileText, RefreshCw, Search, Upload, TrendingUp, Play, RotateCcw, Square } from 'lucide-react'
+import { AlertTriangle, FileText, Info, RefreshCw, Search, Upload, TrendingUp, Play, RotateCcw, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -354,6 +354,15 @@ export default function HomePage() {
 
         {/* 트렌드 모드는 논문 본문을 분석하지 않으므로 원문이 저장되지 않는다 */}
         {mode !== 'trend' && <DocumentStorageNotice />}
+        {mode !== 'trend' && (
+          <p className="mt-1 flex items-start gap-1.5 text-xs text-gray-500">
+            <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+            <span>
+              생성된 구현 코드는 실행 검사를 위해 외부 실행 서비스(E2B)로 보내, 네트워크가 차단된 격리 환경에서 실행합니다.
+              논문 본문이나 계정 정보는 보내지 않습니다.
+            </span>
+          </p>
+        )}
       </div>
 
       {/* Empty State — 분석 시작 전에만 표시 */}

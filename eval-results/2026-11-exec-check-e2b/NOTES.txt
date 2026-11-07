@@ -1,0 +1,52 @@
+생성 코드 실행 검사의 운영 반영 (E2B) — 확인 기록 (2026-11-07)
+
+무엇을 넣었나 (브랜치 feature/exec-check-e2b, 계획: ../2026-11-exec-check/E2B_PLAN.txt)
+- 분석 그래프: Analyzer → Coder(코드 + smoke_test) → Executor(E2B) → Reviewer → Router
+  - 실행 오류(code_error·timeout·oom) → 오류 + 직전 Reviewer 지적을 Coder에게 (첫 작성 포함 최대 3회, 마지막이면 Reviewer 없이 끝)
+  - 통과·test_error·unavailable → Reviewer (지금과 같은 판정)
+  - Coder·Reviewer 호출 오류는 판정과 분리해 그 자리에서 끝낸다 (run_error로 저장)
+- 마지막 코드가 실행 실패로 끝나면 이전 회차의 Reviewer 판정을 붙이지 않는다 → 화면 "LLM 검토 안 함"
+- 저장: analysis_results.exec_status / exec_detail / run_error (마이그레이션 0011). 이전 기록은 빈 값 = "실행 검사 안 함"
+- 코드: BE/agents/exec_check.py(공통 규칙), BE/services/sandbox_service.py(E2B), BE/agents/nodes/executor.py, BE/sandbox/runner.py
+- E2B: 템플릿 paperpilot-exec-check (torch 2.15.0+cpu, numpy 2.4.6 — 실행으로 확인), 샌드박스마다 인터넷 끔, 수명 180초,
+  명령 130초, runner 100초, 프로세스당 동시 4개(10초 안에 자리가 없으면 건너뜀)
+
+확인한 것
+1. 실제 E2B 동작 (각 1회)
+   - 통과 / 모양 오류(code_error) / runner 시간 제한(timeout) / 명령 시간 제한(timeout) — 기대대로
+   - 메모리 초과(12GB 할당): 결과 줄 없이 종료 코드 -1. -1이 메모리 초과만 뜻하는지 몰라 oom으로 단정하지 않고 code_error + 사유
+   - 실행 중 취소: CancelledError가 올라가고, 몇 초 뒤 E2B 샌드박스 목록이 비어 있음
+   - 네트워크: allow_internet_access=False에서도, network deny_out 0.0.0.0/0에서도 TCP 연결 자체는 성립한다(1.1.1.1:80, 93.184.215.14:80).
+     그러나 받은 바이트 0, HTTP는 "응답 없이 끊김", DNS 실패, 8.8.8.8:53은 reset. 데이터가 오가는 것은 관측되지 않았다.
+     "연결 차단"이 아니라 "응답 없이 끊김"으로 기록한다. 밖으로 나가는 바이트가 전혀 없는지는 확인하지 못했다
+2. 환경 차이 — #60의 Docker 회차 코드를 그대로 E2B에서 재실행 (replay_on_e2b.py → replay.json)
+   - 고유 (코드, 테스트) 28쌍 중 23쌍 같은 상태. 다른 5쌍은 모두 main_9(검사 규칙 1판)의 Cubit·Rotated LoRA로,
+     Docker 1판은 grad_params에 gradient 텐서를 넣은 것을 code_error로, 지금 규칙은 test_error로 분류한다 (1쌍은 원인을 직접 출력해 확인).
+     환경 탓으로 보이는 차이는 0쌍
+   - 검사 1회 4.1~10.1초 (중앙값 7.7초, 4개 동시)
+   - 처음에 28개를 한꺼번에 보내자 대부분 "동시 실행 검사가 많아 건너뜀"이 됐다 — 동시 상한이 설계대로 동작. 스크립트에서 줄을 세워 다시 돌렸다
+3. 처음 보는 논문 3편 — 운영 그래프 그대로 (new_papers.py → new_papers.json, new_papers.log)
+   본 평가 예비 논문 LAARA(2607.19391), Delta Attention Residuals(2605.18855), AutoNorm(2607.10593)
+   | 논문 | 회차 | 실행 | 검토 | 시간 |
+   | LAARA | 1 | passed | 통과 | 79초 |
+   | Delta Attention Residuals | 2 | passed → passed | 낙제 → 통과 | 198초 |
+   | AutoNorm | 3 | test_error ×3 | 낙제 ×3 | 152초 |
+   - AutoNorm은 이 실행 뒤에 고친 버그의 영향을 받았다: 고정 smoke_test를 코드 끝으로 옮겨, Coder가 쓴 `if __name__ == "__main__"`보다
+     뒤에 놓였다 (Codex 리뷰 지적 3과 같은 문제, 이 실행과 거의 동시에 고침). Reviewer가 3회 모두 "스크립트 실행 시 NameError"를 지적했다
+   - test_error의 원인은 테스트 쪽이다: smoke_test가 게이트 동결(requires_grad=False)을 적용한 뒤 그 파라미터를 grad_params에 넣었다.
+     테스트를 고정하므로 3회 모두 같은 판정 — 고정 테스트에 결함이 있으면 실행 검사로는 판단하지 못한다 (계획의 한계)
+4. AutoNorm 재실행 (고친 뒤, 로컬 화면에서 PDF 업로드 — "처음 보는" 실행이 아니다)
+   - 1회차 code_error(텐서 모양 불일치) → Coder 수정 → 2회차 test_error(grad_params에 학습 파라미터가 아닌 텐서) → Reviewer 통과
+   - 화면: 파이프라인 Executor 칸·로그, 생성 코드 탭의 실행 검사 상자("실행 판단 불가" + 사유), 코드 리뷰 탭, 마이페이지 목록 배지·상세 확인
+   - 사유가 줄 중간부터 잘려 보이던 것을 고쳤다 (잘린 첫 줄을 버림)
+5. 테스트: BE 209개 통과(실제 E2B 1개는 RUN_E2B_TESTS=1일 때만 — 따로 돌려 통과). 새 테스트는 고치기 전 코드에서 실패하는 것 확인
+6. Codex 리뷰: 최초 4건(저장된 기록에서 LLM 오류가 미통과로 보임 / Coder 오류가 화면에 안 보임 / 고정 테스트를 끝으로 옮겨 __main__ 순서가 깨짐 /
+   생성·업로드 중 취소 테스트 없음) 모두 반영. 재검토 1건(수정 회차에서 테스트 정의를 빼고 __main__만 남긴 경우) 반영
+
+한계
+- 표본: 새 논문 3편 × 1회, 실제 E2B 경계 사례는 각 1회
+- 실행 통과 ≠ 논문대로 구현. smoke_test도 Coder가 쓴다. 고정 테스트에 결함이 있으면(AutoNorm) 실행 검사로 판단하지 못한다
+- 화면에서 분석을 취소해도 진행 중인 샌드박스는 삭제 요청이 끝날 때까지(최대 약 35초), 삭제에 실패하면 수명(180초)까지 남는다
+- 동시 상한은 프로세스 단위다 — 배포 전환 중 두 인스턴스, 수동 실험은 각자 따로 센다. E2B 계정 한도는 동시 20
+- 사용 한도·잔액 부족이 E2B에서 어떤 응답으로 오는지는 확인하지 못했다. 401·402·403과 인증 예외만 "이 분석에서 다시 시도 안 함"으로 본다
+- 분석 시간 증가: 검사 1회 약 4~19초(관측 범위), 1~3회

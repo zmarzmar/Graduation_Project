@@ -241,6 +241,9 @@ export interface AnalysisHistoryItem {
   paper_title: string | null
   paper_authors: string[] | null
   review_passed: boolean
+  exec_status: string
+  /** Coder·Reviewer 호출 오류로 끝났을 때의 사유 — 있으면 판정을 못 한 것이다 (미통과와 구분) */
+  run_error: string
   has_code: boolean
   has_document: boolean
   created_at: string
@@ -266,6 +269,7 @@ export interface AnalysisDetail extends AnalysisHistoryItem {
   key_formulas: { name: string; latex: string; description: string }[]
   generated_code: string
   code_skip_reason: string
+  exec_detail: string
   review_feedback: string
   iteration_count: number
 }
