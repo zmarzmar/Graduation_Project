@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BookOpen, Clock, Code2, User, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink, Pencil, Github, X } from 'lucide-react'
+import { BookOpen, Clock, Code2, User, CheckCircle, HelpCircle, XCircle, ChevronDown, ChevronUp, ExternalLink, Pencil, Github, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,8 @@ import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, 
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
+import { ExecCheckStatus } from '@/components/agent/ExecCheckStatus'
+import { execStatusLabel, isReviewSkipped } from '@/lib/exec-check'
 import { CodeDraftNotice } from '@/components/agent/CodeDraftNotice'
 import { CodeSkipNotice } from '@/components/agent/CodeSkipNotice'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -167,8 +169,18 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
             {item.has_code && (
               <>
                 <span>·</span>
+                {item.exec_status && (
+                  <>
+                    <span className={item.exec_status === 'passed' ? 'text-green-500' : isReviewSkipped(item.exec_status) ? 'text-red-400' : ''}>
+                      {execStatusLabel(item.exec_status)}
+                    </span>
+                    <span>·</span>
+                  </>
+                )}
                 {item.review_passed ? (
                   <span className="flex items-center gap-1 text-green-500"><CheckCircle className="h-3 w-3" />LLM 검토 통과</span>
+                ) : isReviewSkipped(item.exec_status) ? (
+                  <span className="flex items-center gap-1"><HelpCircle className="h-3 w-3" />LLM 검토 안 함</span>
                 ) : (
                   <span className="flex items-center gap-1 text-red-400"><XCircle className="h-3 w-3" />LLM 검토 미통과</span>
                 )}
@@ -256,6 +268,7 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
               {detail.generated_code && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-gray-600">💻 생성 코드</p>
+                  <ExecCheckStatus execStatus={detail.exec_status} execDetail={detail.exec_detail} />
                   <CodeDraftNotice />
                   <div className="max-h-60 overflow-auto rounded-lg">
                     <SyntaxHighlighter

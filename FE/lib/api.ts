@@ -241,6 +241,7 @@ export interface AnalysisHistoryItem {
   paper_title: string | null
   paper_authors: string[] | null
   review_passed: boolean
+  exec_status: string
   has_code: boolean
   has_document: boolean
   created_at: string
@@ -266,6 +267,7 @@ export interface AnalysisDetail extends AnalysisHistoryItem {
   key_formulas: { name: string; latex: string; description: string }[]
   generated_code: string
   code_skip_reason: string
+  exec_detail: string
   review_feedback: string
   iteration_count: number
 }

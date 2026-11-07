@@ -1,7 +1,7 @@
 // BE의 AgentState / SSE 이벤트와 1:1 대응하는 타입 정의
 
 export type AgentMode = 'pdf' | 'search' | 'trend' | 'analyze'
-export type NodeName = 'planner' | 'researcher' | 'trend_analyzer' | 'analyzer' | 'coder' | 'reviewer'
+export type NodeName = 'planner' | 'researcher' | 'trend_analyzer' | 'analyzer' | 'coder' | 'executor' | 'reviewer'
 export type NodeStatus = 'pending' | 'running' | 'done' | 'error'
 
 /** BE PaperResult 모델과 동일한 구조 */
@@ -59,9 +59,14 @@ export interface AgentResult {
   generated_code?: string
   // Coder가 구현 대상이 아니라고 판단한 이유 — 있으면 코드가 없다
   code_skip_reason?: string
+  /** 마지막 코드의 실행 검사 결과 (lib/exec-check.ts) */
+  exec_status?: string
+  exec_detail?: string
   review_feedback?: string
   review_passed?: boolean
   iteration_count?: number
+  /** Coder·Reviewer 호출 오류로 끝났을 때의 사유 — 판정(미통과)과 구분한다 */
+  error?: string | null
   mode?: string
   analysis_source?: 'pdf' | 'abstract'
   /** pdf 모드 전용 — 분석 대상인 업로드 파일명 (papers는 분석 대상이 아님) */

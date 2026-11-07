@@ -11,6 +11,7 @@ const INITIAL_NODE_STATUSES: NodeStatuses = {
   trend_analyzer: 'pending',
   analyzer: 'pending',
   coder: 'pending',
+  executor: 'pending',
   reviewer: 'pending',
 }
 
@@ -20,6 +21,7 @@ const INITIAL_NODE_LOGS: NodeLogs = {
   trend_analyzer: [],
   analyzer: [],
   coder: [],
+  executor: [],
   reviewer: [],
 }
 
@@ -29,6 +31,7 @@ const INITIAL_NODE_DURATIONS: NodeDurations = {
   trend_analyzer: null,
   analyzer: null,
   coder: null,
+  executor: null,
   reviewer: null,
 }
 
