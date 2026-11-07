@@ -22,6 +22,7 @@ async def create_analysis_result(
     code_skip_reason: str = "",
     exec_status: str = "",
     exec_detail: str = "",
+    run_error: str = "",
 ) -> AnalysisResult:
     """분석 결과 저장"""
     result = AnalysisResult(
@@ -34,6 +35,7 @@ async def create_analysis_result(
         code_skip_reason=code_skip_reason,
         exec_status=exec_status,
         exec_detail=exec_detail,
+        run_error=run_error,
         review_passed=review_passed,
         iteration_count=iteration_count,
         paper_summary=paper_summary,

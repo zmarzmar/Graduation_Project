@@ -177,7 +177,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
     ...(isPdf && result.papers.length === 0 ? [] : ['papers' as TabId]),
     ...(hasAnalysis ? ['analysis' as TabId] : []),
     ...(hasTrendAnalysis ? ['trend' as TabId] : []),
-    ...(hasCoding ? ['code' as TabId, 'review' as TabId] : codeSkipReason ? ['code' as TabId] : []),
+    ...(hasCoding ? ['code' as TabId, 'review' as TabId] : codeSkipReason || result.error ? ['code' as TabId] : []),
     ...(hasQa ? ['qa' as TabId] : []),
   ]
   const labels: Record<TabId, string> = {
@@ -378,6 +378,12 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
 
         {activeTab === 'code' && !result.generated_code && codeSkipReason && (
           <CodeSkipNotice reason={codeSkipReason} />
+        )}
+
+        {activeTab === 'code' && !result.generated_code && !codeSkipReason && result.error && (
+          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            코드 생성 중 LLM 호출 오류로 중단됐습니다: {result.error}
+          </p>
         )}
 
         {activeTab === 'code' && result.generated_code && (

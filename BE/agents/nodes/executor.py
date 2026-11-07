@@ -20,7 +20,7 @@ async def executor_node(state: AgentState) -> dict:
     fixed_test = state.get("smoke_test") or new_test
     update: dict = {
         "smoke_test": fixed_test or "",
-        "generated_code": exec_check.combine(impl, fixed_test),
+        "generated_code": exec_check.with_fixed_test(state.get("generated_code", ""), fixed_test),
         "exec_feedback": "",
         "exec_detail": "",
         "current_node": "executor",

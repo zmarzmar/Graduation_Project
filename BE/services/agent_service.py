@@ -233,6 +233,13 @@ def _code_result(accumulated: dict) -> dict:
     }
 
 
+def _code_record(accumulated: dict) -> dict:
+    """_code_result를 분석 기록 컬럼 이름으로 바꾼다 — LLM 호출 오류는 run_error로 남겨 기록에서도 낙제와 구분한다."""
+    result = _code_result(accumulated)
+    result["run_error"] = result.pop("error") or ""
+    return result
+
+
 def _sse(payload: dict) -> str:
     """dict를 SSE 형식 문자열로 변환한다."""
     return f"data: {json.dumps(payload, ensure_ascii=False, default=str)}\n\n"
@@ -464,7 +471,7 @@ async def _save_to_db(
             document_id=document_id,
             mode=mode,
             query=user_query,
-            **{k: v for k, v in _code_result(accumulated).items() if k != "error"},
+            **_code_record(accumulated),
             paper_id=None,
             paper_summary=accumulated.get("paper_summary", ""),
             paper_review=accumulated.get("paper_review", {}),
@@ -628,7 +635,7 @@ async def _save_analyze_to_db(
             document_id=document_id,
             mode="analyze",
             query=user_query,
-            **{k: v for k, v in _code_result(accumulated).items() if k != "error"},
+            **_code_record(accumulated),
             paper_id=paper_id,
             paper_summary=accumulated.get("paper_summary", ""),
             paper_review=accumulated.get("paper_review", {}),

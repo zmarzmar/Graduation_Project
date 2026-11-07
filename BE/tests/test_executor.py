@@ -49,6 +49,8 @@ class FakeSandbox:
     create_error: BaseException | None = None
     kill_error: BaseException | None = None
     hang = False
+    hang_create = False
+    hang_upload = False
     exit_code = 0
     output = staticmethod(lambda nonce: [_line(nonce)])
     instances: list["FakeSandbox"] = []
@@ -62,6 +64,8 @@ class FakeSandbox:
 
         class _Files:
             async def write_files(self, files, request_timeout=None):  # noqa: ANN001, ANN202
+                if outer.hang_upload:
+                    await asyncio.sleep(3600)
                 outer.written = files
 
         class _Commands:
@@ -79,6 +83,9 @@ class FakeSandbox:
     async def create(cls, **kw):  # noqa: ANN206
         if cls.create_error:
             raise cls.create_error
+        if cls.hang_create:
+            cls.create_started = True
+            await asyncio.sleep(3600)
         sb = cls()
         sb.create_kwargs = kw
         cls.instances.append(sb)
@@ -177,8 +184,8 @@ class SandboxServiceTest(unittest.TestCase):
             self.assertEqual(run(sandbox_service.run_exec_check(IMPL, TEST))["status"], "passed")
         self.assertTrue(cls.instances[0].killed)
 
-    def test_cancel_propagates_and_kills(self) -> None:
-        cls, p = _scenario(hang=True)
+    def _cancel_midway(self, **attrs) -> type:
+        cls, p = _scenario(**attrs)
 
         async def go() -> None:
             task = asyncio.ensure_future(sandbox_service.run_exec_check(IMPL, TEST))
@@ -189,8 +196,22 @@ class SandboxServiceTest(unittest.TestCase):
 
         with p:
             run(go())
+        self.assertEqual(sandbox_service._slots._value, 4)  # 자리를 모두 돌려줬다
+        return cls
+
+    def test_cancel_while_running_kills(self) -> None:
+        self.assertTrue(self._cancel_midway(hang=True).instances[0].killed)
+
+    def test_cancel_while_uploading_kills(self) -> None:
+        cls = self._cancel_midway(hang_upload=True)
+        self.assertEqual(cls.instances[0].written, [])
         self.assertTrue(cls.instances[0].killed)
-        self.assertFalse(sandbox_service._slots.locked())  # 자리를 돌려줬다
+
+    def test_cancel_while_creating_propagates(self) -> None:
+        # 생성 응답을 받기 전이라 지울 핸들이 없다 — 샌드박스 수명(SANDBOX_LIFETIME_SECONDS)이 정리를 맡는다
+        cls = self._cancel_midway(hang_create=True)
+        self.assertTrue(cls.create_started)
+        self.assertEqual(cls.instances, [])
 
     def test_slots_full_is_unavailable(self) -> None:
         cls, p = _scenario()
@@ -203,6 +224,19 @@ class SandboxServiceTest(unittest.TestCase):
             r = run(go())
         self.assertEqual((r["status"], r["disable"]), ("unavailable", False))
         self.assertEqual(cls.instances, [])
+
+
+class FixedTestPlacementTest(unittest.TestCase):
+    def test_fixed_test_replaces_in_place_and_keeps_main_guard_order(self) -> None:
+        from agents.exec_check import with_fixed_test
+
+        code = IMPL + "\ndef smoke_test():\n    return {}\n\nif __name__ == '__main__':\n    smoke_test()\n"
+        out = with_fixed_test(code, TEST)
+        self.assertLess(out.index("def smoke_test"), out.index("if __name__"))
+        self.assertNotIn("return {}", out)
+        self.assertIn(TEST, out)
+        self.assertEqual(with_fixed_test(IMPL, TEST).rstrip().split("\n")[-1], TEST.rstrip().split("\n")[-1])
+        self.assertEqual(with_fixed_test(CODE, None), CODE)
 
 
 class ExecutorNodeTest(unittest.TestCase):
@@ -258,6 +292,12 @@ class FinalResultTest(unittest.TestCase):
         self.assertEqual((r["review_passed"], r["review_feedback"], r["exec_status"]), (False, "", "code_error"))
         r = agent_service._code_result({"exec_status": "passed", "review_passed": True, "review_feedback": "좋음"})
         self.assertTrue(r["review_passed"])
+
+    def test_llm_error_is_stored_separately_from_verdict(self) -> None:
+        rec = agent_service._code_record({"exec_status": "passed", "review_passed": False, "error": "리뷰 응답 형식 오류"})
+        self.assertEqual(rec["run_error"], "리뷰 응답 형식 오류")
+        self.assertNotIn("error", rec)
+        self.assertEqual(agent_service._code_record({"exec_status": "passed"})["run_error"], "")
 
 
 class GraphLoopTest(unittest.TestCase):

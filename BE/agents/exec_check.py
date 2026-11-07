@@ -33,26 +33,40 @@ SMOKE_RULES = """
 - 피드백에 '고정된 smoke_test'가 있으면 smoke_test를 다시 쓰지 말고, 그 테스트가 호출하는 이름·인자를 유지한 채 구현을 고친다"""
 
 
-def split_smoke_test(code: str) -> tuple[str, str | None]:
-    """모듈 수준 smoke_test 함수를 떼어 (구현 코드, smoke_test 소스)로 나눈다. 문법 오류면 그대로 둔다."""
+def _smoke_span(code: str) -> tuple[int, int] | None:
+    """모듈 수준 smoke_test 함수(데코레이터 포함)의 줄 범위 [start, end). 없거나 문법 오류면 None."""
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        return code, None
+        return None
     target = next((n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "smoke_test"), None)
     if target is None:
+        return None
+    return min([target.lineno] + [d.lineno for d in target.decorator_list]) - 1, target.end_lineno
+
+
+def split_smoke_test(code: str) -> tuple[str, str | None]:
+    """모듈 수준 smoke_test 함수를 떼어 (구현 코드, smoke_test 소스)로 나눈다. 문법 오류면 그대로 둔다."""
+    span = _smoke_span(code)
+    if span is None:
         return code, None
     lines = code.splitlines(keepends=True)
-    start = min([target.lineno] + [d.lineno for d in target.decorator_list]) - 1
-    end = target.end_lineno
-    test_src = "".join(lines[start:end])
-    impl = "".join(lines[:start] + lines[end:])
-    return impl, test_src
+    start, end = span
+    return "".join(lines[:start] + lines[end:]), "".join(lines[start:end])
 
 
-def combine(impl: str, test_src: str | None) -> str:
-    """구현 코드 끝에 고정된 smoke_test를 붙인다 — 화면에 보이고 저장되는 코드."""
-    return impl.rstrip() + ("\n\n\n" + test_src.strip() + "\n" if test_src else "\n")
+def with_fixed_test(code: str, test_src: str | None) -> str:
+    """화면에 보이고 저장되는 코드에 고정된 smoke_test를 넣는다. 코드에 smoke_test가 있으면 그 자리를 바꾸고
+    (뒤에 오는 `if __name__ == "__main__": smoke_test()` 같은 호출의 순서를 지킨다), 없으면 끝에 붙인다."""
+    if not test_src:
+        return code
+    span = _smoke_span(code)
+    test = test_src.rstrip("\n") + "\n"
+    if span is None:
+        return code.rstrip() + "\n\n\n" + test
+    lines = code.splitlines(keepends=True)
+    start, end = span
+    return "".join(lines[:start]) + test + "".join(lines[end:])
 
 
 def no_test_result() -> dict:

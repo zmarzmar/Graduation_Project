@@ -242,6 +242,8 @@ export interface AnalysisHistoryItem {
   paper_authors: string[] | null
   review_passed: boolean
   exec_status: string
+  /** Coder·Reviewer 호출 오류로 끝났을 때의 사유 — 있으면 판정을 못 한 것이다 (미통과와 구분) */
+  run_error: string
   has_code: boolean
   has_document: boolean
   created_at: string

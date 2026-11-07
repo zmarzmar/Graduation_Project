@@ -179,11 +179,19 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
                 )}
                 {item.review_passed ? (
                   <span className="flex items-center gap-1 text-green-500"><CheckCircle className="h-3 w-3" />LLM 검토 통과</span>
+                ) : item.run_error ? (
+                  <span className="flex items-center gap-1"><HelpCircle className="h-3 w-3" />LLM 호출 오류로 중단</span>
                 ) : isReviewSkipped(item.exec_status) ? (
                   <span className="flex items-center gap-1"><HelpCircle className="h-3 w-3" />LLM 검토 안 함</span>
                 ) : (
                   <span className="flex items-center gap-1 text-red-400"><XCircle className="h-3 w-3" />LLM 검토 미통과</span>
                 )}
+              </>
+            )}
+            {!item.has_code && item.run_error && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-1"><HelpCircle className="h-3 w-3" />LLM 호출 오류로 중단</span>
               </>
             )}
           </div>
@@ -281,6 +289,9 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
                     </SyntaxHighlighter>
                   </div>
                 </div>
+              )}
+              {detail.run_error && (
+                <p className="rounded-lg bg-red-50 p-3 text-xs text-red-700">LLM 호출 오류로 중단됐습니다: {detail.run_error}</p>
               )}
               {detail.review_feedback && (
                 <div>
