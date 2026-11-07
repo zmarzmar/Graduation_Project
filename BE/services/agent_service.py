@@ -11,6 +11,7 @@ import fitz
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agents.exec_check import CODE_ISSUES
 from agents.graph import agent_graph, analyze_graph
 from agents.log_stream import set_log_queue
 from agents.perf import log_elapsed
@@ -26,7 +27,7 @@ from schemas.paper import PaperResult
 logger = logging.getLogger(__name__)
 
 # SSE 이벤트를 전송할 노드 목록 (LangGraph 내부 노드 제외)
-_AGENT_NODES = {"planner", "researcher", "trend_analyzer", "analyzer", "coder", "reviewer"}
+_AGENT_NODES = {"planner", "researcher", "trend_analyzer", "analyzer", "coder", "executor", "reviewer"}
 _PDF_HEADERS = {"User-Agent": "arxiv-analyst/0.1 (graduation-project; contact@example.com)"}
 # ponytail: 고정된 허용 호스트라 DNS → 내부 IP 검사는 생략. 임의 도메인을 허용하게 되면
 # 해석된 IP의 사설/루프백/링크로컬 대역 차단을 추가해야 한다.
@@ -198,6 +199,11 @@ def _make_initial_state(
         "key_formulas": [],
         "generated_code": "",
         "code_skip_reason": "",
+        "smoke_test": "",
+        "exec_status": "",
+        "exec_detail": "",
+        "exec_feedback": "",
+        "exec_disabled": False,
         "review_feedback": "",
         "review_passed": False,
         "iteration_count": 0,
@@ -205,6 +211,25 @@ def _make_initial_state(
         "final_result": {},
         "current_node": "",
         "error": None,
+    }
+
+
+def _code_result(accumulated: dict) -> dict:
+    """화면에 보이고 저장되는 최종 코드와 그 코드에 대한 판정. 모두 '마지막 코드' 기준이다.
+
+    마지막 코드가 실행 검사에서 실패해 Reviewer를 거치지 않았으면 이전 회차의 Reviewer 판정·피드백을 붙이지 않는다
+    (화면은 "LLM 검토 안 함"). Coder·Reviewer 호출 오류로 끝났으면 error에 남긴다 — 판정(낙제)과 구분한다.
+    """
+    reviewed = accumulated.get("exec_status") not in CODE_ISSUES
+    return {
+        "generated_code": accumulated.get("generated_code", ""),
+        "code_skip_reason": accumulated.get("code_skip_reason", ""),
+        "exec_status": accumulated.get("exec_status", ""),
+        "exec_detail": accumulated.get("exec_detail", ""),
+        "review_feedback": accumulated.get("review_feedback", "") if reviewed else "",
+        "review_passed": bool(accumulated.get("review_passed", False)) and reviewed,
+        "iteration_count": accumulated.get("iteration_count", 0),
+        "error": accumulated.get("error"),
     }
 
 
@@ -232,6 +257,9 @@ def _build_node_done_event(node_name: str, updates: dict) -> dict:
         event["iteration"] = updates.get("iteration_count", 1)
         if skip_reason := updates.get("code_skip_reason"):
             event["code_skip_reason"] = skip_reason
+    elif node_name == "executor":
+        event["exec_status"] = updates.get("exec_status", "")
+        event["exec_detail"] = updates.get("exec_detail", "")
     elif node_name == "reviewer":
         event["review_passed"] = updates.get("review_passed", False)
         event["review_feedback"] = updates.get("review_feedback", "")
@@ -335,6 +363,9 @@ async def stream_agent(
         "mode": mode,
     })
     if mode == "pdf":
+        # Reviewer가 만든 final_result의 판정·회차는 그 뒤 회차의 코드로 끝났으면 어긋난다 — 마지막 상태로 덮는다
+        final_result.update(_code_result(accumulated))
+    if mode == "pdf":
         # 분석 대상은 업로드한 파일 — papers(검색 결과)와 구분해서 전달한다.
         final_result["uploaded_filename"] = user_query
 
@@ -433,11 +464,7 @@ async def _save_to_db(
             document_id=document_id,
             mode=mode,
             query=user_query,
-            generated_code=accumulated.get("generated_code", ""),
-            code_skip_reason=accumulated.get("code_skip_reason", ""),
-            review_feedback=accumulated.get("review_feedback", ""),
-            review_passed=accumulated.get("review_passed", False),
-            iteration_count=accumulated.get("iteration_count", 0),
+            **{k: v for k, v in _code_result(accumulated).items() if k != "error"},
             paper_id=None,
             paper_summary=accumulated.get("paper_summary", ""),
             paper_review=accumulated.get("paper_review", {}),
@@ -559,11 +586,7 @@ async def stream_analyze(
         "paper_summary": accumulated.get("paper_summary", ""),
         "paper_review": accumulated.get("paper_review", {}),
         "key_formulas": accumulated.get("key_formulas", []),
-        "generated_code": accumulated.get("generated_code", ""),
-        "code_skip_reason": accumulated.get("code_skip_reason", ""),
-        "review_feedback": accumulated.get("review_feedback", ""),
-        "review_passed": accumulated.get("review_passed", False),
-        "iteration_count": accumulated.get("iteration_count", 0),
+        **_code_result(accumulated),
         "mode": "analyze",
         "analysis_source": analysis_source,
     }
@@ -605,11 +628,7 @@ async def _save_analyze_to_db(
             document_id=document_id,
             mode="analyze",
             query=user_query,
-            generated_code=accumulated.get("generated_code", ""),
-            code_skip_reason=accumulated.get("code_skip_reason", ""),
-            review_feedback=accumulated.get("review_feedback", ""),
-            review_passed=accumulated.get("review_passed", False),
-            iteration_count=accumulated.get("iteration_count", 0),
+            **{k: v for k, v in _code_result(accumulated).items() if k != "error"},
             paper_id=paper_id,
             paper_summary=accumulated.get("paper_summary", ""),
             paper_review=accumulated.get("paper_review", {}),

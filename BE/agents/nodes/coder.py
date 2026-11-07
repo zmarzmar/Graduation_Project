@@ -3,6 +3,7 @@ import logging
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from agents.exec_check import SMOKE_RULES, fixed_test_notice
 from agents.log_stream import emit_log
 from agents.paper_context import paper_source_context
 from agents.perf import log_elapsed
@@ -30,7 +31,7 @@ _SYSTEM_PROMPT = """당신은 AI 논문을 PyTorch 코드로 구현하는 전문
 - 논문의 핵심 알고리즘/수식을 인라인 주석으로 표기
 - 구현이 필요한 부분은 TODO 주석으로 명시
 - import 포함, 실행 가능한 완전한 코드로 작성
-- 설명이 필요하면 반드시 Python 주석(#)으로만 작성할 것"""
+- 설명이 필요하면 반드시 Python 주석(#)으로만 작성할 것""" + SMOKE_RULES
 
 
 # 구현 대상이 아닌 논문의 표시 — 최초 생성 요청에만 이 선택지를 준다 (수정 회차에서 코드를 버리지 않게)
@@ -103,9 +104,13 @@ async def coder_node(state: AgentState) -> dict:
             + f"{paper_context}"
         )
     else:
+        # 실행 검사가 실패했으면 그 결과(직전 Reviewer 지적 포함)를, 아니면 Reviewer 피드백 + 고정된 smoke_test를 준다
+        feedback = state.get("exec_feedback") or state.get("review_feedback", "")
+        if not state.get("exec_feedback") and state.get("smoke_test"):
+            feedback += "\n\n" + fixed_test_notice(state["smoke_test"])
         user_content = (
-            "리뷰어 피드백을 반영해 이전 코드를 수정하세요.\n\n"
-            f"### 리뷰어 피드백:\n{state.get('review_feedback', '')}\n\n"
+            "피드백을 반영해 이전 코드를 수정하세요.\n\n"
+            f"### 피드백:\n{feedback}\n\n"
             f"### 이전 코드:\n{state.get('generated_code', '')}\n\n"
             f"### 참고 논문:\n{paper_context}"
         )
@@ -114,7 +119,8 @@ async def coder_node(state: AgentState) -> dict:
         paper_count = len(state.get("papers", []))
         emit_log("coder", f"논문 {min(paper_count, 3)}편 분석 중...")
         if iteration > 0:
-            emit_log("coder", f"리뷰어 피드백 반영 ({iteration}회차 수정)")
+            source = "실행 검사 결과" if state.get("exec_feedback") else "리뷰어 피드백"
+            emit_log("coder", f"{source} 반영 ({iteration}회차 수정)")
         emit_log("coder", "PyTorch 코드 생성 중...")
         async with log_elapsed(logger, "external_call", node="coder", external="openai"):
             messages = [

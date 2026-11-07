@@ -20,6 +20,8 @@ async def create_analysis_result(
     user_id: int | None = None,
     document_id: int | None = None,
     code_skip_reason: str = "",
+    exec_status: str = "",
+    exec_detail: str = "",
 ) -> AnalysisResult:
     """분석 결과 저장"""
     result = AnalysisResult(
@@ -30,6 +32,8 @@ async def create_analysis_result(
         generated_code=generated_code,
         review_feedback=review_feedback,
         code_skip_reason=code_skip_reason,
+        exec_status=exec_status,
+        exec_detail=exec_detail,
         review_passed=review_passed,
         iteration_count=iteration_count,
         paper_summary=paper_summary,

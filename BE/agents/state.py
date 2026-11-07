@@ -18,6 +18,11 @@ class AgentState(TypedDict):
     key_formulas: list[dict]  # Analyzer 핵심 수식 [{"name": "...", "latex": "...", "description": "..."}]
     generated_code: str # Coder 생성 코드
     code_skip_reason: str  # Coder가 구현 대상이 아니라고 판단한 이유 — 있으면 코드 없이 Reviewer를 건너뛴다
+    smoke_test: str     # 처음 나온 회차의 smoke_test — 이후 회차에도 이것으로 실행한다
+    exec_status: str    # 실행 검사 결과: "" (안 함) | passed | code_error | timeout | oom | test_error | unavailable
+    exec_detail: str    # 실행 검사 결과의 짧은 설명 (오류 끝부분)
+    exec_feedback: str  # 실행 실패를 Coder에게 줄 피드백 — 있으면 Reviewer 피드백 대신 쓴다
+    exec_disabled: bool # 인증·한도 문제로 이 분석에서는 실행 검사를 더 시도하지 않는다
     review_feedback: str# Reviewer 피드백
     review_passed: bool # Reviewer 검증 통과 여부
 
