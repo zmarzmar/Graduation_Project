@@ -238,6 +238,14 @@ class FixedTestPlacementTest(unittest.TestCase):
         self.assertEqual(with_fixed_test(IMPL, TEST).rstrip().split("\n")[-1], TEST.rstrip().split("\n")[-1])
         self.assertEqual(with_fixed_test(CODE, None), CODE)
 
+    def test_missing_test_goes_before_main_guard(self) -> None:
+        from agents.exec_check import with_fixed_test
+
+        code = IMPL + "\nif __name__ == '__main__':\n    smoke_test()\n"
+        out = with_fixed_test(code, TEST)
+        self.assertLess(out.index("def smoke_test"), out.index("if __name__"))
+        compile(out, "x.py", "exec")
+
 
 class ExecutorNodeTest(unittest.TestCase):
     def _run(self, state: dict, result: dict) -> tuple[dict, AsyncMock]:

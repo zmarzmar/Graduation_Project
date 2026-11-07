@@ -57,16 +57,35 @@ def split_smoke_test(code: str) -> tuple[str, str | None]:
 
 def with_fixed_test(code: str, test_src: str | None) -> str:
     """화면에 보이고 저장되는 코드에 고정된 smoke_test를 넣는다. 코드에 smoke_test가 있으면 그 자리를 바꾸고
-    (뒤에 오는 `if __name__ == "__main__": smoke_test()` 같은 호출의 순서를 지킨다), 없으면 끝에 붙인다."""
+    (뒤에 오는 `if __name__ == "__main__": smoke_test()` 같은 호출의 순서를 지킨다). 없으면 모듈 수준
+    `if __name__ == "__main__":` 블록 앞에, 그것도 없으면 끝에 붙인다."""
     if not test_src:
         return code
     span = _smoke_span(code)
     test = test_src.rstrip("\n") + "\n"
-    if span is None:
-        return code.rstrip() + "\n\n\n" + test
     lines = code.splitlines(keepends=True)
-    start, end = span
-    return "".join(lines[:start]) + test + "".join(lines[end:])
+    if span is not None:
+        start, end = span
+        return "".join(lines[:start]) + test + "".join(lines[end:])
+    main_line = _main_guard_line(code)
+    if main_line is None:
+        return code.rstrip() + "\n\n\n" + test
+    return "".join(lines[:main_line]).rstrip() + "\n\n\n" + test + "\n\n" + "".join(lines[main_line:])
+
+
+def _main_guard_line(code: str) -> int | None:
+    """모듈 수준 `if __name__ == "__main__":` 블록의 시작 줄(0부터). 없거나 문법 오류면 None."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return None
+    for node in tree.body:
+        test = node.test if isinstance(node, ast.If) else None
+        if (isinstance(test, ast.Compare) and isinstance(test.left, ast.Name) and test.left.id == "__name__"
+                and len(test.comparators) == 1 and isinstance(test.comparators[0], ast.Constant)
+                and test.comparators[0].value == "__main__"):
+            return node.lineno - 1
+    return None
 
 
 def no_test_result() -> dict:
