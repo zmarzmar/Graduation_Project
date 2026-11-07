@@ -134,7 +134,11 @@ def summary(result: dict, limit: int = 600) -> str:
         "\n".join(runner.get("problems") or []),
         "\n".join(runner.get("test_problems") or []),
     ])).strip()
-    return text[-limit:]
+    if len(text) <= limit:
+        return text
+    tail = text[-limit:]
+    # 잘린 첫 줄은 버린다 — 줄 중간부터 보이지 않게
+    return tail.split("\n", 1)[1] if "\n" in tail else tail
 
 
 def fixed_test_notice(test_src: str, full: bool = False) -> str:
