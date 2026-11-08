@@ -1,0 +1,6 @@
+avq_attention	first	main_9.json exec#1=control 최종	sha256:ce82b6519e8d42fa	#60 실행 상태 code_error
+avq_attention	exec_final	main_9.json exec#2	sha256:8dc44df6d22fb335	#60 실행 상태 passed
+explicit_dropout	first	pilot_explicit_dropout.json exec#1=control 최종	sha256:232c6ef3ccbd6101	#60 실행 상태 code_error
+explicit_dropout	exec_final	pilot_explicit_dropout.json exec#3	sha256:24ef312f7662cc39	#60 실행 상태 passed
+rotated_lora_optimizer	first	rerun_3.json exec#1=control 최종	sha256:47f78b16036e2388	#60 실행 상태 code_error
+rotated_lora_optimizer	exec_final	rerun_3.json exec#2	sha256:23df63b34615837c	#60 실행 상태 passed
