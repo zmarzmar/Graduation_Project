@@ -193,8 +193,21 @@ class TokenBudgetTest(unittest.IsolatedAsyncioTestCase):
 
         with patch.object(coder, "_llm", _Truncated("")):
             result = await coder.coder_node({"pdf_text": "paper", "papers": [], "iteration_count": 0})
-        self.assertEqual(result["generated_code"], "")
+        self.assertNotIn("generated_code", result)  # 초기 상태의 빈 코드가 그대로 남는다
         self.assertIn("출력 예산", result["error"])
+
+    async def test_failed_retry_keeps_the_previous_code(self):
+        # 2회차 이후 호출이 실패해도 마지막 코드를 지우지 않는다 — 저장 기록의 코드와 판정이 같은 코드를 가리키게
+        class _Failing(_FakeLLM):
+            async def ainvoke(self, messages):
+                raise RuntimeError("500")
+
+        with patch.object(coder, "_llm", _Failing("")):
+            result = await coder.coder_node({"pdf_text": "paper", "papers": [], "iteration_count": 1,
+                                             "generated_code": "x = 1\n", "review_feedback": "fix"})
+        self.assertNotIn("generated_code", result)
+        self.assertIn("코드 생성 실패", result["error"])
+        self.assertEqual(result["iteration_count"], 2)
 
 
 class TokenizerUnavailableTest(unittest.IsolatedAsyncioTestCase):

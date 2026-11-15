@@ -148,8 +148,8 @@ async def coder_node(state: AgentState) -> dict:
     except Exception as e:
         logger.error(f"[Coder] LLM 호출 실패: {e}")
         emit_log("coder", f"코드 생성 실패: {str(e)}")
+        # generated_code는 보내지 않는다 — 이전 회차의 코드가 그 회차의 실행·리뷰 판정과 함께 남는다
         return {
-            "generated_code": "",
             "iteration_count": iteration + 1,
             "current_node": "coder",
             "error": f"코드 생성 실패: {str(e)}",
