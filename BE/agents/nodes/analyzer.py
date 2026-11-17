@@ -18,6 +18,8 @@ _MODEL = "gpt-4o-mini"
 _llm = ChatOpenAI(
     model=_MODEL,
     api_key=settings.openai_api_key,
+    timeout=settings.llm_timeout_analyzer_seconds,
+    max_retries=settings.llm_max_retries,
     max_tokens=ANALYZER_OUTPUT_BUDGET,  # 출력 예산 (gpt-4o-mini 최대 출력)
     model_kwargs={"response_format": {"type": "json_object"}},
 )

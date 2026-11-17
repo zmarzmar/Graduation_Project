@@ -55,6 +55,8 @@ class _Passage(Protocol):
 _llm = ChatOpenAI(
     model=settings.qa_model,
     api_key=settings.openai_api_key,
+    timeout=settings.llm_timeout_short_seconds,
+    max_retries=settings.llm_max_retries,
     max_tokens=QA_OUTPUT_BUDGET,
     temperature=0,
 ).with_structured_output(QaDraft)

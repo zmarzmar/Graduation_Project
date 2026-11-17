@@ -19,6 +19,8 @@ _MODEL = "gpt-5.4-mini"
 _llm = ChatOpenAI(
     model=_MODEL,
     api_key=settings.openai_api_key,
+    timeout=settings.llm_timeout_reasoning_seconds,
+    max_retries=settings.llm_max_retries,
     reasoning_effort="medium",
     max_tokens=REASONING_OUTPUT_BUDGET,  # 출력 예산 (추론 토큰 포함)
 )

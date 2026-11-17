@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 _llm = ChatOpenAI(
     model="gpt-4o-mini",
     api_key=settings.openai_api_key,
+    timeout=settings.llm_timeout_short_seconds,
+    max_retries=settings.llm_max_retries,
     model_kwargs={"response_format": {"type": "json_object"}},
 )
 
