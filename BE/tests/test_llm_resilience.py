@@ -102,6 +102,17 @@ class AnalyzerParseTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(result["error"], "분석 응답을 해석하지 못했습니다.")
                 self.assertEqual(result["paper_summary"], "")
 
+    async def test_malformed_optional_fields_are_emptied_not_crashing(self) -> None:
+        # Codex 리뷰: key_formulas가 null이면 len(None)으로 그래프 예외였다
+        for content in ('{"summary": "요약", "key_formulas": null, "review": "문자열"}',
+                        '{"summary": "요약", "key_formulas": ["x", {"name": "f"}], "review": []}'):
+            with self.subTest(content=content), patch.object(analyzer, "_llm", _fake(content)):
+                result = await analyzer.analyzer_node({"pdf_text": "paper", "papers": []})
+                self.assertIsNone(result["error"])
+                self.assertEqual(result["paper_summary"], "요약")
+                self.assertEqual(result["paper_review"], {})
+                self.assertTrue(all(isinstance(f, dict) for f in result["key_formulas"]))
+
     async def test_valid_reply_passes(self) -> None:
         content = '{"summary": "요약", "review": {"strengths": []}, "key_formulas": []}'
         with patch.object(analyzer, "_llm", _fake(content)):
@@ -114,7 +125,10 @@ class TrendAnalyzerParseTest(unittest.IsolatedAsyncioTestCase):
     PAPERS = [{"title": "T", "abstract": "A"}]
 
     async def test_unparseable_reply_is_an_error(self) -> None:
-        for name, content in {**BAD_RESPONSES, "요약 0편": '{"paper_summaries": [], "trending_keywords": []}'}.items():
+        cases = {**BAD_RESPONSES, "요약 0편": '{"paper_summaries": [], "trending_keywords": []}',
+                 # Codex 리뷰: 걸러내면 0편이 되는 응답도 실패여야 한다
+                 "문자열 항목": '{"paper_summaries": ["x"]}', "빈 객체 항목": '{"paper_summaries": [{}]}'}
+        for name, content in cases.items():
             with self.subTest(name), patch.object(trend_analyzer, "_llm", _fake(content)):
                 result = await trend_analyzer.trend_analyzer_node({"papers": self.PAPERS})
                 self.assertIn("응답을 해석하지 못했습니다", result["error"])

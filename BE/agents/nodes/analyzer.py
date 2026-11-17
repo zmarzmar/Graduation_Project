@@ -134,8 +134,10 @@ async def analyzer_node(state: AgentState) -> dict:
         }
 
     summary = result["summary"]
-    review = result.get("review", {})
-    key_formulas = result.get("key_formulas", [])
+    # 형식이 다른 부가 필드는 비운다 — 요약은 살리고 len(None) 같은 예외로 그래프가 죽지 않게
+    review = result.get("review") if isinstance(result.get("review"), dict) else {}
+    formulas = result.get("key_formulas")
+    key_formulas = [f for f in formulas if isinstance(f, dict)] if isinstance(formulas, list) else []
 
     emit_log("analyzer", "요약 완료")
     if key_formulas:
