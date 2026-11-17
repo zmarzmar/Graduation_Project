@@ -121,7 +121,19 @@ async def analyzer_node(state: AgentState) -> dict:
         logger.warning("[Analyzer] JSON 파싱 실패 — _extract_json 폴백 시도")
         result = _extract_json(response.content)
 
-    summary = result.get("summary", "")
+    # 해석하지 못한 응답을 빈 요약으로 조용히 넘기지 않는다 — 호출 실패와 같은 오류 형태로 돌려준다 (배열 응답도 여기서 거른다)
+    if not isinstance(result, dict) or not isinstance(result.get("summary"), str) or not result["summary"].strip():
+        logger.warning(f"[Analyzer] 응답 해석 실패 — 원문 앞부분: {str(response.content)[:500]!r}")
+        emit_log("analyzer", "분석 응답을 해석하지 못했습니다")
+        return {
+            "paper_summary": "",
+            "paper_review": {},
+            "key_formulas": [],
+            "current_node": "analyzer",
+            "error": "분석 응답을 해석하지 못했습니다.",
+        }
+
+    summary = result["summary"]
     review = result.get("review", {})
     key_formulas = result.get("key_formulas", [])
 

@@ -1,4 +1,4 @@
-"""LLM 호출 시간 제한 (실제 OpenAI를 부르지 않는다).
+"""LLM 호출 시간 제한과 노드 응답 해석 실패 처리 (실제 OpenAI를 부르지 않는다).
 
 실행: cd BE && uv run python -m unittest discover -s tests -v
 """
@@ -81,6 +81,52 @@ class StalledServerTest(unittest.IsolatedAsyncioTestCase):
             result = await coder.coder_node({"pdf_text": "paper", "papers": [], "iteration_count": 0})
         self.assertLess(time.perf_counter() - started, 10)
         self.assertIn("코드 생성 실패", result["error"])
+
+
+def _fake(content: str) -> object:
+    class _LLM:
+        async def ainvoke(self, messages: list) -> SimpleNamespace:
+            return SimpleNamespace(content=content)
+
+    return _LLM()
+
+
+BAD_RESPONSES = {"깨진 JSON": "요약: {이건 JSON이 아님", "배열": "[1, 2]", "빈 객체": "{}", "요약 없음": '{"review": {}}'}
+
+
+class AnalyzerParseTest(unittest.IsolatedAsyncioTestCase):
+    async def test_unparseable_reply_is_an_error_not_empty_summary(self) -> None:
+        for name, content in BAD_RESPONSES.items():
+            with self.subTest(name), patch.object(analyzer, "_llm", _fake(content)):
+                result = await analyzer.analyzer_node({"pdf_text": "paper", "papers": []})
+                self.assertEqual(result["error"], "분석 응답을 해석하지 못했습니다.")
+                self.assertEqual(result["paper_summary"], "")
+
+    async def test_valid_reply_passes(self) -> None:
+        content = '{"summary": "요약", "review": {"strengths": []}, "key_formulas": []}'
+        with patch.object(analyzer, "_llm", _fake(content)):
+            result = await analyzer.analyzer_node({"pdf_text": "paper", "papers": []})
+        self.assertIsNone(result["error"])
+        self.assertEqual(result["paper_summary"], "요약")
+
+
+class TrendAnalyzerParseTest(unittest.IsolatedAsyncioTestCase):
+    PAPERS = [{"title": "T", "abstract": "A"}]
+
+    async def test_unparseable_reply_is_an_error(self) -> None:
+        for name, content in {**BAD_RESPONSES, "요약 0편": '{"paper_summaries": [], "trending_keywords": []}'}.items():
+            with self.subTest(name), patch.object(trend_analyzer, "_llm", _fake(content)):
+                result = await trend_analyzer.trend_analyzer_node({"papers": self.PAPERS})
+                self.assertIn("응답을 해석하지 못했습니다", result["error"])
+                self.assertEqual(result["final_result"]["papers"], self.PAPERS)
+
+    async def test_non_object_entries_are_dropped(self) -> None:
+        content = '{"paper_summaries": [{"title": "T", "summary": "s"}, "x"], "trending_keywords": ["k", {"keyword": "a"}]}'
+        with patch.object(trend_analyzer, "_llm", _fake(content)):
+            result = await trend_analyzer.trend_analyzer_node({"papers": self.PAPERS})
+        self.assertIsNone(result["error"])
+        self.assertEqual(result["trend_analysis"]["paper_summaries"], [{"title": "T", "summary": "s"}])
+        self.assertEqual(result["trend_analysis"]["trending_keywords"], [{"keyword": "a"}])
 
 
 if __name__ == "__main__":

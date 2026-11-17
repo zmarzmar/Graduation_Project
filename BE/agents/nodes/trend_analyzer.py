@@ -113,8 +113,21 @@ async def trend_analyzer_node(state: AgentState) -> dict:
             "error": f"트렌드 분석 실패: {str(e)}",
         }
 
-    summaries = result.get("paper_summaries", [])
-    keywords = result.get("trending_keywords", [])
+    # 해석하지 못한 응답을 '요약 0편'으로 조용히 넘기지 않는다 — 호출 실패와 같은 오류 형태로 돌려준다
+    if not isinstance(result, dict) or not isinstance(result.get("paper_summaries"), list) or not result["paper_summaries"]:
+        logger.warning(f"[TrendAnalyzer] 응답 해석 실패 — 원문 앞부분: {str(response.content)[:500]!r}")
+        emit_log("trend_analyzer", "분석 응답을 해석하지 못했습니다")
+        empty = {"paper_summaries": [], "trending_keywords": []}
+        return {
+            "trend_analysis": empty,
+            "final_result": {"papers": papers, "trend_analysis": empty, "mode": "trend"},
+            "current_node": "trend_analyzer",
+            "error": "트렌드 분석 실패: 응답을 해석하지 못했습니다.",
+        }
+
+    summaries = [s for s in result["paper_summaries"] if isinstance(s, dict)]
+    keywords = result.get("trending_keywords")
+    keywords = [k for k in keywords if isinstance(k, dict)] if isinstance(keywords, list) else []
 
     emit_log("trend_analyzer", f"한 줄 요약 {len(summaries)}편 완료")
     emit_log("trend_analyzer", f"트렌드 키워드 {len(keywords)}개 추출")
