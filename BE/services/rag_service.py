@@ -277,9 +277,19 @@ async def ask(document: PaperDocument, question: str, history: list[dict] | None
         result = no_evidence()
     else:
         result = await answer_question(question, passages, history)
-    formulas = [f for f in (key_formulas or []) if isinstance(f, dict) and f.get("latex")]
-    result["related_formulas"] = formulas if asks_for_formula(question) else []
+    result["related_formulas"] = _clean_formulas(key_formulas) if asks_for_formula(question) else []
     return result
+
+
+def _clean_formulas(key_formulas: list | None) -> list[dict]:
+    """저장된 핵심 수식을 응답 형식으로 맞춘다. latex가 문자열이 아니면 버리고, 이름·설명은 문자열이 아니면 비운다
+    — 형식이 다른 항목 하나 때문에 응답 검증이 실패해 정상 답변까지 500으로 사라지지 않게 (Codex 리뷰 지적)."""
+    def text(value: object) -> str:
+        return value if isinstance(value, str) else ""
+
+    return [{"name": text(f.get("name")), "latex": f["latex"], "description": text(f.get("description"))}
+            for f in (key_formulas or [])
+            if isinstance(f, dict) and isinstance(f.get("latex"), str) and f["latex"].strip()]
 
 
 # ── 삭제된 문서의 색인 정리 ────────────────────────────────────────────────

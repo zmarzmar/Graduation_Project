@@ -217,7 +217,11 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
     const history: QaHistoryTurn[] = entries
       .filter((entry) => entry.status === 'done' && entry.result)
       .slice(-2)
-      .map((entry) => ({ question: entry.question, answer: entry.result?.answerable ? entry.result.answer : '' }))
+      // BE도 자르지만 보낼 때부터 맞춘다 (BE HistoryTurn: 질문 500자, 답변 2,000자)
+      .map((entry) => ({
+        question: entry.question.slice(0, QA_QUESTION_MAX_LENGTH),
+        answer: entry.result?.answerable ? entry.result.answer.slice(0, 2000) : '',
+      }))
     setEntries((prev) => [...prev, { id, question, status: 'pending' }])
     setInput('')
     setBusy(true)

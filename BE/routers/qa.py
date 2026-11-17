@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, ValidationInfo, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import get_current_user, get_db
@@ -16,9 +16,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["qa"])
 
 
+HISTORY_QUESTION_MAX = 500
+HISTORY_ANSWER_MAX = 2000
+
+
 class HistoryTurn(BaseModel):
-    question: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
-    answer: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] = ""
+    # 길면 거부하지 않고 자른다 — 긴 답변 뒤의 후속 질문이 매번 422로 막히지 않게 (Codex 리뷰 지적)
+    question: str
+    answer: str = ""
+
+    @field_validator("question", "answer", mode="before")
+    @classmethod
+    def _trim(cls, value: object, info: ValidationInfo) -> str:
+        limit = HISTORY_QUESTION_MAX if info.field_name == "question" else HISTORY_ANSWER_MAX
+        return str(value or "").strip()[:limit]
 
 
 class AskRequest(BaseModel):

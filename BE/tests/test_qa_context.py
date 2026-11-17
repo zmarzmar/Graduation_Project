@@ -66,8 +66,24 @@ class AskRequestTest(unittest.TestCase):
         self.assertEqual(ok.history[1].answer, "")
         with self.assertRaises(ValidationError):
             AskRequest(question="q?", history=[{"question": "a"}] * 3)
-        with self.assertRaises(ValidationError):
-            AskRequest(question="q?", history=[{"question": "a", "answer": "x" * 2001}])
+        long = AskRequest(question="q?", history=[{"question": "a" * 900, "answer": "x" * 5000}])  # 거부하지 않고 자른다
+        self.assertEqual((len(long.history[0].question), len(long.history[0].answer)), (500, 2000))
+        self.assertEqual(AskRequest(question="q?", history=[{"question": " a ", "answer": None}]).history[0].answer, "")
+
+
+class FormulaResponseTest(unittest.TestCase):
+    def test_malformed_formulas_are_cleaned_and_fit_the_response_model(self) -> None:
+        from routers.qa import AskResponse
+        from services.rag_service import _clean_formulas
+
+        stored = [{"latex": "x^2", "description": None, "name": 3}, {"latex": 5}, {"latex": "  "}, "s",
+                  {"name": "A", "latex": "a=b", "description": "d"}]
+        cleaned = _clean_formulas(stored)
+        self.assertEqual(cleaned, [{"name": "", "latex": "x^2", "description": ""},
+                                   {"name": "A", "latex": "a=b", "description": "d"}])
+        AskResponse(answerable=False, answer="", claims=[], citations=[], dropped_citations=0, dropped_claims=0,
+                    related_formulas=cleaned)  # 응답 검증을 통과한다
+        self.assertEqual(_clean_formulas(None), [])
 
 
 class AgentRouterImportTest(unittest.TestCase):
