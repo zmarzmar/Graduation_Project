@@ -120,7 +120,8 @@ def _collection():
 
 @lru_cache(maxsize=1)
 def _openai() -> AsyncOpenAI:
-    return AsyncOpenAI(api_key=settings.openai_api_key)
+    return AsyncOpenAI(api_key=settings.openai_api_key, timeout=settings.llm_timeout_short_seconds,
+                       max_retries=settings.llm_max_retries)
 
 
 async def embed(texts: list[str]) -> list[list[float]]:

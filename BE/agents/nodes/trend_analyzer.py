@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 _llm = ChatOpenAI(
     model="gpt-4o-mini",
     api_key=settings.openai_api_key,
+    timeout=settings.llm_timeout_short_seconds,
+    max_retries=settings.llm_max_retries,
     model_kwargs={"response_format": {"type": "json_object"}},
 )
 
@@ -111,8 +113,24 @@ async def trend_analyzer_node(state: AgentState) -> dict:
             "error": f"트렌드 분석 실패: {str(e)}",
         }
 
-    summaries = result.get("paper_summaries", [])
-    keywords = result.get("trending_keywords", [])
+    # 해석하지 못한 응답을 '요약 0편'으로 조용히 넘기지 않는다 — 호출 실패와 같은 오류 형태로 돌려준다.
+    # 요약이 있는 객체만 센다 (["x"], [{}]처럼 걸러내면 0편이 되는 응답도 실패)
+    raw_summaries = result.get("paper_summaries") if isinstance(result, dict) else None
+    summaries = [s for s in raw_summaries if isinstance(s, dict) and isinstance(s.get("summary"), str) and s["summary"].strip()] \
+        if isinstance(raw_summaries, list) else []
+    if not summaries:
+        logger.warning(f"[TrendAnalyzer] 응답 해석 실패 — 원문 앞부분: {str(response.content)[:500]!r}")
+        emit_log("trend_analyzer", "분석 응답을 해석하지 못했습니다")
+        empty = {"paper_summaries": [], "trending_keywords": []}
+        return {
+            "trend_analysis": empty,
+            "final_result": {"papers": papers, "trend_analysis": empty, "mode": "trend"},
+            "current_node": "trend_analyzer",
+            "error": "트렌드 분석 실패: 응답을 해석하지 못했습니다.",
+        }
+
+    keywords = result.get("trending_keywords")
+    keywords = [k for k in keywords if isinstance(k, dict)] if isinstance(keywords, list) else []
 
     emit_log("trend_analyzer", f"한 줄 요약 {len(summaries)}편 완료")
     emit_log("trend_analyzer", f"트렌드 키워드 {len(keywords)}개 추출")

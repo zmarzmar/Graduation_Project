@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     # 평가(evals/qa_eval.py)의 보정용 질문으로 정하는 값이다 — 1.0은 사실상 게이트를 끈 상태.
     qa_max_distance: float = 1.0
 
+    # LLM 호출 시간 제한 (요청당 초). 없으면 OpenAI SDK 기본값(600초, 재시도 2번)으로 응답 없는 연결 하나에 30분까지 매달린다
+    # (2026-11-16 평가에서 Coder 요청 1,104초 관측). 측정 최대: Coder 130초, Reviewer 31초, Analyzer 36초 — 출력 예산을 다 쓰는 경우까지 여유를 둔다
+    llm_timeout_reasoning_seconds: float = 300  # Coder·Reviewer (gpt-5.4-mini, 출력 예산 32k)
+    llm_timeout_analyzer_seconds: float = 180  # Analyzer (gpt-4o-mini, 출력 예산 16k)
+    llm_timeout_short_seconds: float = 60  # Planner·TrendAnalyzer·Q&A·임베딩
+    llm_max_retries: int = 1
+
     # CORS
     cors_origins: str = "http://localhost:3000,https://paperpilot.cloud,https://www.paperpilot.cloud"
 

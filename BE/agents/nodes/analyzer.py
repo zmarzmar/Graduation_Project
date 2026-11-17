@@ -18,6 +18,8 @@ _MODEL = "gpt-4o-mini"
 _llm = ChatOpenAI(
     model=_MODEL,
     api_key=settings.openai_api_key,
+    timeout=settings.llm_timeout_analyzer_seconds,
+    max_retries=settings.llm_max_retries,
     max_tokens=ANALYZER_OUTPUT_BUDGET,  # 출력 예산 (gpt-4o-mini 최대 출력)
     model_kwargs={"response_format": {"type": "json_object"}},
 )
@@ -119,9 +121,23 @@ async def analyzer_node(state: AgentState) -> dict:
         logger.warning("[Analyzer] JSON 파싱 실패 — _extract_json 폴백 시도")
         result = _extract_json(response.content)
 
-    summary = result.get("summary", "")
-    review = result.get("review", {})
-    key_formulas = result.get("key_formulas", [])
+    # 해석하지 못한 응답을 빈 요약으로 조용히 넘기지 않는다 — 호출 실패와 같은 오류 형태로 돌려준다 (배열 응답도 여기서 거른다)
+    if not isinstance(result, dict) or not isinstance(result.get("summary"), str) or not result["summary"].strip():
+        logger.warning(f"[Analyzer] 응답 해석 실패 — 원문 앞부분: {str(response.content)[:500]!r}")
+        emit_log("analyzer", "분석 응답을 해석하지 못했습니다")
+        return {
+            "paper_summary": "",
+            "paper_review": {},
+            "key_formulas": [],
+            "current_node": "analyzer",
+            "error": "분석 응답을 해석하지 못했습니다.",
+        }
+
+    summary = result["summary"]
+    # 형식이 다른 부가 필드는 비운다 — 요약은 살리고 len(None) 같은 예외로 그래프가 죽지 않게
+    review = result.get("review") if isinstance(result.get("review"), dict) else {}
+    formulas = result.get("key_formulas")
+    key_formulas = [f for f in formulas if isinstance(f, dict)] if isinstance(formulas, list) else []
 
     emit_log("analyzer", "요약 완료")
     if key_formulas:
