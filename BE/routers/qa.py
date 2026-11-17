@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import get_current_user, get_db
@@ -16,9 +16,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["qa"])
 
 
+class HistoryTurn(BaseModel):
+    question: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+    answer: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] = ""
+
+
 class AskRequest(BaseModel):
     # 앞뒤 공백을 뗀 뒤에 길이를 잰다 — 공백뿐인 질문이 임베딩 호출까지 가지 않게 한다
     question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=500)]
+    # 직전 대화(최대 2개) — 후속 질문("수식 알려줘")이 무엇을 가리키는지 알게 한다. 서버에 저장하지 않는다
+    history: Annotated[list[HistoryTurn], Field(max_length=2)] = []
 
 
 class CitationOut(BaseModel):
@@ -32,6 +39,12 @@ class ClaimOut(BaseModel):
     citations: list[CitationOut]   # 이 문장에 달린 출처 — 모두 구절에 실재함이 확인됐다 (하나 이상)
 
 
+class FormulaOut(BaseModel):
+    name: str = ""
+    latex: str
+    description: str = ""
+
+
 class AskResponse(BaseModel):
     answerable: bool     # False면 answer는 '근거를 확인하지 못함' 안내다
     answer: str          # claims의 문장을 이어 붙인 것
@@ -39,6 +52,7 @@ class AskResponse(BaseModel):
     citations: list[CitationOut]  # 인용문이 구절에 실재함만 확인된 출처 — 문장을 뒷받침하는지는 확인하지 않았다
     dropped_citations: int  # 검증에서 제거된 출처 수
     dropped_claims: int     # 출처가 검증되지 않아 답변에서 뺀 문장 수 — 0보다 크면 답변이 모델이 쓴 것보다 짧다
+    related_formulas: list[FormulaOut] = []  # 수식을 묻는 질문일 때 그 분석의 핵심 수식 — 원문 인용으로 확인한 것이 아니다
 
 
 @router.post(
@@ -66,11 +80,12 @@ async def ask_about_analyzed_paper(
             },
         )
 
+    key_formulas = await crud_analysis.get_key_formulas(db, analysis_id, current_user.id)
     # 색인·검색·답변은 외부 호출이다 — 요청의 DB 트랜잭션을 열어둔 채 기다리지 않는다
     await db.commit()
 
     try:
-        return await rag_service.ask(document, body.question)
+        return await rag_service.ask(document, body.question, [h.model_dump() for h in body.history], key_formulas)
     except rag_service.IndexingInProgress:
         return JSONResponse(
             status_code=202,

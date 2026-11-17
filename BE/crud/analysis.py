@@ -61,6 +61,18 @@ async def get_recent_analysis_results(
     return list(result.scalars().all())
 
 
+async def get_key_formulas(db: AsyncSession, result_id: int, user_id: int) -> list:
+    """본인 소유의 삭제되지 않은 분석 기록의 핵심 수식 (Analyzer가 뽑은 것). 없으면 빈 목록."""
+    found = await db.scalar(
+        select(AnalysisResult.key_formulas).where(
+            AnalysisResult.id == result_id,
+            AnalysisResult.user_id == user_id,
+            AnalysisResult.is_deleted == False,  # noqa: E712
+        )
+    )
+    return found or []
+
+
 async def user_has_active_analysis(db: AsyncSession, result_id: int, user_id: int) -> bool:
     """본인 소유의 삭제되지 않은 분석 기록인지 확인한다."""
     found = await db.scalar(

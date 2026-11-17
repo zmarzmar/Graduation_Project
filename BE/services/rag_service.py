@@ -14,7 +14,7 @@ from functools import lru_cache
 import chromadb
 from openai import AsyncOpenAI
 
-from agents.qa import answer_question, no_evidence
+from agents.qa import answer_question, asks_for_formula, no_evidence
 from agents.token_budget import _encoding, count_tokens
 from core.config import settings
 from core.dependencies import AsyncSessionLocal
@@ -260,14 +260,26 @@ async def retrieve(document: PaperDocument, job_id: str, question: str) -> list[
 # ── 질문에 답하기 ─────────────────────────────────────────────────────────
 
 
-async def ask(document: PaperDocument, question: str) -> dict:
-    """문서 한 편에 대한 질문에 답한다. 색인이 없으면 이 요청 안에서 만든다 (다른 요청이 만드는 중이면 IndexingInProgress)."""
+async def ask(document: PaperDocument, question: str, history: list[dict] | None = None,
+              key_formulas: list | None = None) -> dict:
+    """문서 한 편에 대한 질문에 답한다. 색인이 없으면 이 요청 안에서 만든다 (다른 요청이 만드는 중이면 IndexingInProgress).
+
+    history: 이전 대화(최대 2개). 검색어에 직전 질문을 이어 붙여 "수식 알려줘" 같은 후속 질문이 같은 주제를 찾게 한다.
+    key_formulas: 그 분석의 핵심 수식(Analyzer 결과). 수식을 묻는 질문이면 답변과 별개로 related_formulas에 붙인다 —
+    원문 인용으로 확인한 것이 아니므로 claims에 섞지 않는다.
+    """
+    history = history or []
     job_id = await ensure_indexed(document)
-    passages = await retrieve(document, job_id, question)
+    query = f"{history[-1]['question']} {question}" if history else question
+    passages = await retrieve(document, job_id, query)
     # 가장 가까운 구절조차 질문과 멀면 LLM을 부르지 않는다 — 비슷해 보이는 구절을 억지로 근거로 붙이지 않는다
     if not passages or passages[0].distance > settings.qa_max_distance:
-        return no_evidence()
-    return await answer_question(question, passages)
+        result = no_evidence()
+    else:
+        result = await answer_question(question, passages, history)
+    formulas = [f for f in (key_formulas or []) if isinstance(f, dict) and f.get("latex")]
+    result["related_formulas"] = formulas if asks_for_formula(question) else []
+    return result
 
 
 # ── 삭제된 문서의 색인 정리 ────────────────────────────────────────────────
