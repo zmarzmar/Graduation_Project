@@ -1,5 +1,5 @@
 // BE API 호출 전용 파일 — 컴포넌트에서 직접 fetch 금지
-import type { ArxivPaper } from './types/agent-run'
+import type { ArxivPaper, KeyFormula } from './types/agent-run'
 
 // NEXT_PUBLIC_API_URL은 백엔드 origin 기준으로 설정한다. 기존 /api/v1 포함 값도 호환한다.
 const API_VERSION_PATH = '/api/v1'
@@ -306,6 +306,14 @@ export interface QaAnswer {
   citations: QaCitation[]
   dropped_citations: number
   dropped_claims: number // 출처가 확인되지 않아 답변에서 빠진 문장 수
+  /** 수식을 묻는 질문일 때 그 분석의 핵심 수식 (Analyzer 결과) — 원문 인용으로 확인한 것이 아니다. 이전 BE 응답에는 없다 */
+  related_formulas?: KeyFormula[]
+}
+
+/** 직전 대화 — 후속 질문("수식 알려줘")이 무엇을 가리키는지 서버가 알게 한다 (최대 2개, 서버에 저장하지 않는다) */
+export interface QaHistoryTurn {
+  question: string
+  answer: string
 }
 
 export type AskPaperResult =
@@ -315,12 +323,17 @@ export type AskPaperResult =
   | { status: 'unauthorized' } // 401
   | { status: 'not_found' } // 404 — 삭제됐거나 본인 기록이 아니다
 
-/** 분석한 논문 한 편에 질문한다. 질문 하나에 대한 독립적인 답을 받는다 (이전 질문의 맥락은 전달되지 않는다) */
-export async function askPaper(analysisId: number, question: string, signal?: AbortSignal): Promise<AskPaperResult> {
+/** 분석한 논문 한 편에 질문한다. history(직전 대화 최대 2개)는 질문이 무엇을 가리키는지 알리는 데만 쓰인다 */
+export async function askPaper(
+  analysisId: number,
+  question: string,
+  history: QaHistoryTurn[],
+  signal?: AbortSignal,
+): Promise<AskPaperResult> {
   const res = await authFetch(`${API_BASE}/analyses/${analysisId}/ask`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history: history.slice(-2) }),
     signal,
   })
   if (res.status === 401) return { status: 'unauthorized' }
