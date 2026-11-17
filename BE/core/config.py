@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # 논문 Q&A (RAG)
     embedding_model: str = "text-embedding-3-small"
     # 2026-11-17: gpt-4o-mini → gpt-5.4-mini(추론 low). 자세한 답을 요구하면 4o-mini는 인용에 없는 설명을 섞었다
-    # (Attention 5문항×2회, gpt-5.4-mini 판정: 뒷받침 안 됨 4o-mini 64% vs 5.4-mini 10%, 기존 프롬프트의 4o-mini 38%)
+    # (Attention 5문항×2회, gpt-5.4-mini 판정: 뒷받침 안 됨 4o-mini 64% vs 5.4-mini 10~20%, 기존 프롬프트의 4o-mini 38% — eval-results/2026-11-qa-richer)
     qa_model: str = "gpt-5.4-mini"
     qa_reasoning_effort: str = "low"
     qa_top_k: int = 6

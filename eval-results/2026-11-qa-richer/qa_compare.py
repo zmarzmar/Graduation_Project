@@ -38,7 +38,7 @@ async def main(label: str) -> None:
     print(f"[{label}] 합계: 답함 {sum(r['answerable'] for r in rows)}/{n}, 평균 문장 {sum(r['claims'] for r in rows)/n:.1f}, "
           f"평균 {sum(r['chars'] for r in rows)/n:.0f}자, 빠진 문장 합 {sum(r['dropped_claims'] for r in rows)}")
     claims = [{"q": r["q"], "text": c["text"], "quotes": [x["quote"] for x in c["citations"]]} for r in rows for c in r["claims_full"]]
-    json.dump(claims, open(f"eval-results/2026-11-qa-richer/qa_{label}_claims.json", "w"), ensure_ascii=False, indent=1)
-    json.dump(rows, open(f"eval-results/2026-11-qa-richer/qa_{label}.json", "w"), ensure_ascii=False, indent=1)
+    json.dump(claims, open(f"../eval-results/2026-11-qa-richer/qa_{label}_claims.json", "w"), ensure_ascii=False, indent=1)
+    json.dump(rows, open(f"../eval-results/2026-11-qa-richer/qa_{label}.json", "w"), ensure_ascii=False, indent=1)
 
 asyncio.run(main(sys.argv[1]))

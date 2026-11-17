@@ -5,15 +5,17 @@ Q&A 답변을 자세하게 — 프롬프트·모델 비교 (2026-11-17)
       → answer_question 그대로. 질문 5개 × 2회. 모든 문장(claim)을 gpt-5.4-mini(medium) 판정기로 '인용이 문장을 뒷받침하는가' 판정
 실행: cd BE && PYTHONPATH=. uv run python ../eval-results/2026-11-qa-richer/qa_compare.py <label>   (QA_MODEL·QA_EFFORT 환경변수로 모델 바꿈)
       PYTHONPATH=. uv run python ../eval-results/2026-11-qa-richer/qa_judge.py <label>...
-      (스크립트의 저장 경로는 저장소 루트 기준 상대 경로 — BE에서 돌리면 경로를 맞춰야 한다)
+      결과: qa_<label>.json(답변), qa_<label>_claims.json(문장·인용), qa_<label>_verdicts.json(문장별 판정·이유)
 
-| label | 모델 · 프롬프트 | 평균 문장 | 평균 길이 | 검증에서 빠진 문장 | 뒷받침 안 됨 (판정) |
+| label | 모델 · 프롬프트 | 평균 문장 | 평균 길이 | 검증에서 빠진 문장 | 뒷받침 안 됨 (저장된 판정) |
 | before2 | gpt-4o-mini · 기존 프롬프트 | 3.2 | 246자 | 0 | 12/32 (38%) |
-| after2 | gpt-4o-mini · "자세히, claim을 한두 문장으로 풀어" | 4.2 | 425자 | 7 | 29/42 (69%) |
+| after2 | gpt-4o-mini · "자세히, claim을 한두 문장으로 풀어" | 4.2 | 425자 | 7 | 31/42 (74%) |
 | after3 | gpt-4o-mini · "근거 있는 claim을 더, 하나에는 자기 quote 내용만" (채택한 프롬프트) | 4.5 | 451자 | 5 | 29/45 (64%) |
 | g54 | gpt-5.4-mini(low) · after3 프롬프트 | 5.1 | 406자 | 0 | 5/51 (10%) |
-| final | 운영 설정 그대로(gpt-5.4-mini low, 출력 예산 4,000) · after3 프롬프트 | 4.9 | 384자 | 0 | 11/49 (22%) |
-(같은 설정 반복의 흔들림 참고: 기존 프롬프트 1차 241자 / 2차 252자 / 3차 246자, g54 10% vs final 22%)
+| final | 운영 설정 그대로(gpt-5.4-mini low, 출력 예산 4,000) · after3 프롬프트 | 4.9 | 384자 | 0 | 10/49 (20%) |
+(판정 비율은 저장된 claims를 다시 판정해 문장별로 남긴 값이다(Codex 리뷰 지적 — 처음 실행은 합계만 출력했다).
+ 처음 출력값: 12, 29, 29, 5, 11 — 다시 판정한 값과 after2·final에서 1~2개 차이)
+(같은 설정 반복의 흔들림 참고: 기존 프롬프트 1차 241자 / 2차 252자 / 3차 246자, g54 10% vs final 20%)
 응답 시간: gpt-5.4-mini low 답변 1회 2.8~4.9초
 
 결정 (사용자 확인): Q&A 모델 gpt-4o-mini → gpt-5.4-mini(추론 low), after3 프롬프트, 출력 예산 2,000 → 4,000. 판정기(evals/qa_eval.py)는 gpt-5.4-mini medium으로 고정

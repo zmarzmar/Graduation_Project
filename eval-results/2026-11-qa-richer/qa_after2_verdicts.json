@@ -1,0 +1,380 @@
+[
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "핵심 연산은 'Scaled Dot-Product Attention'으로, 입력으로 쿼리와 키, 값의 집합을 사용하여 주어진 쿼리에 대한 각 키의 호환성을 계산하고, 이를 통해 값에 가중치를 부여하는 방식이다.",
+  "quotes": [
+   "We call our particular attention \"Scaled Dot-Product Attention\"."
+  ],
+  "supported": false,
+  "reason": "인용문은 해당 주의 이름이 'Scaled Dot-Product Attention'이라고만 말합니다. 답변의 나머지 내용(쿼리·키·값을 사용해 호환성을 계산하고 값에 가중치를 부여한다는 설명)은 인용문에 없으므로 전체 답변은 지지되지 않습니다."
+ },
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "이 연산은 쿼리와 키의 내적을 계산하고, 이를 √dk로 나눈 후 소프트맥스 함수를 적용하여 값에 대한 가중치를 얻는다.",
+  "quotes": [
+   "We compute the dot products of the query with all keys, divide each by √dk, and apply a softmax function to obtain the weights on the values."
+  ],
+  "supported": true,
+  "reason": "인용문이 쿼리와 모든 키의 내적을 계산하고, 이를 √dk로 나눈 뒤 소프트맥스를 적용해 값에 대한 가중치를 얻는다고 직접 설명하므로 답변이 지지됩니다."
+ },
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "Scaled Dot-Product Attention은 여러 쿼리를 동시에 처리할 수 있도록 행렬 형태로 입력을 패킹하여 계산한다.",
+  "quotes": [
+   "In practice, we compute the attention function on a set of queries simultaneously, packed together into a matrix Q."
+  ],
+  "supported": false,
+  "reason": "인용문은 'queries를 동시에 attention function에 적용하고, 이를 matrix Q에 묶어 계산한다'는 점만 말합니다. 하지만 답변의 주어인 'Scaled Dot-Product Attention'이라는 명칭은 인용문에 없어서, 답변의 모든 사실적 진술이 인용문으로 직접 뒷받침되지는 않습니다."
+ },
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "이 연산은 메모리와 속도 측면에서 효율적이며, 대규모 데이터 처리에 적합하다.",
+  "quotes": [
+   "dot-product attention is much faster and more space-efficient in practice."
+  ],
+  "supported": false,
+  "reason": "인용문은 dot-product attention이 \"much faster and more space-efficient in practice\"라고만 말합니다. 답변의 \"메모리와 속도 측면에서 효율적\"은 일부 뒷받침되지만, \"대규모 데이터 처리에 적합하다\"는 내용은 인용문에 없습니다."
+ },
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "핵심 연산은 'Scaled Dot-Product Attention'으로, 입력으로 쿼리와 키, 값의 집합을 사용하여 계산된다.",
+  "quotes": [
+   "We call our particular attention \"Scaled Dot-Product Attention\"."
+  ],
+  "supported": false,
+  "reason": "인용문은 단지 해당 주의를 \"Scaled Dot-Product Attention\"이라고 부른다고만 말하며, 이것이 핵심 연산인지나 쿼리·키·값을 입력으로 사용한다는 내용은 제시하지 않습니다."
+ },
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "이 연산은 쿼리와 모든 키의 내적을 계산하고, 이를 √dk로 나눈 후 소프트맥스 함수를 적용하여 값에 대한 가중치를 얻는다.",
+  "quotes": [
+   "We compute the dot products of the query with all keys, divide each by √dk, and apply a softmax function to obtain the weights on the values."
+  ],
+  "supported": true,
+  "reason": "인용문이 쿼리와 모든 키의 내적을 계산하고, 이를 √dk로 나눈 뒤 소프트맥스를 적용해 값의 가중치를 얻는다고 직접 말하므로, 답변의 내용이 모두 뒷받침됩니다."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Multi-head attention은 모델이 서로 다른 표현 하위공간에서 정보를 동시에 주목할 수 있게 해준다.",
+  "quotes": [
+   "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions."
+  ],
+  "supported": true,
+  "reason": "The quote states that multi-head attention allows the model to jointly attend to information from different representation subspaces, which matches the answer’s claim that it can attend to different subspaces simultaneously."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "단일 주의 헤드에서는 평균화가 방해가 되지만, 여러 개의 주의 헤드를 사용하면 이러한 문제를 해결할 수 있다.",
+  "quotes": [
+   "With a single attention head, averaging inhibits this."
+  ],
+  "supported": false,
+  "reason": "인용문은 ‘단일 attention head에서는 averaging이 방해가 된다’는 부분만 뒷받침합니다. 그러나 답변의 ‘여러 개의 주의 헤드를 사용하면 이러한 문제를 해결할 수 있다’는 내용은 인용문에 없습니다."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Multi-head attention은 여러 개의 주의 레이어를 병렬로 실행하여, 각 헤드가 서로 다른 부분에 집중할 수 있도록 한다.",
+  "quotes": [
+   "Multi-Head Attention consists of several attention layers running in parallel."
+  ],
+  "supported": false,
+  "reason": "인용문은 Multi-Head Attention이 여러 attention layer를 병렬로 실행한다는 점만 말합니다. 하지만 답변의 '각 헤드가 서로 다른 부분에 집중할 수 있다'는 내용은 인용문에 직접적으로 뒷받침되지 않습니다."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "이 방식은 각 헤드가 서로 다른 정보에 집중할 수 있게 하여, 모델의 표현력을 향상시킨다.",
+  "quotes": [
+   "we found it beneficial to linearly project the queries, keys and values h times with different, learned linear projections"
+  ],
+  "supported": false,
+  "reason": "인용문은 쿼리, 키, 값을 서로 다른 학습된 선형 사상으로 h번 투영하는 것이 유익하다고만 말합니다. 하지만 답변의 '각 헤드가 서로 다른 정보에 집중한다'거나 '모델의 표현력을 향상시킨다'는 직접적으로 명시되어 있지 않습니다."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Multi-head attention은 전체 차원에서 단일 헤드 주의와 유사한 총 계산 비용을 유지하면서도, 각 헤드의 차원을 줄여 효율성을 높인다.",
+  "quotes": [
+   "Due to the reduced dimension of each head, the total computational cost is similar to that of single-head attention with full dimensionality."
+  ],
+  "supported": false,
+  "reason": "인용문은 각 헤드의 차원을 줄이면 전체 계산 비용이 단일 헤드와 비슷하다고만 말합니다. 그러나 답변의 ‘효율성을 높인다’라는 목적/효과는 직접적으로 제시되지 않아, 답변의 모든 사실이 인용문으로 뒷받침되지는 않습니다."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions.",
+  "quotes": [
+   "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions."
+  ],
+  "supported": true,
+  "reason": "The answer exactly matches the quoted sentence, so every factual claim is directly supported by the quote."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Using multiple attention heads enables the model to capture various aspects of the input data simultaneously, which enhances its ability to learn complex patterns.",
+  "quotes": [
+   "Instead of performing a single attention function with dmodel-dimensional keys, values and queries, we found it beneficial to linearly project the queries, keys and values h times with different, learned linear projections to dk, dk and dv dimensions, respectively."
+  ],
+  "supported": false,
+  "reason": "The quote says the model uses h learned linear projections instead of a single attention function and that this was found beneficial, but it does not state that multiple heads capture various aspects simultaneously or that they improve learning complex patterns."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "The total computational cost of multi-head attention is similar to that of single-head attention with full dimensionality, making it efficient despite the increased number of heads.",
+  "quotes": [
+   "Due to the reduced dimension of each head, the total computational cost is similar to that of single-head attention with full dimensionality."
+  ],
+  "supported": false,
+  "reason": "The quote supports that the total computational cost is similar to single-head attention with full dimensionality, but it does not explicitly state that this makes multi-head attention efficient or mention the increased number of heads. Those parts are added inference."
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Multi-head attention helps in learning long-range dependencies more effectively by connecting all positions with a constant number of sequentially executed operations, unlike recurrent layers which require more sequential operations.",
+  "quotes": [
+   "As noted in Table 1, a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+  ],
+  "supported": false,
+  "reason": "The quote supports that a self-attention layer connects all positions with a constant number of sequential operations, unlike recurrent layers, but it does not state that multi-head attention is used to learn long-range dependencies more effectively, nor does it mention multi-head attention specifically."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "모델은 순환 구조나 합성곱 구조가 없기 때문에, 시퀀스의 순서를 활용하기 위해 입력 임베딩에 '위치 인코딩'을 추가한다.",
+  "quotes": [
+   "Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens in the sequence."
+  ],
+  "supported": false,
+  "reason": "인용문은 모델에 순환/합성곱이 없어서 시퀀스의 순서 정보를 넣어야 한다고만 말합니다. 하지만 답변의 ‘입력 임베딩에 위치 인코딩을 추가한다’는 구체적인 방법은 인용문에 명시되어 있지 않습니다."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 인코딩은 인코더와 디코더 스택의 바닥에 있는 입력 임베딩에 더해지며, 이 인코딩은 임베딩과 동일한 차원 dmodel을 가진다.",
+  "quotes": [
+   "The positional encodings have the same dimension dmodel as the embeddings, so that the two can be summed."
+  ],
+  "supported": false,
+  "reason": "인용문은 위치 인코딩이 임베딩과 같은 차원 dmodel이라서 둘을 더할 수 있다고만 말합니다. 하지만 답변의 \"인코더와 디코더 스택의 바닥에 있는 입력 임베딩에 더해진다\"는 내용은 인용문에 없습니다."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 인코딩은 다양한 주파수의 사인 및 코사인 함수를 사용하여 생성되며, 이는 각 위치에 대해 고유한 값을 제공한다.",
+  "quotes": [
+   "we use sine and cosine functions of different frequencies: PE(pos,2i) = sin(pos/100002i/dmodel) PE(pos,2i+1) = cos(pos/100002i/dmodel)"
+  ],
+  "supported": false,
+  "reason": "인용문은 위치 인코딩이 서로 다른 주파수의 사인/코사인 함수로 구성된다는 점만 말합니다. 답변의 ‘각 위치에 대해 고유한 값을 제공한다’는 주장은 인용문에 직접적으로 명시되어 있지 않아 완전히 뒷받침되지는 않습니다."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "이러한 사인 및 코사인 함수는 고정된 오프셋 k에 대해 PEpos+k가 PEpos의 선형 함수로 표현될 수 있도록 하여 모델이 상대 위치에 따라 주의를 기울이도록 쉽게 학습할 수 있게 한다.",
+  "quotes": [
+   "We chose this function because we hypothesized it would allow the model to easily learn to attend by relative positions, since for any fixed offset k, PEpos+k can be represented as a linear function of PEpos."
+  ],
+  "supported": false,
+  "reason": "인용문은 고정된 오프셋 k에 대해 PEpos+k가 PEpos의 선형 함수로 표현될 수 있어 상대 위치로 attention을 쉽게 학습할 수 있다고만 말합니다. 하지만 답변의 '사인 및 코사인 함수'라는 부분은 인용문에 직접 나오지 않아 그 진술까지는 뒷받침되지 않습니다."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "모델은 순환 구조나 합성곱 구조가 없기 때문에, 시퀀스의 순서를 활용하기 위해 '위치 인코딩'을 입력 임베딩에 추가한다.",
+  "quotes": [
+   "Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens in the sequence."
+  ],
+  "supported": false,
+  "reason": "인용문은 모델에 순환/합성곱이 없어서 시퀀스 순서를 위해 토큰의 상대적 또는 절대적 위치 정보를 주입해야 한다고 말하지만, 이를 ‘위치 인코딩을 입력 임베딩에 추가한다’는 구체적 방식까지는 명시하지 않습니다."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 인코딩은 입력 임베딩과 동일한 차원 dmodel을 가지며, 두 벡터를 더할 수 있도록 설계된다.",
+  "quotes": [
+   "The positional encodings have the same dimension dmodel as the embeddings, so that the two can be summed."
+  ],
+  "supported": true,
+  "reason": "인용문에서 위치 인코딩이 입력 임베딩과 같은 차원 dmodel을 가지며 두 벡터를 합할 수 있도록 설계된다고 직접 말하고 있다. 답변의 내용이 이를 그대로 반영한다."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 인코딩은 다양한 주파수의 사인 및 코사인 함수를 사용하여 생성된다.",
+  "quotes": [
+   "we use sine and cosine functions of different frequencies."
+  ],
+  "supported": true,
+  "reason": "인용문에서 위치 인코딩에 서로 다른 주파수의 사인 및 코사인 함수를 사용한다고 직접 말하고 있어, 답변의 내용과 일치합니다."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "각 위치의 인코딩은 주파수에 따라 사인과 코사인 함수를 사용하여 정의되며, 이는 모델이 상대적 위치에 따라 주의를 기울일 수 있도록 돕는다.",
+  "quotes": [
+   "we hypothesized it would allow the model to easily learn to attend by relative positions."
+  ],
+  "supported": false,
+  "reason": "인용문은 모델이 상대적 위치에 따라 주의를 기울이게 할 수 있다고만 말하며, 위치 인코딩이 주파수에 따른 사인/코사인 함수로 정의된다는 내용은 포함하지 않습니다."
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "모델은 훈련 중에 경험하지 못한 시퀀스 길이에 대해서도 일반화할 수 있도록 사인파 형태의 위치 인코딩을 선택하였다.",
+  "quotes": [
+   "We chose the sinusoidal version because it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training."
+  ],
+  "supported": true,
+  "reason": "The quote directly says the sinusoidal version was chosen because it may allow extrapolation to sequence lengths longer than those seen during training, which matches the answer’s claim."
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention layers have a lower computational complexity compared to recurrent layers, as they connect all positions with a constant number of sequentially executed operations, while recurrent layers require O(n) sequential operations.",
+  "quotes": [
+   "a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+  ],
+  "supported": true,
+  "reason": "The quote directly states that a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations, which supports the answer’s claim."
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention allows for greater parallelization of computations, which can significantly reduce training time compared to RNNs that process sequences sequentially.",
+  "quotes": [
+   "self-attention layers are faster than recurrent layers when the sequence"
+  ],
+  "supported": false,
+  "reason": "The quote only says that self-attention layers are faster than recurrent layers (for the sequence in question). It does not state that this is because of greater parallelization, nor does it mention reduced training time or RNNs processing sequences sequentially."
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "The Transformer model, which relies entirely on self-attention, has been shown to outperform traditional RNN-based models in various tasks, including machine translation, due to its efficiency and effectiveness in handling sequences.",
+  "quotes": [
+   "the Transformer is the first transduction model relying entirely on self-attention to compute representations of its input and output without using sequence-aligned RNNs or convolution."
+  ],
+  "supported": false,
+  "reason": "The quote only supports that the Transformer uses self-attention instead of sequence-aligned RNNs or convolutions. It does not say that it outperforms RNN-based models, mentions machine translation, or explains efficiency/effectiveness advantages."
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention mechanisms can capture relationships between different positions in a sequence more effectively than RNNs, which are limited by their sequential processing nature.",
+  "quotes": [
+   "Self-attention, sometimes called intra-attention is an attention mechanism relating different positions of a single sequence in order to compute a representation of the sequence."
+  ],
+  "supported": false,
+  "reason": "The quote only says self-attention relates different positions within a sequence to compute a representation. It does not mention RNNs, does not compare effectiveness, and does not state anything about sequential processing limitations."
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention layers have a lower computational complexity compared to recurrent layers, as they connect all positions with a constant number of sequentially executed operations, while recurrent layers require O(n) sequential operations.",
+  "quotes": [
+   "a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+  ],
+  "supported": true,
+  "reason": "The quote directly says that a self-attention layer connects all positions with a constant number of sequentially executed operations, while a recurrent layer requires O(n) sequential operations, which supports the answer’s claim that self-attention has lower computational complexity."
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention allows for greater parallelization of computations, which can significantly reduce training time compared to RNNs that process sequences sequentially.",
+  "quotes": [
+   "self-attention layers are faster than recurrent layers when the sequence"
+  ],
+  "supported": false,
+  "reason": "The quote only says self-attention layers are faster than recurrent layers, but it does not state that this is because of greater parallelization or that it significantly reduces training time compared to sequential RNNs."
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "The Transformer model, which relies entirely on self-attention, has been shown to outperform traditional RNN-based models in various tasks, including machine translation, due to its efficiency and effectiveness.",
+  "quotes": [
+   "Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train."
+  ],
+  "supported": false,
+  "reason": "The quote supports that the models achieve better quality on machine translation tasks and are more parallelizable with less training time. However, it does not state that the Transformer relies entirely on self-attention, nor does it explicitly compare it to RNN-based models or mention “various tasks.”"
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention mechanisms can capture relationships between different positions in a sequence more effectively than RNNs, which are limited by their sequential processing nature.",
+  "quotes": [
+   "Self-attention, sometimes called intra-attention is an attention mechanism relating different positions of a single sequence in order to compute a representation of the sequence."
+  ],
+  "supported": false,
+  "reason": "The quote supports that self-attention relates different positions within a sequence, but it does not mention RNNs, their sequential processing limits, or that self-attention is more effective than RNNs."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "모델은 8개의 NVIDIA P100 GPU가 장착된 한 대의 머신에서 학습되었습니다.",
+  "quotes": [
+   "We trained our models on one machine with 8 NVIDIA P100 GPUs."
+  ],
+  "supported": true,
+  "reason": "The quote directly states that the models were trained on one machine with 8 NVIDIA P100 GPUs, which matches the answer."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "기본 모델은 총 100,000 스텝 동안 학습되었으며, 각 학습 스텝은 약 0.4초가 소요되었습니다.",
+  "quotes": [
+   "We trained the base models for a total of 100,000 steps or 12 hours."
+  ],
+  "supported": false,
+  "reason": "인용문은 기본 모델을 총 100,000 스텝 동안 학습했다고만 말하며, 각 스텝이 약 0.4초 걸렸다는 정보는 포함하지 않습니다."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "큰 모델은 300,000 스텝 동안 학습되었고, 각 스텝의 시간은 1.0초였습니다.",
+  "quotes": [
+   "The big models were trained for 300,000 steps (3.5 days)."
+  ],
+  "supported": false,
+  "reason": "인용문은 큰 모델이 300,000 스텝 동안 학습되었다는 점만 말하며, 각 스텝의 시간이 1.0초였다는 정보는 직접적으로 제시하지 않습니다."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "Adam 옵티마이저를 사용하였으며, 학습률은 훈련 과정에서 변동하였습니다.",
+  "quotes": [
+   "We used the Adam optimizer [20] with β1 = 0.9, β2 = 0.98 and ϵ = 10−9."
+  ],
+  "supported": false,
+  "reason": "인용문은 Adam 옵티마이저와 β1, β2, ϵ 값만 제시하며, 학습률이 훈련 과정에서 변동했다는 내용은 포함하지 않습니다. 따라서 답변의 두 번째 주장은 근거가 없습니다."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "학습률은 처음 4000 스텝 동안 선형적으로 증가하고, 이후에는 스텝 번호의 역 제곱근에 비례하여 감소하도록 설정되었습니다.",
+  "quotes": [
+   "This corresponds to increasing the learning rate linearly for the first warmup_steps training steps, and decreasing it thereafter proportionally to the inverse square root of the step number."
+  ],
+  "supported": false,
+  "reason": "인용문은 학습률이 처음 warmup_steps 동안 선형 증가하고 이후 스텝 수의 역제곱근에 비례해 감소한다고만 말합니다. 하지만 답변의 ‘처음 4000 스텝’이라는 구체적 수치는 인용문에 없습니다."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "모델은 8개의 NVIDIA P100 GPU가 장착된 한 대의 머신에서 학습되었습니다.",
+  "quotes": [
+   "We trained our models on one machine with 8 NVIDIA P100 GPUs."
+  ],
+  "supported": true,
+  "reason": "The quote states that the models were trained on one machine with 8 NVIDIA P100 GPUs, which directly supports the answer."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "기본 모델은 총 100,000 스텝 동안 학습되었으며, 각 학습 스텝은 약 0.4초가 소요되었습니다.",
+  "quotes": [
+   "We trained the base models for a total of 100,000 steps or 12 hours."
+  ],
+  "supported": false,
+  "reason": "인용문은 기본 모델을 총 100,000 스텝(또는 12시간) 동안 학습했다고만 말합니다. 답변의 ‘각 학습 스텝은 약 0.4초가 소요’된다는 내용은 인용문에 직접 제시되어 있지 않습니다."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "큰 모델은 300,000 스텝 동안 학습되었고, 각 스텝의 시간은 1.0초였습니다.",
+  "quotes": [
+   "The big models were trained for 300,000 steps (3.5 days)."
+  ],
+  "supported": false,
+  "reason": "인용문은 큰 모델이 300,000 스텝 동안 학습되었다고만 말합니다. 하지만 답변의 '각 스텝의 시간은 1.0초'라는 내용은 인용문에 직접 나와 있지 않아 지원되지 않습니다."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "Adam 옵티마이저를 사용하였으며, 학습률은 훈련 과정에서 변동하였습니다.",
+  "quotes": [
+   "We used the Adam optimizer [20] with β1 = 0.9, β2 = 0.98 and ϵ = 10−9."
+  ],
+  "supported": false,
+  "reason": "인용문은 Adam 옵티마이저를 사용했다는 점만 뒷받침합니다. 하지만 답변의 '학습률은 훈련 과정에서 변동하였다'는 내용은 인용문에 없으므로 전체 답변은 지지되지 않습니다."
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "학습률은 처음 4000 스텝 동안 선형적으로 증가하고, 이후에는 스텝 번호의 역 제곱근에 비례하여 감소하도록 설정되었습니다.",
+  "quotes": [
+   "This corresponds to increasing the learning rate linearly for the first warmup_steps training steps, and decreasing it thereafter proportionally to the inverse square root of the step number."
+  ],
+  "supported": false,
+  "reason": "인용문은 학습률이 처음 warmup_steps 동안 선형적으로 증가하고 이후 역제곱근에 비례해 감소한다고만 말합니다. 하지만 답변의 ‘처음 4000 스텝 동안’이라는 구체적인 수치는 인용문에 없어 뒷받침되지 않습니다."
+ }
+]
