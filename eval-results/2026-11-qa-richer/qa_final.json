@@ -1,0 +1,747 @@
+[
+ {
+  "q": "핵심 연산이 뭐야?",
+  "run": 0,
+  "answerable": true,
+  "claims": 4,
+  "chars": 325,
+  "dropped_claims": 0,
+  "answer": "이 논문에서 핵심 연산은 쿼리와 모든 키의 내적을 계산한 뒤, 이를 \\(\\sqrt{d_k}\\)로 나누고 softmax를 적용해 값들에 대한 가중치를 얻는 scaled dot-product attention이다. 실제로는 여러 쿼리, 키, 값을 각각 행렬 Q, K, V에 모아 한 번에 attention을 계산한다. 출력은 softmax(QK^T/√dk)에 V를 곱한 형태로 계산된다. 모델은 하나의 attention만 쓰지 않고, 쿼리·키·값을 서로 다른 학습된 선형변환으로 h번 투영한 뒤 여러 attention을 병렬로 수행하는 multi-head attention을 사용한다.",
+  "claims_full": [
+   {
+    "text": "이 논문에서 핵심 연산은 쿼리와 모든 키의 내적을 계산한 뒤, 이를 \\(\\sqrt{d_k}\\)로 나누고 softmax를 적용해 값들에 대한 가중치를 얻는 scaled dot-product attention이다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "We compute the dot products of the query with all keys, divide each by √dk, and apply a softmax function to obtain the weights on the values."
+     },
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "We call our particular attention \"Scaled Dot-Product Attention\" (Figure 2)."
+     }
+    ]
+   },
+   {
+    "text": "실제로는 여러 쿼리, 키, 값을 각각 행렬 Q, K, V에 모아 한 번에 attention을 계산한다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "In practice, we compute the attention function on a set of queries simultaneously, packed together into a matrix Q."
+     },
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "The keys and values are also packed together into matrices K and V ."
+     }
+    ]
+   },
+   {
+    "text": "출력은 softmax(QK^T/√dk)에 V를 곱한 형태로 계산된다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "Attention(Q, K, V ) = softmax(QKT\n√dk\n)V"
+     }
+    ]
+   },
+   {
+    "text": "모델은 하나의 attention만 쓰지 않고, 쿼리·키·값을 서로 다른 학습된 선형변환으로 h번 투영한 뒤 여러 attention을 병렬로 수행하는 multi-head attention을 사용한다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "Instead of performing a single attention function with dmodel-dimensional keys, values and queries, we found it beneficial to linearly project the queries, keys and values h times with different, learned linear projections to dk, dk and dv dimensions, respectively."
+     },
+     {
+      "page": 4,
+      "chunk_index": 6,
+      "quote": "On each of these projected versions of queries, keys and values we then perform the attention function in parallel, yielding dv-dimensional"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "핵심 연산이 뭐야?",
+  "run": 1,
+  "answerable": true,
+  "claims": 4,
+  "chars": 290,
+  "dropped_claims": 0,
+  "answer": "이 논문에서 말하는 핵심 연산은 Scaled Dot-Product Attention이다. 이 연산은 query와 모든 key의 내적을 계산한 뒤, 각 내적을 √dk로 나누고 softmax를 적용해 value에 대한 가중치를 만든다. 논문은 여러 query를 한 번에 행렬 Q로 묶어서 attention을 계산하고, key와 value도 각각 K와 V 행렬로 묶어 처리한다고 설명한다. self-attention은 모든 위치를 연결하므로, 서로 멀리 떨어진 위치 사이의 의존성을 배우는 데 중요한 역할을 한다고 설명한다.",
+  "claims_full": [
+   {
+    "text": "이 논문에서 말하는 핵심 연산은 Scaled Dot-Product Attention이다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "We call our particular attention \"Scaled Dot-Product Attention\" (Figure 2)."
+     },
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "The input consists of queries and keys of dimension dk, and values of dimension dv."
+     }
+    ]
+   },
+   {
+    "text": "이 연산은 query와 모든 key의 내적을 계산한 뒤, 각 내적을 √dk로 나누고 softmax를 적용해 value에 대한 가중치를 만든다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "We compute the dot products of the query with all keys, divide each by √dk, and apply a softmax function to obtain the weights on the values."
+     },
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "Attention(Q, K, V ) = softmax(QKT\n√dk\n)V"
+     }
+    ]
+   },
+   {
+    "text": "논문은 여러 query를 한 번에 행렬 Q로 묶어서 attention을 계산하고, key와 value도 각각 K와 V 행렬로 묶어 처리한다고 설명한다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "In practice, we compute the attention function on a set of queries simultaneously, packed together into a matrix Q."
+     },
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "The keys and values are also packed together into matrices K and V ."
+     }
+    ]
+   },
+   {
+    "text": "self-attention은 모든 위치를 연결하므로, 서로 멀리 떨어진 위치 사이의 의존성을 배우는 데 중요한 역할을 한다고 설명한다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "One is the total computational complexity per layer."
+     },
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "As noted in Table 1, a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "run": 0,
+  "answerable": true,
+  "claims": 4,
+  "chars": 347,
+  "dropped_claims": 0,
+  "answer": "Multi-head attention은 서로 다른 representation subspace의 정보를 서로 다른 위치에서 함께 보도록 하기 위해 사용된다. 단일 attention head만 쓰면 averaging 때문에 이런 정보를 잘 반영하지 못한다. 구현에서는 query, key, value를 h번 서로 다른 learned linear projection으로 낮은 차원으로 보낸 뒤 각 head의 출력을 이어 붙여 다시 projection한다. 각 head의 차원을 줄이기 때문에 total computational cost는 full dimensionality의 single-head attention과 비슷하다.",
+  "claims_full": [
+   {
+    "text": "Multi-head attention은 서로 다른 representation subspace의 정보를 서로 다른 위치에서 함께 보도록 하기 위해 사용된다.",
+    "citations": [
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "Multi-head attention allows the model to jointly attend to information from different representation\nsubspaces at different positions."
+     }
+    ]
+   },
+   {
+    "text": "단일 attention head만 쓰면 averaging 때문에 이런 정보를 잘 반영하지 못한다.",
+    "citations": [
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "With a single attention head, averaging inhibits this."
+     }
+    ]
+   },
+   {
+    "text": "구현에서는 query, key, value를 h번 서로 다른 learned linear projection으로 낮은 차원으로 보낸 뒤 각 head의 출력을 이어 붙여 다시 projection한다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "we found it beneficial to linearly project the queries, keys and values h times with different, learned\nlinear projections to dk, dk and dv dimensions, respectively."
+     },
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "MultiHead(Q, K, V ) = Concat(head1, ..., headh)W O"
+     }
+    ]
+   },
+   {
+    "text": "각 head의 차원을 줄이기 때문에 total computational cost는 full dimensionality의 single-head attention과 비슷하다.",
+    "citations": [
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "Due to the reduced dimension of each head, the total computational cost\nis similar to that of single-head attention with full dimensionality."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "run": 1,
+  "answerable": true,
+  "claims": 5,
+  "chars": 479,
+  "dropped_claims": 0,
+  "answer": "Multi-head attention은 서로 다른 표현 부분공간과 서로 다른 위치의 정보를 함께 보도록 하기 위해 사용된다. 단일 attention head만 쓰면 평균화 때문에 이런 정보를 보는 능력이 제한된다. 이 논문에서는 query, key, value를 여러 번 서로 다른 learned linear projection으로 변환한 뒤 각 head에서 attention을 계산하고, 그 결과를 concat한 다음 다시 projection해서 최종 값을 만든다. 여러 head를 병렬로 쓰더라도 각 head의 차원을 줄여서 전체 계산 비용은 full-dimensional single-head attention과 비슷하게 유지된다. Transformer는 encoder-decoder attention, encoder self-attention, decoder self-attention의 세 방식에서 multi-head attention을 사용한다.",
+  "claims_full": [
+   {
+    "text": "Multi-head attention은 서로 다른 표현 부분공간과 서로 다른 위치의 정보를 함께 보도록 하기 위해 사용된다.",
+    "citations": [
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions."
+     }
+    ]
+   },
+   {
+    "text": "단일 attention head만 쓰면 평균화 때문에 이런 정보를 보는 능력이 제한된다.",
+    "citations": [
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "With a single attention head, averaging inhibits this."
+     }
+    ]
+   },
+   {
+    "text": "이 논문에서는 query, key, value를 여러 번 서로 다른 learned linear projection으로 변환한 뒤 각 head에서 attention을 계산하고, 그 결과를 concat한 다음 다시 projection해서 최종 값을 만든다.",
+    "citations": [
+     {
+      "page": 4,
+      "chunk_index": 5,
+      "quote": "we found it beneficial to linearly project the queries, keys and values h times with different, learned linear projections to dk, dk and dv dimensions, respectively."
+     },
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "MultiHead(Q, K, V ) = Concat(head1, ..., headh)W O"
+     }
+    ]
+   },
+   {
+    "text": "여러 head를 병렬로 쓰더라도 각 head의 차원을 줄여서 전체 계산 비용은 full-dimensional single-head attention과 비슷하게 유지된다.",
+    "citations": [
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "For each of these we use dk = dv = dmodel/h = 64."
+     },
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "Due to the reduced dimension of each head, the total computational cost is similar to that of single-head attention with full dimensionality."
+     }
+    ]
+   },
+   {
+    "text": "Transformer는 encoder-decoder attention, encoder self-attention, decoder self-attention의 세 방식에서 multi-head attention을 사용한다.",
+    "citations": [
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "The Transformer uses multi-head attention in three different ways:"
+     },
+     {
+      "page": 5,
+      "chunk_index": 7,
+      "quote": "• In \"encoder-decoder attention\" layers, the queries come from the previous decoder layer, and the memory keys and values come from the output of the encoder."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "run": 0,
+  "answerable": true,
+  "claims": 5,
+  "chars": 421,
+  "dropped_claims": 0,
+  "answer": "이 모델은 위치 정보를 순환이나 합성곱으로 넣지 않고, 인코더와 디코더 스택의 입력 임베딩에 positional encoding을 더하는 방식으로 넣는다. positional encoding은 임베딩과 같은 차원 dmodel을 가지므로 두 벡터를 합칠 수 있다. 이 논문은 위치 인코딩으로 서로 다른 주기의 사인과 코사인 함수를 사용하며, 짝수 차원에는 sine, 홀수 차원에는 cosine을 넣는다. 저자들은 이 함수를 고정된 위치 차이에 대해 PE(pos+k)를 PE(pos)의 선형 함수로 표현할 수 있어서, 상대적 위치를 쉽게 학습할 수 있다고 설명한다. 학습된 positional embedding도 실험했지만 두 방식의 결과는 거의 같았고, 사인·코사인 방식은 훈련 때 보지 못한 더 긴 시퀀스 길이로 외삽할 수 있을 가능성 때문에 선택했다.",
+  "claims_full": [
+   {
+    "text": "이 모델은 위치 정보를 순환이나 합성곱으로 넣지 않고, 인코더와 디코더 스택의 입력 임베딩에 positional encoding을 더하는 방식으로 넣는다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "Since our model contains no recurrence and no convolution, in order for the model to make use of the\norder of the sequence, we must inject some information about the relative or absolute position of the\ntokens in the sequence."
+     },
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "To this end, we add \"positional encodings\" to the input embeddings at the\nbottoms of the encoder and decoder stacks."
+     }
+    ]
+   },
+   {
+    "text": "positional encoding은 임베딩과 같은 차원 dmodel을 가지므로 두 벡터를 합칠 수 있다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "The positional encodings have the same dimension dmodel\nas the embeddings, so that the two can be summed."
+     }
+    ]
+   },
+   {
+    "text": "이 논문은 위치 인코딩으로 서로 다른 주기의 사인과 코사인 함수를 사용하며, 짝수 차원에는 sine, 홀수 차원에는 cosine을 넣는다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "In this work, we use sine and cosine functions of different frequencies:\nPE(pos,2i) = sin(pos/100002i/dmodel)\nPE(pos,2i+1) = cos(pos/100002i/dmodel)"
+     },
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "That is, each dimension of the positional encoding\ncorresponds to a sinusoid."
+     }
+    ]
+   },
+   {
+    "text": "저자들은 이 함수를 고정된 위치 차이에 대해 PE(pos+k)를 PE(pos)의 선형 함수로 표현할 수 있어서, 상대적 위치를 쉽게 학습할 수 있다고 설명한다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "We\nchose this function because we hypothesized it would allow the model to easily learn to attend by\nrelative positions, since for any fixed offset k, PEpos+k can be represented as a linear function of\nPEpos."
+     }
+    ]
+   },
+   {
+    "text": "학습된 positional embedding도 실험했지만 두 방식의 결과는 거의 같았고, 사인·코사인 방식은 훈련 때 보지 못한 더 긴 시퀀스 길이로 외삽할 수 있을 가능성 때문에 선택했다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "We also experimented with using learned positional embeddings [9] instead, and found that the two\nversions produced nearly identical results (see Table 3 row (E))."
+     },
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "We chose the sinusoidal version\nbecause it may allow the model to extrapolate to sequence lengths longer than the ones encountered\nduring training."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "run": 1,
+  "answerable": true,
+  "claims": 5,
+  "chars": 424,
+  "dropped_claims": 0,
+  "answer": "이 모델은 순환이나 합성을 쓰지 않기 때문에, 단어들의 순서 정보를 사용하게 하려면 토큰의 상대적 또는 절대적 위치 정보를 입력에 주입해야 한다고 설명한다. 위치 정보는 인코더와 디코더 스택의 맨 아래에서 입력 임베딩에 positional encodings를 더하는 방식으로 넣는다. positional encodings는 임베딩과 같은 차원 dmodel을 가지므로 두 값을 합칠 수 있다. 이 논문은 학습된 위치 임베딩 대신 사인과 코사인 함수로 만든 고정 positional encoding을 사용하며, 각 차원은 서로 다른 주파수의 sinusoids로 구성된다. 이 사인/코사인 방식은 고정된 오프셋에 대해 위치 표현을 선형 함수로 나타낼 수 있어 상대적 위치를 쉽게 학습하도록 돕고, 훈련 때 보지 못한 더 긴 시퀀스에도 일반화될 수 있다고 설명한다.",
+  "claims_full": [
+   {
+    "text": "이 모델은 순환이나 합성을 쓰지 않기 때문에, 단어들의 순서 정보를 사용하게 하려면 토큰의 상대적 또는 절대적 위치 정보를 입력에 주입해야 한다고 설명한다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens in the sequence."
+     }
+    ]
+   },
+   {
+    "text": "위치 정보는 인코더와 디코더 스택의 맨 아래에서 입력 임베딩에 positional encodings를 더하는 방식으로 넣는다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "To this end, we add \"positional encodings\" to the input embeddings at the bottoms of the encoder and decoder stacks."
+     }
+    ]
+   },
+   {
+    "text": "positional encodings는 임베딩과 같은 차원 dmodel을 가지므로 두 값을 합칠 수 있다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "The positional encodings have the same dimension dmodel as the embeddings, so that the two can be summed."
+     }
+    ]
+   },
+   {
+    "text": "이 논문은 학습된 위치 임베딩 대신 사인과 코사인 함수로 만든 고정 positional encoding을 사용하며, 각 차원은 서로 다른 주파수의 sinusoids로 구성된다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "In this work, we use sine and cosine functions of different frequencies:"
+     },
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "That is, each dimension of the positional encoding corresponds to a sinusoid."
+     }
+    ]
+   },
+   {
+    "text": "이 사인/코사인 방식은 고정된 오프셋에 대해 위치 표현을 선형 함수로 나타낼 수 있어 상대적 위치를 쉽게 학습하도록 돕고, 훈련 때 보지 못한 더 긴 시퀀스에도 일반화될 수 있다고 설명한다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "We chose this function because we hypothesized it would allow the model to easily learn to attend by relative positions, since for any fixed offset k, PEpos+k can be represented as a linear function of PEpos."
+     },
+     {
+      "page": 6,
+      "chunk_index": 9,
+      "quote": "We chose the sinusoidal version because it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "run": 0,
+  "answerable": true,
+  "claims": 4,
+  "chars": 362,
+  "dropped_claims": 0,
+  "answer": "self-attention은 한 층에서 모든 위치를 연결하면서도 순차적으로 실행되는 연산 수가 일정해서, RNN보다 더 병렬화하기 쉽습니다. self-attention은 입력과 출력의 임의의 두 위치 사이 경로 길이를 짧게 만들 수 있어서, 긴 거리 의존성을 학습하기가 더 쉽다고 설명됩니다. self-attention은 어떤 조건에서는 recurrent layer보다 계산 복잡도가 더 낮아 더 빠르다고 설명됩니다. 논문은 Transformer가 recurrence와 convolution을 완전히 쓰지 않고 attention만으로 입력과 출력을 표현하며, 번역 실험에서 더 좋은 품질과 더 적은 학습 시간, 더 높은 병렬성을 보였다고 말합니다.",
+  "claims_full": [
+   {
+    "text": "self-attention은 한 층에서 모든 위치를 연결하면서도 순차적으로 실행되는 연산 수가 일정해서, RNN보다 더 병렬화하기 쉽습니다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "As noted in Table 1, a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+     },
+     {
+      "page": 1,
+      "chunk_index": 0,
+      "quote": "Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train."
+     }
+    ]
+   },
+   {
+    "text": "self-attention은 입력과 출력의 임의의 두 위치 사이 경로 길이를 짧게 만들 수 있어서, 긴 거리 의존성을 학습하기가 더 쉽다고 설명됩니다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "The shorter these paths between any combination of positions in the input and output sequences, the easier it is to learn long-range dependencies [12]."
+     },
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "Hence we also compare the maximum path length between any two input and output positions in networks composed of the different layer types."
+     }
+    ]
+   },
+   {
+    "text": "self-attention은 어떤 조건에서는 recurrent layer보다 계산 복잡도가 더 낮아 더 빠르다고 설명됩니다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "In terms of computational complexity, self-attention layers are faster than recurrent layers when the sequence"
+     },
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "As noted in Table 1, a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+     }
+    ]
+   },
+   {
+    "text": "논문은 Transformer가 recurrence와 convolution을 완전히 쓰지 않고 attention만으로 입력과 출력을 표현하며, 번역 실험에서 더 좋은 품질과 더 적은 학습 시간, 더 높은 병렬성을 보였다고 말합니다.",
+    "citations": [
+     {
+      "page": 1,
+      "chunk_index": 0,
+      "quote": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely."
+     },
+     {
+      "page": 1,
+      "chunk_index": 0,
+      "quote": "Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "run": 1,
+  "answerable": true,
+  "claims": 4,
+  "chars": 285,
+  "dropped_claims": 0,
+  "answer": "self-attention은 한 층에서 모든 위치를 적은 수의 순차 연산으로 연결할 수 있어서 RNN보다 더 병렬화하기 쉽습니다. self-attention은 긴 거리 의존성을 학습하는 데 중요한 입력과 출력 사이의 경로 길이를 줄이는 데 유리합니다. self-attention은 RNN보다 계산 복잡도 면에서 더 빠를 수 있다고 논문은 말합니다. Transformer에서는 self-attention이 입력과 출력의 표현을 계산하는 핵심 방식이며, recurrence나 convolution을 쓰지 않습니다.",
+  "claims_full": [
+   {
+    "text": "self-attention은 한 층에서 모든 위치를 적은 수의 순차 연산으로 연결할 수 있어서 RNN보다 더 병렬화하기 쉽습니다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "As noted in Table 1, a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+     },
+     {
+      "page": 1,
+      "chunk_index": 0,
+      "quote": "Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train."
+     }
+    ]
+   },
+   {
+    "text": "self-attention은 긴 거리 의존성을 학습하는 데 중요한 입력과 출력 사이의 경로 길이를 줄이는 데 유리합니다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "One key factor affecting the ability to learn such dependencies is the length of the paths forward and backward signals have to traverse in the network."
+     },
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "The shorter these paths between any combination of positions in the input and output sequences, the easier it is to learn long-range dependencies [12]."
+     }
+    ]
+   },
+   {
+    "text": "self-attention은 RNN보다 계산 복잡도 면에서 더 빠를 수 있다고 논문은 말합니다.",
+    "citations": [
+     {
+      "page": 6,
+      "chunk_index": 10,
+      "quote": "In terms of computational complexity, self-attention layers are faster than recurrent layers when the sequence"
+     }
+    ]
+   },
+   {
+    "text": "Transformer에서는 self-attention이 입력과 출력의 표현을 계산하는 핵심 방식이며, recurrence나 convolution을 쓰지 않습니다.",
+    "citations": [
+     {
+      "page": 1,
+      "chunk_index": 0,
+      "quote": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely."
+     },
+     {
+      "page": 2,
+      "chunk_index": 3,
+      "quote": "To the best of our knowledge, however, the Transformer is the first transduction model relying entirely on self-attention to compute representations of its input and output without using sequence-aligned RNNs or convolution."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "run": 0,
+  "answerable": true,
+  "claims": 8,
+  "chars": 516,
+  "dropped_claims": 0,
+  "answer": "학습은 8개의 NVIDIA P100 GPU가 달린 한 대의 머신에서 수행했다. 기본 모델은 제시된 하이퍼파라미터로 한 학습 단계당 약 0.4초가 걸렸고, 총 100,000 steps 또는 12시간 동안 학습했다. 큰 모델은 한 학습 단계당 1.0초가 걸렸고, 300,000 steps 동안 즉 3.5일 동안 학습했다. 최적화에는 Adam optimizer를 사용했고, β1 = 0.9, β2 = 0.98, ϵ = 10−9로 설정했다. 학습률은 step_num과 warmup_steps에 따라 변하게 했으며, 처음 warmup_steps 동안은 선형으로 증가시키고 그 이후에는 step 수의 역제곱근에 비례해 감소시키는 방식이었다. warmup_steps는 4000으로 사용했다. 정규화로는 세 가지 형태를 사용했다고 했고, dropout은 각 sub-layer 출력과 임베딩-위치인코딩 합에 적용했으며 기본 모델의 dropout rate는 0.1이었다. 학습 중 label smoothing을 ϵls = 0.1로 사용했다.",
+  "claims_full": [
+   {
+    "text": "학습은 8개의 NVIDIA P100 GPU가 달린 한 대의 머신에서 수행했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "We trained our models on one machine with 8 NVIDIA P100 GPUs."
+     }
+    ]
+   },
+   {
+    "text": "기본 모델은 제시된 하이퍼파라미터로 한 학습 단계당 약 0.4초가 걸렸고, 총 100,000 steps 또는 12시간 동안 학습했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "For our base models using\nthe hyperparameters described throughout the paper, each training step took about 0.4 seconds."
+     },
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "We\ntrained the base models for a total of 100,000 steps or 12 hours."
+     }
+    ]
+   },
+   {
+    "text": "큰 모델은 한 학습 단계당 1.0초가 걸렸고, 300,000 steps 동안 즉 3.5일 동안 학습했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "For our big models,(described on the\nbottom line of table 3), step time was 1.0 seconds."
+     },
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "The big models were trained for 300,000 steps\n(3.5 days)."
+     }
+    ]
+   },
+   {
+    "text": "최적화에는 Adam optimizer를 사용했고, β1 = 0.9, β2 = 0.98, ϵ = 10−9로 설정했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "We used the Adam optimizer [20] with β1 = 0.9, β2 = 0.98 and ϵ = 10−9."
+     }
+    ]
+   },
+   {
+    "text": "학습률은 step_num과 warmup_steps에 따라 변하게 했으며, 처음 warmup_steps 동안은 선형으로 증가시키고 그 이후에는 step 수의 역제곱근에 비례해 감소시키는 방식이었다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "We varied the learning\nrate over the course of training, according to the formula:\nlrate = d−0.5\nmodel · min(step_num−0.5, step_num · warmup_steps−1.5)"
+     },
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "This corresponds to increasing the learning rate linearly for the first warmup_steps training steps,\nand decreasing it thereafter proportionally to the inverse square root of the step number."
+     }
+    ]
+   },
+   {
+    "text": "warmup_steps는 4000으로 사용했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "We used\nwarmup_steps = 4000."
+     }
+    ]
+   },
+   {
+    "text": "정규화로는 세 가지 형태를 사용했다고 했고, dropout은 각 sub-layer 출력과 임베딩-위치인코딩 합에 적용했으며 기본 모델의 dropout rate는 0.1이었다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "We employ three types of regularization during training:"
+     },
+     {
+      "page": 8,
+      "chunk_index": 13,
+      "quote": "We apply dropout [33] to the output of each sub-layer, before it is added to the\nsub-layer input and normalized."
+     },
+     {
+      "page": 8,
+      "chunk_index": 13,
+      "quote": "For the base model, we use a rate of\nPdrop = 0.1."
+     }
+    ]
+   },
+   {
+    "text": "학습 중 label smoothing을 ϵls = 0.1로 사용했다.",
+    "citations": [
+     {
+      "page": 8,
+      "chunk_index": 13,
+      "quote": "During training, we employed label smoothing of value ϵls = 0.1 [36]."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "run": 1,
+  "answerable": true,
+  "claims": 6,
+  "chars": 391,
+  "dropped_claims": 0,
+  "answer": "기본 모델은 8개의 NVIDIA P100 GPU가 있는 한 대의 머신에서 학습했다. 기본 모델은 각 학습 단계가 약 0.4초 걸렸고, 총 100,000 steps 또는 12시간 동안 학습했다. 큰 모델은 각 단계가 1.0초 걸렸고, 300,000 steps, 즉 3.5일 동안 학습했다. 최적화에는 Adam을 사용했고, β1 = 0.9, β2 = 0.98, ϵ = 10−9로 설정했다. 학습률은 step 수와 warmup_steps에 따라 변했고, 처음에는 선형으로 증가한 뒤 이후에는 step 수의 역제곱근에 비례해 감소했으며 warmup_steps는 4000이었다. 기본 모델의 dropout 비율은 Pdrop = 0.1이었고, 학습 중 label smoothing ϵls = 0.1을 사용했다.",
+  "claims_full": [
+   {
+    "text": "기본 모델은 8개의 NVIDIA P100 GPU가 있는 한 대의 머신에서 학습했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "We trained our models on one machine with 8 NVIDIA P100 GPUs."
+     }
+    ]
+   },
+   {
+    "text": "기본 모델은 각 학습 단계가 약 0.4초 걸렸고, 총 100,000 steps 또는 12시간 동안 학습했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "For our base models using\nthe hyperparameters described throughout the paper, each training step took about 0.4 seconds.\nWe\ntrained the base models for a total of 100,000 steps or 12 hours."
+     }
+    ]
+   },
+   {
+    "text": "큰 모델은 각 단계가 1.0초 걸렸고, 300,000 steps, 즉 3.5일 동안 학습했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "For our big models,(described on the\nbottom line of table 3), step time was 1.0 seconds.\nThe big models were trained for 300,000 steps\n(3.5 days)."
+     }
+    ]
+   },
+   {
+    "text": "최적화에는 Adam을 사용했고, β1 = 0.9, β2 = 0.98, ϵ = 10−9로 설정했다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "We used the Adam optimizer [20] with β1 = 0.9, β2 = 0.98 and ϵ = 10−9."
+     }
+    ]
+   },
+   {
+    "text": "학습률은 step 수와 warmup_steps에 따라 변했고, 처음에는 선형으로 증가한 뒤 이후에는 step 수의 역제곱근에 비례해 감소했으며 warmup_steps는 4000이었다.",
+    "citations": [
+     {
+      "page": 7,
+      "chunk_index": 12,
+      "quote": "This corresponds to increasing the learning rate linearly for the first warmup_steps training steps,\nand decreasing it thereafter proportionally to the inverse square root of the step number.\nWe used\nwarmup_steps = 4000."
+     }
+    ]
+   },
+   {
+    "text": "기본 모델의 dropout 비율은 Pdrop = 0.1이었고, 학습 중 label smoothing ϵls = 0.1을 사용했다.",
+    "citations": [
+     {
+      "page": 8,
+      "chunk_index": 13,
+      "quote": "For the base model, we use a rate of\nPdrop = 0.1."
+     },
+     {
+      "page": 8,
+      "chunk_index": 13,
+      "quote": "During training, we employed label smoothing of value ϵls = 0.1 [36]."
+     }
+    ]
+   }
+  ]
+ }
+]

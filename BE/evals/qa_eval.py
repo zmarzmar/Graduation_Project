@@ -81,7 +81,9 @@ class Verdict(BaseModel):
     reason: str
 
 
-_judge = ChatOpenAI(model=settings.qa_model, api_key=settings.openai_api_key, temperature=0).with_structured_output(Verdict)
+# 판정기는 답변 모델과 따로 고정한다. 2026-11-17 support_cases 8개×2회: gpt-4o-mini는 범위 초과를 1/4만, gpt-5.4-mini(medium)는 4/4 잡았다
+_judge = ChatOpenAI(model="gpt-5.4-mini", reasoning_effort="medium", api_key=settings.openai_api_key,
+                    timeout=120, max_retries=1).with_structured_output(Verdict)
 
 
 async def judge_support(question: str, answer: str, quotes: list[str]) -> Verdict:

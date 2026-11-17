@@ -100,3 +100,18 @@ class AgentRouterImportTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QaModelTest(unittest.TestCase):
+    def test_qa_uses_configured_reasoning_model(self) -> None:
+        # 2026-11-17: Q&A를 gpt-5.4-mini(추론 low)로 — 추론 토큰을 담을 출력 예산, temperature 없음
+        from langchain_openai import ChatOpenAI
+
+        from core.config import settings
+
+        chat = [r for r in (qa._llm, getattr(qa._llm, "first", None), getattr(getattr(qa._llm, "first", None), "bound", None))
+                if isinstance(r, ChatOpenAI)]
+        self.assertEqual(len(chat), 1)
+        self.assertEqual((chat[0].model_name, chat[0].reasoning_effort), (settings.qa_model, settings.qa_reasoning_effort))
+        self.assertIsNone(chat[0].temperature)
+        self.assertGreaterEqual(qa.QA_OUTPUT_BUDGET, 4_000)

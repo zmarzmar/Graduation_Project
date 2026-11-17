@@ -32,7 +32,10 @@ class Settings(BaseSettings):
 
     # 논문 Q&A (RAG)
     embedding_model: str = "text-embedding-3-small"
-    qa_model: str = "gpt-4o-mini"
+    # 2026-11-17: gpt-4o-mini → gpt-5.4-mini(추론 low). 자세한 답을 요구하면 4o-mini는 인용에 없는 설명을 섞었다
+    # (Attention 5문항×2회, gpt-5.4-mini 판정: 뒷받침 안 됨 4o-mini 64% vs 5.4-mini 10%, 기존 프롬프트의 4o-mini 38%)
+    qa_model: str = "gpt-5.4-mini"
+    qa_reasoning_effort: str = "low"
     qa_top_k: int = 6
     # 가장 가까운 청크의 코사인 거리가 이 값을 넘으면 LLM을 부르지 않고 '근거를 확인하지 못함'으로 답한다.
     # 평가(evals/qa_eval.py)의 보정용 질문으로 정하는 값이다 — 1.0은 사실상 게이트를 끈 상태.

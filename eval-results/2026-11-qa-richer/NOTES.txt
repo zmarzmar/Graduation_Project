@@ -1,0 +1,24 @@
+Q&A 답변을 자세하게 — 프롬프트·모델 비교 (2026-11-17)
+
+사용자: "qa가 … 한줄 딱 딱 이런느낌 … 지피티 스럽게 말해주고 이런걸 원할텐데 지금은 너무 짧지 않나"
+방법: Attention Is All You Need(arXiv 1706.03762)를 운영과 같은 청크로 나눠 임베딩, 질문마다 상위 6개 구절(메모리 안 코사인 — Chroma 대신)
+      → answer_question 그대로. 질문 5개 × 2회. 모든 문장(claim)을 gpt-5.4-mini(medium) 판정기로 '인용이 문장을 뒷받침하는가' 판정
+실행: cd BE && PYTHONPATH=. uv run python ../eval-results/2026-11-qa-richer/qa_compare.py <label>   (QA_MODEL·QA_EFFORT 환경변수로 모델 바꿈)
+      PYTHONPATH=. uv run python ../eval-results/2026-11-qa-richer/qa_judge.py <label>...
+      (스크립트의 저장 경로는 저장소 루트 기준 상대 경로 — BE에서 돌리면 경로를 맞춰야 한다)
+
+| label | 모델 · 프롬프트 | 평균 문장 | 평균 길이 | 검증에서 빠진 문장 | 뒷받침 안 됨 (판정) |
+| before2 | gpt-4o-mini · 기존 프롬프트 | 3.2 | 246자 | 0 | 12/32 (38%) |
+| after2 | gpt-4o-mini · "자세히, claim을 한두 문장으로 풀어" | 4.2 | 425자 | 7 | 29/42 (69%) |
+| after3 | gpt-4o-mini · "근거 있는 claim을 더, 하나에는 자기 quote 내용만" (채택한 프롬프트) | 4.5 | 451자 | 5 | 29/45 (64%) |
+| g54 | gpt-5.4-mini(low) · after3 프롬프트 | 5.1 | 406자 | 0 | 5/51 (10%) |
+| final | 운영 설정 그대로(gpt-5.4-mini low, 출력 예산 4,000) · after3 프롬프트 | 4.9 | 384자 | 0 | 11/49 (22%) |
+(같은 설정 반복의 흔들림 참고: 기존 프롬프트 1차 241자 / 2차 252자 / 3차 246자, g54 10% vs final 22%)
+응답 시간: gpt-5.4-mini low 답변 1회 2.8~4.9초
+
+결정 (사용자 확인): Q&A 모델 gpt-4o-mini → gpt-5.4-mini(추론 low), after3 프롬프트, 출력 예산 2,000 → 4,000. 판정기(evals/qa_eval.py)는 gpt-5.4-mini medium으로 고정
+
+한계
+- 논문 1편 × 질문 5개 × 2회. 판정기도 gpt-5.4-mini라 같은 계열 답변을 후하게 봤을 수 있다. 판정을 사람이 확인하지 않았다
+- 판정기는 엄격하다 — "인용에 주어가 없다" 같은 지적도 '뒷받침 안 됨'으로 센다. 비율은 상대 비교로만 쓴다
+- 운영 Chroma 검색이 아니라 같은 임베딩의 메모리 안 검색이다 (top_k 6, 거리 게이트 꺼짐 — 운영 설정과 같음)

@@ -1,0 +1,226 @@
+[
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "핵심 연산은 주어진 쿼리와 키의 내적을 계산하고, 이를 √dk로 나눈 후 소프트맥스 함수를 적용하여 값에 대한 가중치를 얻는 것이다.",
+  "quotes": [
+   "We compute the dot products of the query with all keys, divide each by √dk, and apply a softmax function to obtain the weights on the values."
+  ]
+ },
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "핵심 연산은 주어진 쿼리와 키의 내적을 계산하고, 이를 √dk로 나눈 후 소프트맥스 함수를 적용하여 값에 대한 가중치를 얻는 것이다.",
+  "quotes": [
+   "We compute the dot products of the query with all keys, divide each by √dk, and apply a softmax function to obtain the weights on the values."
+  ]
+ },
+ {
+  "q": "핵심 연산이 뭐야?",
+  "text": "이러한 연산은 여러 쿼리를 동시에 처리할 수 있도록 행렬 형태로 패킹되어 수행된다.",
+  "quotes": [
+   "In practice, we compute the attention function on a set of queries simultaneously, packed together into a matrix Q."
+  ]
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions.",
+  "quotes": [
+   "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions."
+  ]
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Using multiple attention heads enables the model to capture diverse features from the input data.",
+  "quotes": [
+   "Instead of performing a single attention function with dmodel-dimensional keys, values and queries, we found it beneficial to linearly project the queries, keys and values h times with different, learned linear projections to dk, dk and dv dimensions, respectively."
+  ]
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "The total computational cost of multi-head attention is similar to that of single-head attention with full dimensionality due to the reduced dimension of each head.",
+  "quotes": [
+   "Due to the reduced dimension of each head, the total computational cost is similar to that of single-head attention with full dimensionality."
+  ]
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions.",
+  "quotes": [
+   "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions."
+  ]
+ },
+ {
+  "q": "Multi-head attention은 왜 쓰는 거야?",
+  "text": "Using multiple attention heads enables the model to capture diverse features from the input data, enhancing its ability to learn complex patterns.",
+  "quotes": [
+   "Instead of performing a single attention function with dmodel-dimensional keys, values and queries, we found it beneficial to linearly project the queries, keys and values h times with different, learned linear projections to dk, dk and dv dimensions, respectively."
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 정보는 입력 임베딩에 '위치 인코딩'을 추가하여 삽입된다.",
+  "quotes": [
+   "To this end, we add \"positional encodings\" to the input embeddings at the bottoms of the encoder and decoder stacks."
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 인코딩은 임베딩과 동일한 차원 dmodel을 가지며, 두 값을 더할 수 있도록 설계된다.",
+  "quotes": [
+   "The positional encodings have the same dimension dmodel as the embeddings, so that the two can be summed."
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 인코딩은 사인 및 코사인 함수의 다양한 주파수를 사용하여 생성된다.",
+  "quotes": [
+   "we use sine and cosine functions of different frequencies."
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "각 위치 인코딩의 차원은 주파수에 따라 사인과 코사인으로 정의된다.",
+  "quotes": [
+   "PE(pos,2i) = sin(pos/100002i/dmodel) PE(pos,2i+1) = cos(pos/100002i/dmodel)"
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 정보는 입력 임베딩에 'positional encodings'를 추가하여 삽입된다.",
+  "quotes": [
+   "To this end, we add \"positional encodings\" to the input embeddings at the bottoms of the encoder and decoder stacks."
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 인코딩은 임베딩과 동일한 차원 dmodel을 가지며, 두 값을 더할 수 있도록 설계된다.",
+  "quotes": [
+   "The positional encodings have the same dimension dmodel as the embeddings, so that the two can be summed."
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "이 모델에서는 서로 다른 주파수의 사인 및 코사인 함수를 사용하여 위치 인코딩을 생성한다.",
+  "quotes": [
+   "we use sine and cosine functions of different frequencies."
+  ]
+ },
+ {
+  "q": "위치 정보는 어떻게 넣어?",
+  "text": "위치 인코딩은 고정된 주파수의 사인 및 코사인 함수로 정의되며, 이는 모델이 상대 위치에 따라 주의를 기울이도록 쉽게 학습할 수 있게 한다.",
+  "quotes": [
+   "We chose this function because we hypothesized it would allow the model to easily learn to attend by relative positions."
+  ]
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention layers are faster than recurrent layers in terms of computational complexity.",
+  "quotes": [
+   "In terms of computational complexity, self-attention layers are faster than recurrent layers when the sequence"
+  ]
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention allows for a constant number of sequential operations, while recurrent layers require O(n) sequential operations.",
+  "quotes": [
+   "a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+  ]
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention facilitates learning long-range dependencies more effectively due to shorter paths between input and output positions.",
+  "quotes": [
+   "The shorter these paths between any combination of positions in the input and output sequences, the easier it is to learn long-range dependencies."
+  ]
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention layers are faster than recurrent layers in terms of computational complexity.",
+  "quotes": [
+   "In terms of computational complexity, self-attention layers are faster than recurrent layers when the sequence"
+  ]
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention allows for a constant number of sequential operations, while recurrent layers require O(n) sequential operations.",
+  "quotes": [
+   "a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires O(n) sequential operations."
+  ]
+ },
+ {
+  "q": "self-attention이 RNN보다 좋은 점이 뭐야?",
+  "text": "Self-attention can better learn long-range dependencies due to shorter paths between input and output positions.",
+  "quotes": [
+   "The shorter these paths between any combination of positions in the input and output sequences, the easier it is to learn long-range dependencies."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "모델은 8개의 NVIDIA P100 GPU가 장착된 한 대의 머신에서 학습되었다.",
+  "quotes": [
+   "We trained our models on one machine with 8 NVIDIA P100 GPUs."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "기본 모델은 총 100,000 스텝 동안 학습되었으며, 각 학습 스텝은 약 0.4초가 소요되었다.",
+  "quotes": [
+   "We trained the base models for a total of 100,000 steps or 12 hours."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "큰 모델은 300,000 스텝 동안 학습되었으며, 각 학습 스텝은 1.0초가 소요되었다.",
+  "quotes": [
+   "The big models were trained for 300,000 steps (3.5 days)."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "Adam 옵티마이저를 사용하였고, β1 = 0.9, β2 = 0.98, ϵ = 10−9의 하이퍼파라미터를 설정하였다.",
+  "quotes": [
+   "We used the Adam optimizer [20] with β1 = 0.9, β2 = 0.98 and ϵ = 10−9."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "학습률은 warmup_steps = 4000에 따라 조정되었다.",
+  "quotes": [
+   "We used warmup_steps = 4000."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "모델은 8개의 NVIDIA P100 GPU가 장착된 한 대의 머신에서 학습되었다.",
+  "quotes": [
+   "We trained our models on one machine with 8 NVIDIA P100 GPUs."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "기본 모델은 총 100,000 스텝 동안 학습되었으며, 각 학습 스텝은 약 0.4초가 소요되었다.",
+  "quotes": [
+   "We trained the base models for a total of 100,000 steps or 12 hours."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "큰 모델은 300,000 스텝 동안 학습되었으며, 각 학습 스텝은 1.0초가 소요되었다.",
+  "quotes": [
+   "The big models were trained for 300,000 steps (3.5 days)."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "Adam 옵티마이저를 사용하였고, β1 = 0.9, β2 = 0.98, ϵ = 10−9의 하이퍼파라미터를 설정하였다.",
+  "quotes": [
+   "We used the Adam optimizer [20] with β1 = 0.9, β2 = 0.98 and ϵ = 10−9."
+  ]
+ },
+ {
+  "q": "학습은 어떤 설정으로 했어?",
+  "text": "학습률은 warmup_steps = 4000에 따라 조정되었다.",
+  "quotes": [
+   "We used warmup_steps = 4000."
+  ]
+ }
+]
