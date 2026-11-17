@@ -14,7 +14,7 @@ from functools import lru_cache
 import chromadb
 from openai import AsyncOpenAI
 
-from agents.qa import answer_question, no_evidence
+from agents.qa import answer_question, asks_for_formula, no_evidence
 from agents.token_budget import _encoding, count_tokens
 from core.config import settings
 from core.dependencies import AsyncSessionLocal
@@ -260,14 +260,36 @@ async def retrieve(document: PaperDocument, job_id: str, question: str) -> list[
 # ── 질문에 답하기 ─────────────────────────────────────────────────────────
 
 
-async def ask(document: PaperDocument, question: str) -> dict:
-    """문서 한 편에 대한 질문에 답한다. 색인이 없으면 이 요청 안에서 만든다 (다른 요청이 만드는 중이면 IndexingInProgress)."""
+async def ask(document: PaperDocument, question: str, history: list[dict] | None = None,
+              key_formulas: list | None = None) -> dict:
+    """문서 한 편에 대한 질문에 답한다. 색인이 없으면 이 요청 안에서 만든다 (다른 요청이 만드는 중이면 IndexingInProgress).
+
+    history: 이전 대화(최대 2개). 검색어에 직전 질문을 이어 붙여 "수식 알려줘" 같은 후속 질문이 같은 주제를 찾게 한다.
+    key_formulas: 그 분석의 핵심 수식(Analyzer 결과). 수식을 묻는 질문이면 답변과 별개로 related_formulas에 붙인다 —
+    원문 인용으로 확인한 것이 아니므로 claims에 섞지 않는다.
+    """
+    history = history or []
     job_id = await ensure_indexed(document)
-    passages = await retrieve(document, job_id, question)
+    query = f"{history[-1]['question']} {question}" if history else question
+    passages = await retrieve(document, job_id, query)
     # 가장 가까운 구절조차 질문과 멀면 LLM을 부르지 않는다 — 비슷해 보이는 구절을 억지로 근거로 붙이지 않는다
     if not passages or passages[0].distance > settings.qa_max_distance:
-        return no_evidence()
-    return await answer_question(question, passages)
+        result = no_evidence()
+    else:
+        result = await answer_question(question, passages, history)
+    result["related_formulas"] = _clean_formulas(key_formulas) if asks_for_formula(question) else []
+    return result
+
+
+def _clean_formulas(key_formulas: list | None) -> list[dict]:
+    """저장된 핵심 수식을 응답 형식으로 맞춘다. latex가 문자열이 아니면 버리고, 이름·설명은 문자열이 아니면 비운다
+    — 형식이 다른 항목 하나 때문에 응답 검증이 실패해 정상 답변까지 500으로 사라지지 않게 (Codex 리뷰 지적)."""
+    def text(value: object) -> str:
+        return value if isinstance(value, str) else ""
+
+    return [{"name": text(f.get("name")), "latex": f["latex"], "description": text(f.get("description"))}
+            for f in (key_formulas or [])
+            if isinstance(f, dict) and isinstance(f.get("latex"), str) and f["latex"].strip()]
 
 
 # ── 삭제된 문서의 색인 정리 ────────────────────────────────────────────────

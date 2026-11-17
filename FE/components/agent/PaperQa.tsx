@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Info, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FormulaBlock } from '@/components/ui/formula-block'
 import { Input } from '@/components/ui/input'
+import { MathText } from '@/components/ui/math-text'
 import { askPaper, QA_QUESTION_MAX_LENGTH, QA_QUESTION_MIN_LENGTH } from '@/lib/api'
-import type { QaAnswer, QaCitation } from '@/lib/api'
-import type { QaUnavailableReason } from '@/lib/types/agent-run'
+import type { QaAnswer, QaCitation, QaHistoryTurn } from '@/lib/api'
+import type { KeyFormula, QaUnavailableReason } from '@/lib/types/agent-run'
 import { useAuthStore } from '@/store/auth-store'
 
 // 색인 중(202) 자동 재시도 상한 — BE의 색인 시간 제한(60초)을 3초 간격으로 덮는 횟수
@@ -81,6 +83,28 @@ function CitationQuote({ citation }: { citation: QaCitation }) {
       <p className="mb-1 font-medium text-blue-600">{citation.page}쪽에서 인용</p>
       <p className="whitespace-pre-wrap break-words">{citation.quote}</p>
     </blockquote>
+  )
+}
+
+/** 수식 질문에 함께 오는 분석 결과의 핵심 수식 — '논문 분석' 탭과 같은 모양. 인용으로 확인한 답변과는 칸을 나눈다 */
+function RelatedFormulas({ formulas }: { formulas: KeyFormula[] }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-gray-500">🔢 분석 결과의 핵심 수식 · 논문 원문 인용으로 확인한 것은 아니에요</p>
+      {formulas.map((f, i) => (
+        <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          {f.name && <p className="text-xs font-semibold text-gray-700">{f.name}</p>}
+          <div className="mt-2 overflow-x-auto rounded bg-white py-2 text-center">
+            <FormulaBlock latex={f.latex} />
+          </div>
+          {f.description && (
+            <p className="mt-1.5 text-xs text-gray-500">
+              <MathText text={f.description} />
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -189,13 +213,22 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
     const update = (patch: Partial<QaEntry>) =>
       setEntries((prev) => prev.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)))
 
+    // 직전 대화(답을 받은 것만, 최대 2개)를 함께 보낸다 — "수식 알려줘" 같은 후속 질문이 같은 주제를 찾게 한다
+    const history: QaHistoryTurn[] = entries
+      .filter((entry) => entry.status === 'done' && entry.result)
+      .slice(-2)
+      // BE도 자르지만 보낼 때부터 맞춘다 (BE HistoryTurn: 질문 500자, 답변 2,000자)
+      .map((entry) => ({
+        question: entry.question.slice(0, QA_QUESTION_MAX_LENGTH),
+        answer: entry.result?.answerable ? entry.result.answer.slice(0, 2000) : '',
+      }))
     setEntries((prev) => [...prev, { id, question, status: 'pending' }])
     setInput('')
     setBusy(true)
 
     try {
       for (let attempt = 0; ; attempt++) {
-        const response = await askPaper(analysisId, question, controller.signal)
+        const response = await askPaper(analysisId, question, history, controller.signal)
         // 취소 뒤에 도착한 응답은 반영하지 않는다 (취소가 응답 수신과 겹칠 수 있다)
         if (controller.signal.aborted) return
 
@@ -240,7 +273,7 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
   return (
     <div className="space-y-4">
       <p className="text-xs text-gray-500">
-        질문마다 따로 답합니다. 이전 질문과 답변은 다음 질문에 전달되지 않으니, 질문 하나에 필요한 내용을 모두 적어 주세요.
+        직전 질문 두 개까지 이어서 이해해요 (예: &ldquo;수식 알려줘&rdquo;). 수식을 물으면 분석 결과의 핵심 수식도 함께 보여 줘요.
         답변은 논문에서 인용 구절을 확인한 문장만 보여 줍니다 — 구절이 그 문장을 뒷받침하는지는 문장 옆의 출처를 펼쳐 직접 확인해 주세요.
       </p>
 
@@ -258,6 +291,9 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
                 </p>
               )}
               {entry.status === 'done' && entry.result && <AnswerView result={entry.result} />}
+              {entry.status === 'done' && entry.result?.related_formulas && entry.result.related_formulas.length > 0 && (
+                <RelatedFormulas formulas={entry.result.related_formulas} />
+              )}
               {entry.status === 'error' && <p className="text-sm text-red-600">{entry.error}</p>}
             </li>
           ))}

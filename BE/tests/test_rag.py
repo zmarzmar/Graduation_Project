@@ -1036,3 +1036,54 @@ class ChromaIntegrationTest(_DbCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QaContextAndFormulasDbTest(_DbCase):
+    """후속 질문의 검색어에 직전 질문을 붙이고, 수식 질문에는 분석의 핵심 수식을 따로 붙인다 (2026-11-17)."""
+
+    FORMULAS = [{"name": "Attention", "latex": "\\mathrm{softmax}(QK^T/\\sqrt{d_k})V", "description": "d"},
+                {"name": "빈 수식", "latex": "", "description": "버린다"}, "문자열은 버린다"]
+
+    async def _with_formulas(self) -> tuple[int, int]:
+        analysis_id, doc_id = await self._analyzed_document()
+        async with self.sessions() as db:
+            await db.execute(update(AnalysisResult).where(AnalysisResult.id == analysis_id).values(key_formulas=self.FORMULAS))
+            await db.commit()
+        return analysis_id, doc_id
+
+    async def test_key_formulas_are_owner_only(self):
+        analysis_id, _ = await self._with_formulas()
+        other = await self._new_user()
+        self.user_ids.append(other)
+        async with self.sessions() as db:
+            self.assertEqual(await crud_analysis.get_key_formulas(db, analysis_id, self.user_id), self.FORMULAS)
+            self.assertEqual(await crud_analysis.get_key_formulas(db, analysis_id, other), [])
+        await self._delete_record(analysis_id)
+        async with self.sessions() as db:
+            self.assertEqual(await crud_analysis.get_key_formulas(db, analysis_id, self.user_id), [])
+
+    async def test_follow_up_search_uses_previous_question_and_formula_question_gets_formulas(self):
+        _, doc_id = await self._with_formulas()
+        seen: dict = {}
+
+        async def fake_answer(question, passages, history=None):
+            seen.update(question=question, history=history)
+            return qa.no_evidence()
+
+        history = [{"question": "What does LoRA freeze?", "answer": "LoRA freezes the weights."}]
+        with patch.object(rag_service, "answer_question", fake_answer):
+            result = await rag_service.ask(await self._document(doc_id), "수식 알려줘", history, self.FORMULAS)
+        self.assertEqual(self.embed_calls[-1], ["What does LoRA freeze? 수식 알려줘"])  # 검색어에 직전 질문
+        self.assertEqual(seen, {"question": "수식 알려줘", "history": history})       # 답변에는 원래 질문 + 문맥
+        self.assertEqual(result["related_formulas"], self.FORMULAS[:1])               # latex 있는 객체만
+        self.assertFalse(result["answerable"])                                        # 인용 답변과는 별개
+
+    async def test_non_formula_question_and_no_evidence_path(self):
+        _, doc_id = await self._with_formulas()
+        with patch.object(rag_service, "answer_question", lambda *a, **k: asyncio.sleep(0, qa.no_evidence())):
+            result = await rag_service.ask(await self._document(doc_id), "What does LoRA freeze?", [], self.FORMULAS)
+        self.assertEqual(result["related_formulas"], [])
+        self.assertEqual(self.embed_calls[-1], ["What does LoRA freeze?"])
+        with patch.object(settings, "qa_max_distance", -1.0):  # LLM 앞에서 끝나는 경로에도 수식은 붙는다
+            result = await rag_service.ask(await self._document(doc_id), "Give me the equation", [], self.FORMULAS)
+        self.assertEqual(result["related_formulas"], self.FORMULAS[:1])

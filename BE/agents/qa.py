@@ -124,8 +124,26 @@ def no_evidence() -> dict:
     }
 
 
-async def answer_question(question: str, passages: list[_Passage]) -> dict:
-    """검색된 구절로 질문에 답한다. 출처가 모두 검증된 문장만 답변에 남긴다."""
+# 수식을 묻는 질문 — 분석 결과의 핵심 수식을 함께 돌려준다 (인용 검증과 별개, 화면에서 구분해 보여준다)
+_FORMULA_QUESTION = re.compile(r"수식|공식|formula|equation", re.IGNORECASE)
+
+
+def asks_for_formula(question: str) -> bool:
+    return bool(_FORMULA_QUESTION.search(question))
+
+
+def _history_block(history: list[dict]) -> str:
+    """이전 대화를 '참고용 문맥'으로 넣는다. 근거가 아니다 — 인용은 passage에서만 한다 (프롬프트 규칙 그대로)."""
+    if not history:
+        return ""
+    turns = "\n".join(f"<turn>\n질문: {h['question']}\n답변: {h.get('answer', '')}\n</turn>" for h in history)
+    return (f"<history>\n{turns}\n</history>\n"
+            "위 history는 이전 대화다. 지금 질문이 무엇을 가리키는지 이해하는 데만 쓰고, 근거로 인용하지 마라.\n\n")
+
+
+async def answer_question(question: str, passages: list[_Passage], history: list[dict] | None = None) -> dict:
+    """검색된 구절로 질문에 답한다. 출처가 모두 검증된 문장만 답변에 남긴다.
+    history(이전 대화, 최대 2개)는 질문이 무엇을 가리키는지 이해하는 데만 쓴다 — 인용은 passage에서만 검증한다."""
     if not passages:
         return no_evidence()
 
@@ -135,7 +153,7 @@ async def answer_question(question: str, passages: list[_Passage]) -> dict:
     )
     messages = [
         SystemMessage(content=_SYSTEM_PROMPT),
-        HumanMessage(content=f"{material}\n\n질문: {question}"),
+        HumanMessage(content=f"{material}\n\n{_history_block(history or [])}질문: {question}"),
     ]
     ensure_request_fits(settings.qa_model, messages, QA_OUTPUT_BUDGET)
     draft: QaDraft = await _llm.ainvoke(messages)

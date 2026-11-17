@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field
 from agents.perf import log_elapsed
 from core.config import settings
 from core.dependencies import get_optional_user_id
+# 함수 안에서 import하면 배포 뒤 첫 분석 요청이 이 무거운 import(그래프·노드 전체)를 이벤트 루프 안에서 치러
+# 서버 전체가 1~2분 멈췄다 (2026-11-17 운영 관측). 기동할 때 치르고 준비 확인(최대 300초)을 기다린다
+from services import agent_service
 
 router = APIRouter(tags=["agent"])
 logger = logging.getLogger(__name__)
@@ -42,8 +45,6 @@ async def run_pdf_agent(
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StreamingResponse:
     """PDF를 업로드하면 논문을 자동 분석하고 코드를 재현한다. (SSE 스트리밍)"""
-    from services import agent_service
-
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="PDF 파일만 업로드 가능합니다.")
 
@@ -89,8 +90,6 @@ async def run_search_agent(
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StreamingResponse:
     """키워드로 arXiv 논문을 검색하고 분석 및 코드를 재현한다. (SSE 스트리밍)"""
-    from services import agent_service
-
     return StreamingResponse(
         agent_service.stream_agent(
             mode="search",
@@ -108,8 +107,6 @@ async def run_analyze_agent(
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StreamingResponse:
     """사용자가 선택한 논문 1편을 분석하고 코드를 재현한다. (SSE 스트리밍)"""
-    from services import agent_service
-
     return StreamingResponse(
         agent_service.stream_analyze(
             paper=request.paper,
@@ -128,8 +125,6 @@ async def run_trend_agent(
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StreamingResponse:
     """HuggingFace + arXiv 기반 최신 트렌드 논문 요약 리포트를 생성한다. (SSE 스트리밍)"""
-    from services import agent_service
-
     return StreamingResponse(
         agent_service.stream_agent(
             mode="trend",
