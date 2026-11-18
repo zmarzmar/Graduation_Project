@@ -99,7 +99,9 @@ def _check_summary_claims(raw: object, pages: list[str]) -> list[dict]:
             continue
         valid: list[dict] = []
         dropped = 0
-        for cited in item.get("citations") or []:
+        cites = item.get("citations")
+        # 형식이 틀린 citations(숫자·문자열 등)로 분석 전체가 멈추지 않게 — 인용 없음으로 본다
+        for cited in cites if isinstance(cites, list) else []:
             if not (isinstance(cited, dict) and isinstance(cited.get("page"), int) and isinstance(cited.get("quote"), str)):
                 dropped += 1
                 continue
@@ -202,6 +204,9 @@ async def analyzer_node(state: AgentState) -> dict:
         }
 
     summary = result["summary"]
+    if pdf_pages and not summary_claims:
+        # 원문이 있는데 모델이 문장별 인용 없이 요약만 냈다 — 기존 기록(빈 목록)과 구분되게 요약 전체를 '출처 미확인'으로 남긴다
+        summary_claims = [{"text": summary.strip(), "citations": [], "verified": False}]
     # 형식이 다른 부가 필드는 비운다 — 요약은 살리고 len(None) 같은 예외로 그래프가 죽지 않게
     review = result.get("review") if isinstance(result.get("review"), dict) else {}
     formulas = result.get("key_formulas")

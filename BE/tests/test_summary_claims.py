@@ -102,11 +102,23 @@ class AnalyzerNodeClaimsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["paper_summary"], "LoRA를 제안한다. 저랭크다.")
         self.assertEqual(result["summary_claims"], [])
 
-    async def test_legacy_summary_string_still_works(self) -> None:
-        with patch.object(analyzer, "_llm", _fake({"summary": "요약", "review": {}, "key_formulas": []})):
-            result = await analyzer.analyzer_node({"pdf_text": "x", "pdf_pages": ["x"], "papers": []})
-        self.assertEqual(result["paper_summary"], "요약")
-        self.assertEqual(result["summary_claims"], [])
+    async def test_pdf_summary_without_claims_is_marked_unverified(self) -> None:
+        # Codex 리뷰: 원문이 있는데 인용 없이 요약만 오면 기존 기록처럼 표시 없이 보이던 문제
+        for payload in ({"summary": "요약", "review": {}, "key_formulas": []},
+                        {"summary": "요약", "summary_claims": [], "review": {}, "key_formulas": []}):
+            with self.subTest(payload=payload), patch.object(analyzer, "_llm", _fake(payload)):
+                result = await analyzer.analyzer_node({"pdf_text": "x", "pdf_pages": ["x"], "papers": []})
+            self.assertEqual(result["paper_summary"], "요약")
+            self.assertEqual(result["summary_claims"], [{"text": "요약", "citations": [], "verified": False}])
+
+    async def test_non_list_citations_do_not_stop_the_analysis(self) -> None:
+        # Codex 리뷰: citations가 숫자·불리언이면 TypeError로 그래프가 멈췄다
+        for bad in (1, True, "p.3", {"page": 3}):
+            payload = {"summary_claims": [{"text": "요약", "citations": bad}], "review": {}, "key_formulas": []}
+            with self.subTest(citations=bad), patch.object(analyzer, "_llm", _fake(payload)):
+                result = await analyzer.analyzer_node({"pdf_text": "\n".join(PAGES), "pdf_pages": PAGES, "papers": []})
+            self.assertIsNone(result["error"])
+            self.assertEqual(result["summary_claims"], [{"text": "요약", "citations": [], "verified": False}])
 
 
 if __name__ == "__main__":
