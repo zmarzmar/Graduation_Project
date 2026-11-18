@@ -105,3 +105,14 @@ async def get_optional_user_id(
             detail="유저를 찾을 수 없습니다.",
         )
     return user_id
+
+
+async def require_ai_enabled() -> None:
+    """AI 사용 중지 스위치 — 관리자가 껐으면 비용이 드는 요청을 503으로 막는다.
+    SSE 엔드포인트에도 붙으므로 세션을 스트림과 묶지 않고 짧게 열고 닫는다."""
+    from services import ai_switch_service
+
+    async with AsyncSessionLocal() as db:
+        enabled = await ai_switch_service.is_ai_enabled(db)
+    if not enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=ai_switch_service.AI_DISABLED_MESSAGE)

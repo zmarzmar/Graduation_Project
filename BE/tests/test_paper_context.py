@@ -224,7 +224,11 @@ class TokenizerUnavailableTest(unittest.IsolatedAsyncioTestCase):
             token_budget.count_tokens("text")
 
     def test_upload_returns_503_without_starting_the_pipeline(self):
+        from core.dependencies import require_ai_enabled
         from main import app
+
+        app.dependency_overrides[require_ai_enabled] = lambda: None  # 스위치는 tests/test_ai_switch.py에서 본다
+        self.addCleanup(app.dependency_overrides.clear)
 
         with patch.object(agent_service, "stream_agent") as stream:
             response = TestClient(app).post(
@@ -257,7 +261,11 @@ class PaperTooLongTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("한도", str(ctx.exception))
 
     def test_upload_returns_413_with_clear_message(self):
+        from core.dependencies import require_ai_enabled
         from main import app
+
+        app.dependency_overrides[require_ai_enabled] = lambda: None  # 스위치는 tests/test_ai_switch.py에서 본다
+        self.addCleanup(app.dependency_overrides.clear)
 
         with patch.object(agent_service, "stream_agent") as stream:
             response = TestClient(app).post(

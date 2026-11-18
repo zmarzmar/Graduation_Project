@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from agents.perf import log_elapsed
 from core.config import settings
-from core.dependencies import get_optional_user_id
+from core.dependencies import get_optional_user_id, require_ai_enabled
 # 함수 안에서 import하면 배포 뒤 첫 분석 요청이 이 무거운 import(그래프·노드 전체)를 이벤트 루프 안에서 치러
 # 서버 전체가 1~2분 멈췄다 (2026-11-17 운영 관측). 기동할 때 치르고 준비 확인(최대 300초)을 기다린다
 from services import agent_service
@@ -39,7 +39,7 @@ class AnalyzeRequest(BaseModel):
 
 # ── 엔드포인트 ────────────────────────────────────────────────────────────────
 
-@router.post("/agent/pdf")
+@router.post("/agent/pdf", dependencies=[Depends(require_ai_enabled)])
 async def run_pdf_agent(
     file: UploadFile = File(...),
     user_id: int | None = Depends(get_optional_user_id),
@@ -84,7 +84,7 @@ async def run_pdf_agent(
     )
 
 
-@router.post("/agent/search")
+@router.post("/agent/search", dependencies=[Depends(require_ai_enabled)])
 async def run_search_agent(
     request: SearchRequest,
     user_id: int | None = Depends(get_optional_user_id),
@@ -101,7 +101,7 @@ async def run_search_agent(
     )
 
 
-@router.post("/agent/analyze")
+@router.post("/agent/analyze", dependencies=[Depends(require_ai_enabled)])
 async def run_analyze_agent(
     request: AnalyzeRequest,
     user_id: int | None = Depends(get_optional_user_id),
@@ -119,7 +119,7 @@ async def run_analyze_agent(
     )
 
 
-@router.post("/agent/trend")
+@router.post("/agent/trend", dependencies=[Depends(require_ai_enabled)])
 async def run_trend_agent(
     request: TrendRequest,
     user_id: int | None = Depends(get_optional_user_id),

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import get_current_admin_user, get_db
 from models.user import User
-from services import admin_service
+from services import admin_service, ai_switch_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -84,3 +84,33 @@ async def get_admin_system(
 ):
     """관리자 시스템/데이터 요약 조회."""
     return await admin_service.get_system_summary(db)
+
+
+class AiSwitchStatus(BaseModel):
+    enabled: bool
+    updated_at: datetime | None  # 한 번도 바꾸지 않았으면 None
+    today_analyses: int  # 오늘(한국 시간) 저장된 분석 기록 — 저장되지 않은 요청(저장 실패 등)은 빠진다
+    today_searches: int  # 오늘 저장된 검색·트렌드 기록
+
+
+class AiSwitchUpdate(BaseModel):
+    enabled: bool
+
+
+@router.get("/ai-switch", response_model=AiSwitchStatus)
+async def get_ai_switch(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin_user),
+):
+    """AI 사용 중지 스위치 상태와 오늘 사용량."""
+    return await ai_switch_service.get_status(db)
+
+
+@router.put("/ai-switch", response_model=AiSwitchStatus)
+async def put_ai_switch(
+    body: AiSwitchUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin_user),
+):
+    """AI 기능을 켜거나 끈다. 끄면 검색·분석·PDF·트렌드·Q&A 요청이 503이 된다 (진행 중인 분석은 끝까지 돈다)."""
+    return await ai_switch_service.set_ai_enabled(db, body.enabled)

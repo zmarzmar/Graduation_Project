@@ -30,7 +30,7 @@ from agents import qa
 from agents.qa import Citation, Claim, QaDraft, answer_question, validate_citations
 from agents.token_budget import count_tokens
 from core.config import settings
-from core.dependencies import get_current_user, get_db
+from core.dependencies import get_current_user, get_db, require_ai_enabled
 from crud import analysis as crud_analysis
 from crud.paper_document import claim_index_job, finish_index_job, get_document_for_analysis, get_or_create_document
 from models.analysis import AnalysisResult
@@ -723,6 +723,7 @@ class AskApiTest(_DbCase):
 
         self.app = app
         app.dependency_overrides[get_db] = override_db
+        app.dependency_overrides[require_ai_enabled] = lambda: None  # 스위치는 tests/test_ai_switch.py에서 본다
         self.current_user: int | None = self.user_id
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=self.current_user)
         self.addCleanup(app.dependency_overrides.clear)
@@ -819,6 +820,7 @@ class ClientDisconnectTest(_DbCase):
                 await session.commit()
 
         app.dependency_overrides[get_db] = override_db
+        app.dependency_overrides[require_ai_enabled] = lambda: None  # 스위치는 tests/test_ai_switch.py에서 본다
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=self.user_id)
         self.addCleanup(app.dependency_overrides.clear)
 
