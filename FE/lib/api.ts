@@ -39,6 +39,12 @@ function assertGuestCanUseAgent(): void {
   sessionStorage.setItem(GUEST_FREE_USAGE_KEY, 'true')
 }
 
+/** 서버가 요청을 처리하지 않고 거절했을 때(503 — 관리자가 AI 기능을 껐다 등) 게스트의 무료 체험 1회를 되돌린다 */
+export function refundGuestUsage(): void {
+  if (typeof window === 'undefined' || hasAuthToken()) return
+  sessionStorage.removeItem(GUEST_FREE_USAGE_KEY)
+}
+
 /** 인증 필요 API 전용 fetch — Authorization 헤더 자동 주입 */
 function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
@@ -477,6 +483,32 @@ export async function getAdminPapers(): Promise<AdminPaper[]> {
 export async function getAdminSystemSummary(): Promise<AdminSystemSummary> {
   const res = await authFetch(`${API_BASE}/admin/system`)
   if (!res.ok) throw new Error('관리자 시스템 요약 조회 실패')
+  return res.json()
+}
+
+/** AI 사용 중지 스위치 상태와 오늘(한국 시간) 저장된 분석·검색 기록 수 */
+export interface AiSwitchStatus {
+  enabled: boolean
+  updated_at: string | null
+  today_analyses: number
+  today_searches: number
+}
+
+/** AI 사용 중지 스위치 조회 (관리자) */
+export async function getAiSwitch(): Promise<AiSwitchStatus> {
+  const res = await authFetch(`${API_BASE}/admin/ai-switch`)
+  if (!res.ok) throw new Error('AI 스위치 상태 조회 실패')
+  return res.json()
+}
+
+/** AI 기능 켜기/끄기 (관리자). 끄면 검색·분석·PDF·트렌드·Q&A 요청이 503이 된다 */
+export async function setAiSwitch(enabled: boolean): Promise<AiSwitchStatus> {
+  const res = await authFetch(`${API_BASE}/admin/ai-switch`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  })
+  if (!res.ok) throw new Error('AI 스위치 변경 실패')
   return res.json()
 }
 

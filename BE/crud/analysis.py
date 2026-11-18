@@ -1,4 +1,6 @@
-from sqlalchemy import select, update
+from datetime import datetime
+
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.paper_document import mark_unreferenced_documents_for_purge
@@ -121,3 +123,8 @@ async def delete_all_analysis_results(db: AsyncSession, user_id: int) -> int:
     # 활성 기록이 없어졌으므로 사용자의 원문을 모두 비우고 삭제 대기로 표시한다
     await mark_unreferenced_documents_for_purge(db, user_id)
     return result.rowcount
+
+
+async def count_created_since(db: AsyncSession, since: datetime) -> int:
+    """since 이후에 만든 분석 기록 수 — 삭제한 기록도 센다 (이미 비용이 든 요청)."""
+    return await db.scalar(select(func.count()).select_from(AnalysisResult).where(AnalysisResult.created_at >= since)) or 0

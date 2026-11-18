@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, StringConstraints, ValidationInfo, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.dependencies import get_current_user, get_db
+from core.dependencies import get_current_user, get_db, require_ai_enabled
 from crud import analysis as crud_analysis
 from crud import paper_document as crud_paper_document
 from models.user import User
@@ -69,7 +69,9 @@ class AskResponse(BaseModel):
 @router.post(
     "/analyses/{analysis_id}/ask",
     response_model=AskResponse,
-    responses={202: {"description": "색인 중 — Retry-After 뒤에 다시 요청"}, 409: {"description": "원문이 보관되지 않은 기록"}},
+    responses={202: {"description": "색인 중 — Retry-After 뒤에 다시 요청"}, 409: {"description": "원문이 보관되지 않은 기록"},
+               503: {"description": "관리자가 AI 기능을 껐다"}},
+    dependencies=[Depends(require_ai_enabled)],
 )
 async def ask_about_analyzed_paper(
     analysis_id: int,
