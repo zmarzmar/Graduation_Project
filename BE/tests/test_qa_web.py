@@ -84,6 +84,16 @@ class AnswerFromWebTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self._call(_response("답", [_cite("https://a")], status="incomplete")))
         self.assertIsNone(await self._call(_response("출처 없는 답", [])))
 
+    async def test_request_tells_the_model_to_refuse_non_academic_questions(self):
+        # Codex 리뷰: 아래 테스트는 응답만 고정한다 — 실제 요청에 거절 규칙과 웹 검색 도구가 들어가는지도 본다
+        create = AsyncMock(return_value=_response("OFF_TOPIC", []))
+        with patch.object(web_answer._client.responses, "create", create):
+            await web_answer.answer_from_web("주가 전망 알려줘")
+        kwargs = create.await_args.kwargs
+        self.assertIn("OFF_TOPIC", kwargs["instructions"])
+        self.assertIn("주가", kwargs["instructions"])
+        self.assertEqual(kwargs["tools"], [{"type": "web_search"}])
+
     async def test_off_topic_question_gives_none(self):
         # 주가·날씨 같은 질문에 모델이 OFF_TOPIC이라고만 답하면 (출처가 붙어 있어도) 웹 답변을 붙이지 않는다
         self.assertIsNone(await self._call(_response("OFF_TOPIC", [_cite("https://news.example.com")])))
