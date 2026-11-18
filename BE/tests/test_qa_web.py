@@ -84,6 +84,10 @@ class AnswerFromWebTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self._call(_response("답", [_cite("https://a")], status="incomplete")))
         self.assertIsNone(await self._call(_response("출처 없는 답", [])))
 
+    async def test_off_topic_question_gives_none(self):
+        # 주가·날씨 같은 질문에 모델이 OFF_TOPIC이라고만 답하면 (출처가 붙어 있어도) 웹 답변을 붙이지 않는다
+        self.assertIsNone(await self._call(_response("OFF_TOPIC", [_cite("https://news.example.com")])))
+
 
 if __name__ == "__main__":
     unittest.main()
