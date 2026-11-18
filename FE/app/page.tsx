@@ -9,7 +9,7 @@ import { AgentPipeline } from '@/components/agent/AgentPipeline'
 import { DocumentStorageNotice } from '@/components/agent/DocumentStorageNotice'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
-import { useAnalysisStore } from '@/store/analysis-store'
+import { DEFAULT_SEARCH_QUERY, useAnalysisStore } from '@/store/analysis-store'
 import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent, fetchDailyKeywords, type TrendTopics } from '@/lib/api'
 import type { AgentResult, ArxivPaper, AgentMode } from '@/lib/types/agent-run'
 
@@ -34,7 +34,8 @@ const MODES: { id: AgentMode; label: string; icon: React.ReactNode; description:
   },
 ]
 
-const SEARCH_EXAMPLES = ['LoRA fine-tuning', 'diffusion model', 'attention mechanism', 'retrieval augmented generation', 'vision language model', 'mixture of experts']
+// 첫 버튼은 트랜스포머 원 논문 — 'attention mechanism'으로는 서베이만 나오고 원 논문이 상위에 없었다 (2026-11-18 실측)
+const SEARCH_EXAMPLES = [DEFAULT_SEARCH_QUERY, 'LoRA fine-tuning', 'diffusion model', 'retrieval augmented generation', 'vision language model', 'mixture of experts']
 const TREND_FALLBACK = ['large language model', 'vision transformer', 'reinforcement learning', 'multimodal', 'agent', 'mixture of experts']
 
 export default function HomePage() {
@@ -164,7 +165,7 @@ export default function HomePage() {
     if (mode === 'search') {
       setSearchedPapers([])
       setSearchPipelineMode('search')
-      setQuery('LoRA fine-tuning')
+      setQuery(DEFAULT_SEARCH_QUERY)
       analyzeCacheRef.current.clear()
       setAnalyzedPaperKeys(new Set())
     } else if (mode === 'pdf') {
@@ -244,6 +245,7 @@ export default function HomePage() {
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         {mode === 'search' && (
           <div className="space-y-2">
+            <p className="text-xs text-gray-500">처음이신가요? 트랜스포머를 제안한 논문으로 시작해 보세요 — {DEFAULT_SEARCH_QUERY}</p>
             <Input
               placeholder="키워드를 입력하세요"
               value={query}
