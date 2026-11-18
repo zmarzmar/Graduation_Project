@@ -118,8 +118,8 @@ async def coder_node(state: AgentState) -> dict:
         )
 
     try:
-        paper_count = len(state.get("papers", []))
-        emit_log("coder", f"논문 {min(paper_count, 3)}편 분석 중...")
+        # PDF 모드는 papers가 비어 있어 편수를 세면 0편이 된다 — 실제로 읽는 원문(paper_source_context) 기준으로 알린다
+        emit_log("coder", "논문 전문 분석 중..." if state.get("pdf_text") else "논문 초록 분석 중...")
         if iteration > 0:
             source = "실행 검사 결과" if state.get("exec_feedback") else "리뷰어 피드백"
             emit_log("coder", f"{source} 반영 ({iteration}회차 수정)")

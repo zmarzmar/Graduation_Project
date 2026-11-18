@@ -99,6 +99,7 @@ class AnalysisDetail(BaseModel):
     paper_title: str | None
     paper_authors: list[str] | None
     paper_summary: str
+    summary_claims: list
     paper_review: dict
     key_formulas: list
     generated_code: str
@@ -141,6 +142,7 @@ async def get_analysis_detail(
         paper_title=paper.title if paper else None,
         paper_authors=paper.authors if paper else None,
         paper_summary=analysis.paper_summary,
+        summary_claims=analysis.summary_claims,
         paper_review=analysis.paper_review,
         key_formulas=analysis.key_formulas,
         generated_code=analysis.generated_code,

@@ -36,6 +36,7 @@ from models.paper_document import PaperDocument
 from models.user import User
 from services import agent_service
 
+CLAIMS = [{"text": "요약", "citations": [{"page": 1, "quote": "인용"}], "verified": True}]
 PAGES = ["first page", "", "third page"]  # 가운데는 빈 페이지
 
 
@@ -290,7 +291,7 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
     # ── 저장 경로 연결 ────────────────────────────────────────────────────
 
     async def _save_pdf_run(self, user_id: int | None, pages: list[str]) -> AnalysisResult:
-        accumulated = {"pdf_pages": pages, "paper_summary": "요약"}
+        accumulated = {"pdf_pages": pages, "paper_summary": "요약", "summary_claims": CLAIMS}
         with patch.object(agent_service, "AsyncSessionLocal", self.sessions):
             await agent_service._save_to_db("pdf", "paper.pdf", accumulated, user_id=user_id)
         rows = await self.db.execute(
@@ -303,6 +304,7 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         record = await self._save_pdf_run(user_id, PAGES)
         doc = await self.db.get(PaperDocument, record.document_id)
         self.assertEqual((doc.user_id, doc.source, doc.title, doc.pages), (user_id, "upload", "paper.pdf", PAGES))
+        self.assertEqual(record.summary_claims, CLAIMS)  # 요약 문장별 인용도 함께 저장된다
 
     async def test_download_run_links_the_stored_document(self):
         user_id = await self._user()
@@ -318,6 +320,7 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         record = (await self.db.execute(select(AnalysisResult).where(AnalysisResult.user_id == user_id))).scalar_one()
         self.assertEqual(record.document_id, doc.id)
         self.assertIsNotNone(record.paper_id)  # 논문 upsert와 원문 보관이 같은 트랜잭션에서 함께 성공한다
+        self.assertEqual(record.summary_claims, [])  # 인용이 없는 분석은 빈 목록 (NULL이 아니다)
 
     async def test_guest_run_stores_no_document(self):
         before = (await self.db.execute(select(PaperDocument.id))).all()
@@ -337,7 +340,7 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         """실제 저장 경로로 스트림을 끝까지 돌리고 complete 이벤트의 result를 반환한다 (그래프만 가짜)."""
         class _Graph:
             async def astream(self, _state: dict, stream_mode: str = "updates"):
-                yield {"analyzer": {"paper_summary": "요약"}}
+                yield {"analyzer": {"paper_summary": "요약", "summary_claims": CLAIMS}}
 
         with (
             patch.object(agent_service, "AsyncSessionLocal", self.sessions),
@@ -350,6 +353,7 @@ class PaperDocumentDbTest(unittest.IsolatedAsyncioTestCase):
         user_id = await self._user()
         result = await self._complete(agent_service.stream_agent("pdf", "paper.pdf", pdf_pages=PAGES, user_id=user_id))
         self.assertEqual((result["has_document"], result["qa_unavailable_reason"]), (True, None))
+        self.assertEqual(result["summary_claims"], CLAIMS)
         # 화면이 받은 id로 바로 질문할 수 있다 — Q&A의 접근 판정과 같은 함수로 확인한다
         document = await get_document_for_analysis(self.db, result["analysis_id"], user_id)
         self.assertEqual(document.pages, PAGES)

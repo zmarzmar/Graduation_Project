@@ -50,10 +50,20 @@ export interface PaperReview {
 /** 분석 결과에서 논문 Q&A를 쓸 수 없는 이유 (BE agent_service._qa_availability와 1:1) */
 export type QaUnavailableReason = 'guest' | 'save_failed' | 'no_text' | 'document_store_failed'
 
+/** 요약 한 문장과 그 원문 인용 (BE agents/nodes/analyzer.py의 _check_summary_claims) */
+export interface SummaryClaim {
+  text: string
+  /** 원문 페이지에 실제로 있음을 서버가 확인한 인용만 온다 */
+  citations: { page: number; quote: string }[]
+  /** 인용이 하나 이상 있고 모두 확인됐는지 */
+  verified: boolean
+}
+
 /** 에이전트 파이프라인 최종 결과물 */
 export interface AgentResult {
   papers: ArxivPaper[]
   paper_summary?: string
+  summary_claims?: SummaryClaim[]
   paper_review?: PaperReview
   key_formulas?: KeyFormula[]
   generated_code?: string

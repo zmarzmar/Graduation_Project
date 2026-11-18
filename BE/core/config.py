@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     chroma_host: str = "localhost"
     chroma_port: int = 8001
 
+    # Analyzer (요약·리뷰·핵심 수식). 2026-11-18: gpt-4o-mini → gpt-5.4-mini(추론 low) — 요약 문장별 원문 인용을 붙이면서 바꿨다.
+    # 인용 확인 통과 4o-mini 17/22, 5.4-mini 21/26, 응답 10~28초 → 8~10초 (논문 3편 × 2회 — eval-results/2026-11-summary-cite)
+    analyzer_model: str = "gpt-5.4-mini"
+    analyzer_reasoning_effort: str = "low"
+
     # 논문 Q&A (RAG)
     embedding_model: str = "text-embedding-3-small"
     # 2026-11-17: gpt-4o-mini → gpt-5.4-mini(추론 low). 자세한 답을 요구하면 4o-mini는 인용에 없는 설명을 섞었다
@@ -44,7 +49,7 @@ class Settings(BaseSettings):
     # LLM 호출 시간 제한 (요청당 초). 없으면 OpenAI SDK 기본값(600초, 재시도 2번)으로 응답 없는 연결 하나에 30분까지 매달린다
     # (2026-11-16 평가에서 Coder 요청 1,104초 관측). 측정 최대: Coder 130초, Reviewer 31초, Analyzer 36초 — 출력 예산을 다 쓰는 경우까지 여유를 둔다
     llm_timeout_reasoning_seconds: float = 300  # Coder·Reviewer (gpt-5.4-mini, 출력 예산 32k)
-    llm_timeout_analyzer_seconds: float = 180  # Analyzer (gpt-4o-mini, 출력 예산 16k)
+    llm_timeout_analyzer_seconds: float = 180  # Analyzer (gpt-5.4-mini low, 출력 예산 16k)
     llm_timeout_short_seconds: float = 60  # Planner·TrendAnalyzer·Q&A·임베딩
     llm_max_retries: int = 1
 
