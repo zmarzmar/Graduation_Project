@@ -1,4 +1,6 @@
-from sqlalchemy import select, update
+from datetime import datetime
+
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.search_history import SearchHistory
@@ -77,3 +79,8 @@ async def delete_all_search_history(db: AsyncSession, user_id: int) -> int:
         .values(is_deleted=True)
     )
     return result.rowcount
+
+
+async def count_created_since(db: AsyncSession, since: datetime) -> int:
+    """since 이후에 만든 검색·트렌드 기록 수 — 삭제한 기록도 센다."""
+    return await db.scalar(select(func.count()).select_from(SearchHistory).where(SearchHistory.created_at >= since)) or 0

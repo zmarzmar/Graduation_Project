@@ -127,6 +127,17 @@ class GuardedEndpointsTest(unittest.TestCase):
         response = TestClient(self.app).get("/api/v1/papers/daily-keywords")
         self.assertEqual(response.status_code, 200)
 
+    def test_only_the_five_cost_routes_are_guarded(self):
+        # Codex 리뷰: 저장된 분석 기록 목록·상세·관리자 화면이 꺼진 상태에서 막히는 회귀를 잡는다 — 앱의 모든 경로를 훑는다
+        def uses_switch(dependant) -> bool:
+            return any(d.call is require_ai_enabled or uses_switch(d) for d in dependant.dependencies)
+
+        guarded = {(next(iter(r.methods)), r.path) for r in self.app.routes if hasattr(r, "dependant") and uses_switch(r.dependant)}
+        self.assertEqual(guarded, {
+            ("POST", "/api/v1/agent/search"), ("POST", "/api/v1/agent/analyze"), ("POST", "/api/v1/agent/pdf"),
+            ("POST", "/api/v1/agent/trend"), ("POST", "/api/v1/analyses/{analysis_id}/ask"),
+        })
+
 
 class AdminSwitchApiTest(unittest.TestCase):
     def setUp(self):

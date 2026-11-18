@@ -39,6 +39,12 @@ function assertGuestCanUseAgent(): void {
   sessionStorage.setItem(GUEST_FREE_USAGE_KEY, 'true')
 }
 
+/** 서버가 요청을 처리하지 않고 거절했을 때(503 — 관리자가 AI 기능을 껐다 등) 게스트의 무료 체험 1회를 되돌린다 */
+export function refundGuestUsage(): void {
+  if (typeof window === 'undefined' || hasAuthToken()) return
+  sessionStorage.removeItem(GUEST_FREE_USAGE_KEY)
+}
+
 /** 인증 필요 API 전용 fetch — Authorization 헤더 자동 주입 */
 function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null

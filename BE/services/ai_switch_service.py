@@ -2,12 +2,11 @@
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from crud import analysis as crud_analysis
 from crud import app_setting as crud_app_setting
-from models.analysis import AnalysisResult
-from models.search_history import SearchHistory
+from crud import search_history as crud_search_history
 
 AI_ENABLED_KEY = "ai_enabled"
 AI_DISABLED_MESSAGE = "지금은 이용자가 많아 AI 분석을 잠시 멈췄어요. 잠시 후 다시 시도해 주세요."
@@ -25,14 +24,13 @@ async def get_status(db: AsyncSession) -> dict:
     """스위치 상태와 오늘(한국 시간) 저장된 분석·검색 기록 수."""
     setting = await crud_app_setting.get_setting(db, AI_ENABLED_KEY)
     start = datetime.now(_KST).replace(hour=0, minute=0, second=0, microsecond=0)
-    # 삭제한 기록도 이미 비용이 든 요청이라 센다
-    analyses = await db.scalar(select(func.count()).select_from(AnalysisResult).where(AnalysisResult.created_at >= start))
-    searches = await db.scalar(select(func.count()).select_from(SearchHistory).where(SearchHistory.created_at >= start))
+    analyses = await crud_analysis.count_created_since(db, start)
+    searches = await crud_search_history.count_created_since(db, start)
     return {
         "enabled": True if setting is None else setting.enabled,
         "updated_at": setting.updated_at if setting else None,
-        "today_analyses": analyses or 0,
-        "today_searches": searches or 0,
+        "today_analyses": analyses,
+        "today_searches": searches,
     }
 
 

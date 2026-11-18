@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import { GUEST_LOGIN_MESSAGE, isGuestUsageLimitError } from '@/lib/api'
+import { GUEST_LOGIN_MESSAGE, isGuestUsageLimitError, refundGuestUsage } from '@/lib/api'
 import type { AgentEvent, NodeName } from '../types/agent-run'
 import type { StreamMode } from '@/store/analysis-store'
 import { useAnalysisStore } from '@/store/analysis-store'
@@ -37,6 +37,8 @@ export function useAgentStream(mode: StreamMode) {
           // JSON이 아니면 원문 그대로 표시
         }
         // 503은 사용자에게 보여줄 안내(관리자가 AI 기능을 껐다 등)라 상태 코드 없이 그대로 보여준다
+        // 체험 1회는 요청 전에 차감된다 — 파이프라인이 시작조차 안 된 503이면 되돌려 다시 켜졌을 때 쓸 수 있게 한다
+        if (response.status === 503) refundGuestUsage()
         const error = response.status === 503 ? detail : `요청 실패 (${response.status}): ${detail}`
         setStreamState(mode, { error, isRunning: false })
         return
