@@ -14,6 +14,7 @@ class AgentState(TypedDict):
     plan: str           # Planner 실행 계획 (JSON 문자열)
     papers: list[dict]  # Researcher 수집 논문 목록
     paper_summary: str  # Analyzer 논문 요약
+    summary_claims: list[dict]  # 요약 문장별 원문 인용 [{"text", "citations": [{"page", "quote"}], "verified"}] — 원문 없으면 빈 목록
     paper_review: dict  # Analyzer 논문 리뷰 {"strengths": [...], "limitations": [...], "significance": "..."}
     key_formulas: list[dict]  # Analyzer 핵심 수식 [{"name": "...", "latex": "...", "description": "..."}]
     generated_code: str # Coder 생성 코드

@@ -35,6 +35,9 @@ class AnalysisResult(Base):
     review_passed: Mapped[bool] = mapped_column(nullable=False, default=False)
     iteration_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     paper_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # 요약 문장별 원문 인용 [{"text", "citations": [{"page", "quote"}], "verified"}]. 빈 목록은 인용이 없는 기록 —
+    # 초록 기반 분석, 이 컬럼 추가 전의 기록. 화면은 그때 paper_summary를 그대로 보여준다
+    summary_claims: Mapped[list] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     paper_review: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     key_formulas: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     user_id: Mapped[int | None] = mapped_column(
