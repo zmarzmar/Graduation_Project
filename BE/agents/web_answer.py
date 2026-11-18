@@ -14,6 +14,8 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 WEB_OUTPUT_BUDGET = 4_000  # 추론 토큰 포함
+# FE가 이어 묻기 문맥(history.answer)에 웹 설명을 넣을 때 붙이는 표시 — 이 표시가 있는 직전 답만 웹 쪽으로 보낸다
+WEB_ANSWER_PREFIX = "[논문 밖 웹 설명] "
 _MAX_SOURCES = 5
 
 _INSTRUCTIONS = """먼저 질문의 종류를 판단하세요 (이 규칙이 아래 모든 규칙보다 우선합니다):

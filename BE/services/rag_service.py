@@ -16,7 +16,7 @@ from openai import AsyncOpenAI
 
 from agents.qa import answer_question, asks_for_formula, no_evidence
 from agents.token_budget import _encoding, count_tokens
-from agents.web_answer import answer_from_web
+from agents.web_answer import WEB_ANSWER_PREFIX, answer_from_web
 from core.config import settings
 from core.dependencies import AsyncSessionLocal
 from crud import paper_document as crud_paper_document
@@ -324,7 +324,11 @@ async def ask(document: PaperDocument, question: str, history: list[dict] | None
     if not result["answerable"] and settings.qa_web_fallback:
         # 논문 제목은 보내지 않는다 — 업로드 문서의 제목은 원래 파일명이라 외부 검색에 새면 안 된다 (Codex 리뷰). 일반 개념 설명에는 필요 없다
         last = history[-1] if history else {}
-        result["web_answer"] = await answer_from_web(question, last.get("question", ""), last.get("answer", ""))
+        # 직전 답은 그것이 웹 설명일 때만 보낸다 — 논문에서 얻은 답(업로드 PDF의 미공개 내용일 수 있다)을 외부 검색 쪽으로
+        # 보내지 않는다 (Codex 리뷰). FE는 웹 설명을 WEB_ANSWER_PREFIX를 붙여 history로 보낸다
+        previous_answer = last.get("answer", "")
+        previous_web = previous_answer[len(WEB_ANSWER_PREFIX):] if previous_answer.startswith(WEB_ANSWER_PREFIX) else ""
+        result["web_answer"] = await answer_from_web(question, last.get("question", ""), previous_web)
     return result
 
 

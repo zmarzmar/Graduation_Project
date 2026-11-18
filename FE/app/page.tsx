@@ -157,7 +157,8 @@ export default function HomePage() {
           allowAbstractFallback,
           consumeGuestUsage: false,
         }),
-      { consumesGuestTrial: false },
+      // 체험은 처음 분석에서 이미 차감됐다 — 이 재시도가 503(AI 일시 중지)이면 결과를 못 받은 것이니 되돌린다 (Codex 리뷰)
+      { consumesGuestTrial: true },
     )
   }
 

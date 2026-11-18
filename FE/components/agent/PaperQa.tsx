@@ -13,6 +13,9 @@ import { useAuthStore } from '@/store/auth-store'
 import { CitationChip } from './CitationChip'
 import { CitationQuote } from './CitationQuote'
 import { WebAnswer } from './WebAnswer'
+
+// BE agents/web_answer.py의 WEB_ANSWER_PREFIX와 같다 — 이 표시가 붙은 직전 답만 서버가 웹 검색 쪽으로 넘긴다
+const WEB_ANSWER_PREFIX = '[논문 밖 웹 설명] '
 import { groupByPage } from '@/lib/citations'
 
 // 색인 중(202) 자동 재시도 상한 — BE의 색인 시간 제한(60초)을 3초 간격으로 덮는 횟수
@@ -251,7 +254,7 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
         answer: (entry.result?.answerable
           ? entry.result.answer
           : entry.result?.web_answer
-            ? `[논문 밖 웹 설명] ${entry.result.web_answer.text}`
+            ? `${WEB_ANSWER_PREFIX}${entry.result.web_answer.text}`
             : ''
         ).slice(0, 2000),
       }))

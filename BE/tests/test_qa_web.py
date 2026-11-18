@@ -38,10 +38,16 @@ class WebFallbackTest(unittest.IsolatedAsyncioTestCase):
             return await rag_service.ask(DOC, "CLS 토큰이 뭔데?", history), web
 
     async def test_no_evidence_gets_a_web_answer(self):
-        result, web = await self._ask(rag_service.no_evidence(), history=[{"question": "멀티브랜치가 뭔데?", "answer": "…"}])
+        result, web = await self._ask(rag_service.no_evidence(), history=[{"question": "멀티브랜치가 뭔데?", "answer": "논문 답"}])
         self.assertEqual(result["web_answer"], WEB)
         self.assertFalse(result["answerable"])  # 논문 답변은 그대로 '근거 없음'
-        web.assert_awaited_once_with("CLS 토큰이 뭔데?", "멀티브랜치가 뭔데?", "…")  # 제목(파일명)은 보내지 않는다
+        # 제목(파일명)도, 논문에서 얻은 직전 답도 보내지 않는다 (업로드 PDF의 내용일 수 있다 — Codex 리뷰)
+        web.assert_awaited_once_with("CLS 토큰이 뭔데?", "멀티브랜치가 뭔데?", "")
+
+    async def test_previous_web_answer_is_passed_without_its_marker(self):
+        history = [{"question": "정규화 방법?", "answer": rag_service.WEB_ANSWER_PREFIX + "LayerNorm과 BatchNorm이 있다"}]
+        _, web = await self._ask(rag_service.no_evidence(), history=history)
+        web.assert_awaited_once_with("CLS 토큰이 뭔데?", "정규화 방법?", "LayerNorm과 BatchNorm이 있다")
 
     async def test_answered_from_paper_does_not_search_the_web(self):
         result, web = await self._ask({"answerable": True, "answer": "a", "claims": [], "citations": [],
