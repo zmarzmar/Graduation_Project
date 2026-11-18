@@ -16,6 +16,7 @@ from openai import AsyncOpenAI
 
 from agents.qa import answer_question, asks_for_formula, no_evidence
 from agents.token_budget import _encoding, count_tokens
+from agents.web_answer import answer_from_web
 from core.config import settings
 from core.dependencies import AsyncSessionLocal
 from crud import paper_document as crud_paper_document
@@ -231,7 +232,42 @@ async def ensure_indexed(document: PaperDocument) -> str:
 # ── 검색 ─────────────────────────────────────────────────────────────────
 
 
-async def retrieve(document: PaperDocument, job_id: str, question: str) -> list[Passage]:
+# 약어·고유 용어 (CLS, GQA, RoPE, LoRA, GPT-3): 대문자가 둘 이상이거나 숫자가 섞인 영어 단어. "What"처럼 첫 글자만 대문자인
+# 일반 단어와 한국어는 뺀다 — 거의 모든 청크에 있어 보충 효과가 없다
+_TERM = re.compile(r"(?<![A-Za-z0-9])[A-Za-z][A-Za-z0-9-]{1,29}(?![A-Za-z0-9])")
+_MAX_TERMS = 3
+_MAX_TERM_PASSAGES = 2
+
+
+def _key_terms(question: str) -> list[str]:
+    terms: list[str] = []
+    for term in _TERM.findall(question):
+        if (sum(ch.isupper() for ch in term) >= 2 or any(ch.isdigit() for ch in term)) and term not in terms:
+            terms.append(term)
+    return terms[:_MAX_TERMS]
+
+
+async def _term_passages(document: PaperDocument, job_id: str, vector: list[float], question: str,
+                         seen: set[int]) -> list[Passage]:
+    """질문의 약어가 글자 그대로 들어간 청크를 더한다. 의미 검색은 "CLS 토큰이 뭔데?" 같은 짧은 질문에서
+    정작 그 약어를 정의한 청크를 상위에 올리지 못했다 (2026-11-18 SSF-SET: 52개 중 11~16위, top-6 밖)."""
+    extra: list[Passage] = []
+    for term in _key_terms(question):
+        # 이미 고른 청크와 겹칠 수 있다 — 겹친 만큼 더 받아 중복을 뺀 뒤 최대 2개를 고른다 (Codex 리뷰: 약어를 언급만 하는
+        # 청크 둘이 이미 상위에 있으면 정의 청크가 빠졌다)
+        found = await _chroma(
+            "query", query_embeddings=[vector], n_results=len(seen) + _MAX_TERM_PASSAGES,
+            where=_job_filter(document.id, job_id), where_document={"$contains": term},
+            include=["documents", "metadatas", "distances"],
+        )
+        for text, meta, distance in zip(found["documents"][0], found["metadatas"][0], found["distances"][0]):
+            if meta["chunk_index"] not in seen and len(extra) < _MAX_TERM_PASSAGES:
+                seen.add(meta["chunk_index"])
+                extra.append(Passage(chunk_index=meta["chunk_index"], page=meta["page"], text=text, distance=distance))
+    return extra
+
+
+async def retrieve(document: PaperDocument, job_id: str, question: str, term_source: str | None = None) -> list[Passage]:
     """질문과 가까운 청크를 '이 문서의 현재 색인' 안에서만 찾는다. 범위 필터는 서버가 정한다."""
     [vector] = await embed([question])
     found = await _chroma(
@@ -245,6 +281,11 @@ async def retrieve(document: PaperDocument, job_id: str, question: str) -> list[
         Passage(chunk_index=meta["chunk_index"], page=meta["page"], text=text, distance=distance)
         for text, meta, distance in zip(found["documents"][0], found["metadatas"][0], found["distances"][0])
     ]
+    # 의미 검색 결과 뒤에 약어 청크를 붙인다 — 첫 구절(거리 판정 기준)은 그대로 의미 검색 1위다
+    if passages:
+        passages += await _term_passages(
+            document, job_id, vector, term_source if term_source is not None else question, {p.chunk_index for p in passages}
+        )
 
     # 색인 유실과 '근거 없음'을 구분한다: 거리 기준을 적용하기 전인데도 아무것도 안 나왔고,
     # 있어야 할 청크가 실제로 없을 때만 다시 색인하게 되돌린다. 근거가 부족한 질문 때문에 재색인하지 않는다.
@@ -271,13 +312,18 @@ async def ask(document: PaperDocument, question: str, history: list[dict] | None
     history = history or []
     job_id = await ensure_indexed(document)
     query = f"{history[-1]['question']} {question}" if history else question
-    passages = await retrieve(document, job_id, query)
+    passages = await retrieve(document, job_id, query, term_source=question)  # 약어는 지금 질문에서만 뽑는다
     # 가장 가까운 구절조차 질문과 멀면 LLM을 부르지 않는다 — 비슷해 보이는 구절을 억지로 근거로 붙이지 않는다
     if not passages or passages[0].distance > settings.qa_max_distance:
         result = no_evidence()
     else:
         result = await answer_question(question, passages, history)
     result["related_formulas"] = _clean_formulas(key_formulas) if asks_for_formula(question) else []
+    # 논문에서 근거를 찾지 못했으면 웹 검색 일반 설명을 따로 붙인다 — 인용 확인을 거친 논문 답변과 섞지 않는다
+    result["web_answer"] = None
+    if not result["answerable"] and settings.qa_web_fallback:
+        # 논문 제목은 보내지 않는다 — 업로드 문서의 제목은 원래 파일명이라 외부 검색에 새면 안 된다 (Codex 리뷰). 일반 개념 설명에는 필요 없다
+        result["web_answer"] = await answer_from_web(question, history[-1]["question"] if history else "")
     return result
 
 

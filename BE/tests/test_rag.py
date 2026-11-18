@@ -17,7 +17,7 @@ import uuid
 from contextlib import ExitStack
 from datetime import timedelta
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import chromadb
 import httpx
@@ -95,7 +95,7 @@ class FakeCollection:
         for row_id in (ids if ids is not None else self.get(where=where)["ids"]):
             self.rows.pop(row_id, None)
 
-    def query(self, query_embeddings, n_results, where=None, include=None):
+    def query(self, query_embeddings, n_results, where=None, include=None, where_document=None):
         [query] = query_embeddings
 
         def distance(vector: list[float]) -> float:
@@ -103,7 +103,8 @@ class FakeCollection:
             return 1 - dot / (math.hypot(*query) * math.hypot(*vector))
 
         hits = sorted(
-            ((distance(vector), text, meta) for vector, text, meta in self.rows.values() if _matches(meta, where)),
+            ((distance(vector), text, meta) for vector, text, meta in self.rows.values()
+             if _matches(meta, where) and (where_document is None or where_document["$contains"] in text)),
             key=lambda hit: hit[0],
         )[:n_results]
         return {
@@ -362,6 +363,8 @@ class _DbCase(unittest.IsolatedAsyncioTestCase):
         self.stack.enter_context(patch.object(rag_service, "AsyncSessionLocal", self.sessions))
         self.stack.enter_context(patch.object(rag_service, "_collection", lambda: self.collection))
         self.stack.enter_context(patch.object(rag_service, "embed", counting_embed))
+        # 근거 없는 질문의 웹 검색 보충은 실제 OpenAI를 부른다 — 여기서는 끈다 (tests/test_qa_web.py에서 본다)
+        self.stack.enter_context(patch.object(rag_service, "answer_from_web", AsyncMock(return_value=None)))
 
     async def asyncTearDown(self):
         self.stack.close()
@@ -1004,6 +1007,29 @@ class ChromaIntegrationTest(_DbCase):
             client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
             await asyncio.to_thread(client.delete_collection, self.collection_name)
         await super().asyncTearDown()
+
+    async def test_definition_chunk_is_added_when_mentions_are_already_retrieved(self):
+        # Codex 리뷰: 약어를 언급만 하는 청크 둘이 이미 의미 검색에 있어도, 그다음 약어 청크(정의)가 보충돼야 한다
+        pages = ["Bananas CLS mention one. Bananas are yellow and rich in potassium.",
+                 "Bananas CLS mention two. Bananas grow in warm places.",
+                 "A learnable class token (CLS) is prepended to capture global epoch-level context."]
+        _, doc_id = await self._analyzed_document(pages=pages)
+        job = await rag_service.ensure_indexed(await self._document(doc_id))
+        with patch.object(rag_service.settings, "qa_top_k", 2):
+            passages = await rag_service.retrieve(await self._document(doc_id), job, "bananas yellow potassium CLS")
+        self.assertEqual(sorted(p.page for p in passages[:2]), [1, 2])
+        self.assertEqual([p.page for p in passages[2:]], [3])
+
+    async def test_acronym_chunk_is_added_by_the_real_server(self):
+        # where_document={"$contains": ...}가 실제 Chroma(1.5.5)에서 동작하는지 — 의미 검색 1위가 아니어도 약어 청크가 붙는다
+        pages = ["Bananas are rich in potassium and bananas are yellow fruit grown in warm places.",
+                 "A learnable class token (CLS) is prepended to capture global epoch-level context."]
+        _, doc_id = await self._analyzed_document(pages=pages)
+        job = await rag_service.ensure_indexed(await self._document(doc_id))
+        with patch.object(rag_service.settings, "qa_top_k", 1):
+            passages = await rag_service.retrieve(await self._document(doc_id), job, "bananas potassium yellow CLS")
+        self.assertEqual(passages[0].page, 1)  # 의미 검색 1위는 그대로
+        self.assertEqual([p.page for p in passages[1:]], [2])  # 약어 청크가 뒤에 붙는다
 
     async def test_index_scoped_search_and_purge_against_the_real_server(self):
         analysis_id, doc_id = await self._analyzed_document()

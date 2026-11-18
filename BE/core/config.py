@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     qa_model: str = "gpt-5.4-mini"
     qa_reasoning_effort: str = "low"
     qa_top_k: int = 6
+    # 논문에서 근거를 찾지 못한 질문에 웹 검색 일반 설명을 붙인다 (2026-11-18, 사용자 결정). 검색 1회 1센트 + 검색 내용 토큰.
+    # 문제가 생기면 env QA_WEB_FALLBACK=false로 끈다
+    qa_web_fallback: bool = True
     # 가장 가까운 청크의 코사인 거리가 이 값을 넘으면 LLM을 부르지 않고 '근거를 확인하지 못함'으로 답한다.
     # 평가(evals/qa_eval.py)의 보정용 질문으로 정하는 값이다 — 1.0은 사실상 게이트를 끈 상태.
     qa_max_distance: float = 1.0

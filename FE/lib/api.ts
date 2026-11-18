@@ -316,6 +316,13 @@ export interface QaAnswer {
   dropped_claims: number // 출처가 확인되지 않아 답변에서 빠진 문장 수
   /** 수식을 묻는 질문일 때 그 분석의 핵심 수식 (Analyzer 결과) — 원문 인용으로 확인한 것이 아니다. 이전 BE 응답에는 없다 */
   related_formulas?: KeyFormula[]
+  /** 논문에서 근거를 찾지 못했을 때만 오는 웹 검색 일반 설명 — 서버가 내용을 확인하지 않았다. 이전 BE 응답에는 없다 */
+  web_answer?: QaWebAnswer | null
+}
+
+export interface QaWebAnswer {
+  text: string
+  sources: { title: string; url: string }[]
 }
 
 /** 직전 대화 — 후속 질문("수식 알려줘")이 무엇을 가리키는지 서버가 알게 한다 (최대 2개, 서버에 저장하지 않는다) */

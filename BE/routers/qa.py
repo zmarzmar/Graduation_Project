@@ -56,6 +56,16 @@ class FormulaOut(BaseModel):
     description: str = ""
 
 
+class WebSourceOut(BaseModel):
+    title: str
+    url: str
+
+
+class WebAnswerOut(BaseModel):
+    text: str                    # 웹 검색 일반 설명 — 서버가 내용을 확인하지 않았다 (논문 답변과 다르다)
+    sources: list[WebSourceOut]  # 모델이 단 출처 링크 (http(s)만)
+
+
 class AskResponse(BaseModel):
     answerable: bool     # False면 answer는 '근거를 확인하지 못함' 안내다
     answer: str          # claims의 문장을 이어 붙인 것
@@ -64,6 +74,7 @@ class AskResponse(BaseModel):
     dropped_citations: int  # 검증에서 제거된 출처 수
     dropped_claims: int     # 출처가 검증되지 않아 답변에서 뺀 문장 수 — 0보다 크면 답변이 모델이 쓴 것보다 짧다
     related_formulas: list[FormulaOut] = []  # 수식을 묻는 질문일 때 그 분석의 핵심 수식 — 원문 인용으로 확인한 것이 아니다
+    web_answer: WebAnswerOut | None = None  # 논문에서 근거를 찾지 못했을 때만 — 웹 검색 일반 설명, 논문에서 확인한 내용이 아니다
 
 
 @router.post(
