@@ -12,6 +12,7 @@ import type { KeyFormula, QaUnavailableReason } from '@/lib/types/agent-run'
 import { useAuthStore } from '@/store/auth-store'
 import { CitationChip } from './CitationChip'
 import { CitationQuote } from './CitationQuote'
+import { WebAnswer } from './WebAnswer'
 
 // 색인 중(202) 자동 재시도 상한 — BE의 색인 시간 제한(60초)을 3초 간격으로 덮는 횟수
 const MAX_INDEXING_RETRIES = 20
@@ -92,18 +93,27 @@ function AnswerView({ result }: { result: QaAnswer }) {
   const toggle = (key: string) => setOpenCitation(openCitation === key ? null : key)
 
   if (!result.answerable) {
+    const web = result.web_answer ? <WebAnswer answer={result.web_answer} /> : null
     // 수식 질문이라 분석 결과의 핵심 수식이 함께 오면, '근거 없음'을 크게 띄우지 않고 수식으로 안내한다
     if (result.related_formulas && result.related_formulas.length > 0) {
-      return <p className="text-xs text-gray-500">논문 원문에서 인용으로 확인한 문장 답변은 없어요. 아래 분석 결과의 핵심 수식을 참고해 주세요.</p>
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500">논문 원문에서 인용으로 확인한 문장 답변은 없어요. 아래 분석 결과의 핵심 수식을 참고해 주세요.</p>
+          {web}
+        </div>
+      )
     }
     // 근거 부족은 오류가 아니라 정상 결과다
     return (
-      <Notice>
-        <p>{result.answer}</p>
-        {result.dropped_claims > 0 && (
-          <p className="mt-1 text-xs text-gray-500">답변 초안의 출처를 논문에서 확인하지 못해 표시하지 않았어요.</p>
-        )}
-      </Notice>
+      <div className="space-y-2">
+        <Notice>
+          <p>{result.answer}</p>
+          {result.dropped_claims > 0 && (
+            <p className="mt-1 text-xs text-gray-500">답변 초안의 출처를 논문에서 확인하지 못해 표시하지 않았어요.</p>
+          )}
+        </Notice>
+        {web}
+      </div>
     )
   }
 
@@ -260,6 +270,7 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
       <p className="text-xs text-gray-500">
         직전 질문 두 개까지 이어서 이해해요 (예: &ldquo;수식 알려줘&rdquo;). 수식을 물으면 분석 결과의 핵심 수식도 함께 보여 줘요.
         답변은 논문에서 인용 구절을 확인한 문장만 보여 줍니다 — 구절이 그 문장을 뒷받침하는지는 문장 옆의 출처를 펼쳐 직접 확인해 주세요.
+        논문에서 근거를 찾지 못하면 웹 검색 설명을 따로 구분해 보여 줘요.
       </p>
 
       {entries.length > 0 && (
