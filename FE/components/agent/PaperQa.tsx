@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth-store'
 import { CitationChip } from './CitationChip'
 import { CitationQuote } from './CitationQuote'
 import { WebAnswer } from './WebAnswer'
+import { groupByPage } from '@/lib/citations'
 
 // 색인 중(202) 자동 재시도 상한 — BE의 색인 시간 제한(60초)을 3초 간격으로 덮는 횟수
 const MAX_INDEXING_RETRIES = 20
@@ -133,12 +134,12 @@ function AnswerView({ result }: { result: QaAnswer }) {
             <span key={claimIndex}>
               {/* 답변 안의 인라인 수식(\(...\), $...$)을 KaTeX로 그린다 — 출처 검증은 문장 단위 그대로 */}
               <MathText text={claim.text} className="whitespace-pre-wrap" />{' '}
-              {claim.citations.map((citation, index) => (
-                <span key={index} className="mr-1 inline-block align-middle">
+              {groupByPage(claim.citations).map((group) => (
+                <span key={group.page} className="mr-1 inline-block align-middle">
                   <CitationChip
-                    page={citation.page}
-                    open={openCitation === `${claimIndex}:${index}`}
-                    onToggle={() => toggle(`${claimIndex}:${index}`)}
+                    page={group.page}
+                    open={openCitation === `${claimIndex}:${group.page}`}
+                    onToggle={() => toggle(`${claimIndex}:${group.page}`)}
                   />
                 </span>
               ))}{' '}
@@ -146,11 +147,12 @@ function AnswerView({ result }: { result: QaAnswer }) {
           ))}
         </p>
         {result.claims.map((claim, claimIndex) =>
-          claim.citations.map(
-            (citation, index) =>
-              openCitation === `${claimIndex}:${index}` && (
-                <CitationQuote key={`${claimIndex}:${index}`} citation={citation} />
-              ),
+          groupByPage(claim.citations).map(
+            (group) =>
+              openCitation === `${claimIndex}:${group.page}` &&
+              group.quotes.map((citation, index) => (
+                <CitationQuote key={`${claimIndex}:${group.page}:${index}`} citation={citation} />
+              )),
           ),
         )}
         {droppedNotice}
@@ -243,7 +245,13 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
       // BE도 자르지만 보낼 때부터 맞춘다 (BE HistoryTurn: 질문 500자, 답변 2,000자)
       .map((entry) => ({
         question: entry.question.slice(0, QA_QUESTION_MAX_LENGTH),
-        answer: entry.result?.answerable ? entry.result.answer.slice(0, 2000) : '',
+        // 웹 설명도 보낸다 — "둘 중 어느 쪽?" 같은 후속 질문이 웹 답을 가리킬 수 있다 (서버는 참고용으로만 쓴다)
+        answer: (entry.result?.answerable
+          ? entry.result.answer
+          : entry.result?.web_answer
+            ? `[논문 밖 웹 설명] ${entry.result.web_answer.text}`
+            : ''
+        ).slice(0, 2000),
       }))
     setEntries((prev) => [...prev, { id, question, status: 'pending' }])
     setInput('')

@@ -10,6 +10,7 @@ import { DocumentStorageNotice } from '@/components/agent/DocumentStorageNotice'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
 import { DEFAULT_SEARCH_QUERY, useAnalysisStore } from '@/store/analysis-store'
+import { useAuthStore } from '@/store/auth-store'
 import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent, fetchDailyKeywords, type TrendTopics } from '@/lib/api'
 import type { AgentResult, ArxivPaper, AgentMode } from '@/lib/types/agent-run'
 
@@ -68,6 +69,19 @@ export default function HomePage() {
   const [analyzedPaperKeys, setAnalyzedPaperKeys] = useState<Set<string>>(new Set())
   // handleAnalyze 호출마다 증가 — ResultsPanel을 리마운트해서 탭 상태를 초기화한다
   const [analyzeKey, setAnalyzeKey] = useState(0)
+  // 분석을 시작하기 직전 화면 — 초록 대체 확인 창에서 '취소'하면 이 화면(검색 목록 등)으로 돌아간다
+  const beforeAnalyzeRef = useRef<{ result: AgentResult; pipelineMode: AgentMode } | null>(null)
+
+  // 사용자가 바뀌면(로그아웃·다른 계정) 이 화면에만 있는 이전 사용자의 흔적도 지운다 — 고른 PDF 파일명, '분석 완료' 표시.
+  // 결과·검색 목록은 로그아웃 때 store가 비우고(auth-store logout), 분석 캐시는 키에 사용자를 넣어 섞이지 않게 한다
+  const userId = useAuthStore((state) => state.user?.id ?? null)
+  const [stateUserId, setStateUserId] = useState(userId)
+  if (stateUserId !== userId) {
+    setStateUserId(userId)
+    setFile(null)
+    setAnalyzedPaperKeys(new Set())
+  }
+  const cacheKeyOf = (paper: ArxivPaper) => `${userId ?? 'guest'}:${paper.arxiv_id || paper.title}`
 
   // 모드별 독립 스트림 — 탭 전환 및 페이지 이탈 후에도 각자의 상태 유지
   const searchStream = useAgentStream('search')
@@ -107,17 +121,18 @@ export default function HomePage() {
     // ResultsPanel 리마운트 → tabOverride 초기화 → 논문 분석 탭으로 자동 이동
     setAnalyzeKey((k) => k + 1)
 
-    const cacheKey = paper.arxiv_id || paper.title
-    const cached = analyzeCacheRef.current.get(cacheKey)
+    const paperKey = paper.arxiv_id || paper.title
+    const cached = analyzeCacheRef.current.get(cacheKeyOf(paper))
     if (cached) {
       // 캐시 히트 — 스트림 없이 바로 결과 표시
       setSearchPipelineMode('analyze')
       searchStream.showCachedResult(cached)
-      setAnalyzedPaperKeys((prev) => new Set([...prev, cacheKey]))
+      setAnalyzedPaperKeys((prev) => new Set([...prev, paperKey]))
       return
     }
 
     // 캐시 미스 — 분석 시작, 완료 후 useEffect에서 캐시 저장
+    beforeAnalyzeRef.current = searchStream.result ? { result: searchStream.result, pipelineMode: searchPipelineMode } : null
     analyzingPaperRef.current = paper
     setSearchPipelineMode('analyze')
     searchStream.startStream((signal) => runAnalyzeAgent(paper, query.trim(), signal))
@@ -142,6 +157,12 @@ export default function HomePage() {
   function handleAnalyzeCancel() {
     analyzingPaperRef.current = null
     setStreamState('search', { pdfFallbackRequest: null })
+    // 분석 시작 때 결과가 비워졌다 — 직전 화면(검색 목록)으로 돌려놓아 다른 논문을 바로 고를 수 있게 한다
+    const before = beforeAnalyzeRef.current
+    if (before) {
+      setSearchPipelineMode(before.pipelineMode)
+      searchStream.showCachedResult(before.result)
+    }
   }
 
   // 분석 완료 시 결과를 캐시에 저장
@@ -153,12 +174,11 @@ export default function HomePage() {
       analyzingPaperRef.current !== null
     ) {
       const paper = analyzingPaperRef.current
-      const key = paper.arxiv_id || paper.title
-      analyzeCacheRef.current.set(key, searchStream.result)
-      setAnalyzedPaperKeys((prev) => new Set([...prev, key]))
+      analyzeCacheRef.current.set(`${userId ?? 'guest'}:${paper.arxiv_id || paper.title}`, searchStream.result)
+      setAnalyzedPaperKeys((prev) => new Set([...prev, paper.arxiv_id || paper.title]))
       analyzingPaperRef.current = null
     }
-  }, [searchStream.result, searchStream.isRunning, searchPipelineMode])
+  }, [searchStream.result, searchStream.isRunning, searchPipelineMode, userId])
 
   function handleReset() {
     activeStream.reset()

@@ -145,9 +145,10 @@ export async function searchPapers(
   return res.json()
 }
 
-/** 키워드 검색 에이전트 실행 — SSE 스트리밍 응답 반환 */
+/** 키워드 검색 에이전트 실행 — SSE 스트리밍 응답 반환.
+ * 게스트 체험 1회를 쓰지 않는다 — 검색에서 쓰면 고른 논문 분석에서 바로 로그인 창이 떠, 게스트는 키워드로 분석을 한 번도
+ * 못 했다 (2026-11-18 운영 확인). 체험은 분석·PDF·트렌드에서 쓴다 (검색은 Planner 1회라 비용이 작다) */
 export function runSearchAgent(query: string, signal?: AbortSignal): Promise<Response> {
-  assertGuestCanUseAgent()
   return authFetch(`${API_BASE}/agent/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

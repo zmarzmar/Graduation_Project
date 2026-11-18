@@ -6,10 +6,10 @@ import type { AgentEvent, NodeName } from '../types/agent-run'
 import type { StreamMode } from '@/store/analysis-store'
 import { useAnalysisStore } from '@/store/analysis-store'
 import { useAuthStore } from '@/store/auth-store'
+import { streamControllers } from '@/lib/stream-controllers'
 
-// 실행 상태(isRunning)는 store에 있어 페이지를 나가도 유지된다. 취소 핸들도 같은 수명(모듈)에 두어
-// 페이지 복귀 후에도 진행 중인 스트림을 취소할 수 있게 한다. (직렬화 불가 객체라 store에는 넣지 않는다)
-const controllers = new Map<StreamMode, AbortController>()
+// 취소 핸들은 모듈 수명이다 — 로그아웃도 같은 핸들로 취소할 수 있게 별도 모듈에 둔다
+const controllers = streamControllers
 
 export function useAgentStream(mode: StreamMode) {
   const { streams, setStreamState, resetStream } = useAnalysisStore()
@@ -39,7 +39,13 @@ export function useAgentStream(mode: StreamMode) {
         // 503은 사용자에게 보여줄 안내(관리자가 AI 기능을 껐다 등)라 상태 코드 없이 그대로 보여준다
         // 체험 1회는 요청 전에 차감된다 — 파이프라인이 시작조차 안 된 503이면 되돌려 다시 켜졌을 때 쓸 수 있게 한다
         if (response.status === 503) refundGuestUsage()
-        const error = response.status === 503 ? detail : `요청 실패 (${response.status}): ${detail}`
+        // 내부 영어 오류("Failed to open stream")가 그대로 보이던 PDF 추출 실패는 사람이 읽을 수 있는 안내로 바꾼다
+        const error =
+          response.status === 503
+            ? detail
+            : response.status === 422 && detail.startsWith('PDF 텍스트 추출 실패')
+              ? 'PDF에서 글자를 읽지 못했어요. 깨진 파일이거나 스캔 이미지만 있는 PDF일 수 있어요. 글자를 선택할 수 있는 PDF로 다시 올려 주세요.'
+              : `요청 실패 (${response.status}): ${detail}`
         setStreamState(mode, { error, isRunning: false })
         return
       }

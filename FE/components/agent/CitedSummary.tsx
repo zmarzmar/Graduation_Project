@@ -5,6 +5,7 @@ import { MathText } from '@/components/ui/math-text'
 import type { SummaryClaim } from '@/lib/types/agent-run'
 import { CitationChip } from './CitationChip'
 import { CitationQuote } from './CitationQuote'
+import { groupByPage } from '@/lib/citations'
 
 interface CitedSummaryProps {
   summary: string
@@ -26,23 +27,25 @@ export function CitedSummary({ summary, claims, className = 'text-sm' }: CitedSu
     )
   }
 
-  const unverified = claims.filter((claim) => !claim.verified).length
+  // 확인된 인용이 하나도 없는 문장만 '출처 미확인' — 인용 일부만 떨어진 문장은 보이는 칩이 모두 원문에서 확인된 것이라
+  // 미확인으로 표시하면 칩과 모순돼 보였다 (2026-11-18 운영 확인: LoRA 요약 4문장이 칩을 달고도 전부 미확인)
+  const unverified = claims.filter((claim) => claim.citations.length === 0).length
   return (
     <div className="space-y-2">
       <p className={`rounded-lg bg-gray-50 p-3 leading-7 text-gray-700 ${className}`}>
         {claims.map((claim, claimIndex) => (
           <span key={claimIndex}>
             <MathText text={claim.text} />{' '}
-            {claim.citations.map((citation, index) => (
-              <span key={index} className="mr-1 inline-block align-middle">
+            {groupByPage(claim.citations).map((group) => (
+              <span key={group.page} className="mr-1 inline-block align-middle">
                 <CitationChip
-                  page={citation.page}
-                  open={openCitation === `${claimIndex}:${index}`}
-                  onToggle={() => toggle(`${claimIndex}:${index}`)}
+                  page={group.page}
+                  open={openCitation === `${claimIndex}:${group.page}`}
+                  onToggle={() => toggle(`${claimIndex}:${group.page}`)}
                 />
               </span>
             ))}
-            {!claim.verified && (
+            {claim.citations.length === 0 && (
               <span className="mr-1 inline-block rounded-full border border-yellow-200 bg-yellow-50 px-2 py-0.5 align-middle text-xs text-yellow-700">
                 출처 미확인
               </span>
@@ -51,11 +54,12 @@ export function CitedSummary({ summary, claims, className = 'text-sm' }: CitedSu
         ))}
       </p>
       {claims.map((claim, claimIndex) =>
-        claim.citations.map(
-          (citation, index) =>
-            openCitation === `${claimIndex}:${index}` && (
-              <CitationQuote key={`${claimIndex}:${index}`} citation={citation} />
-            ),
+        groupByPage(claim.citations).map(
+          (group) =>
+            openCitation === `${claimIndex}:${group.page}` &&
+            group.quotes.map((citation, index) => (
+              <CitationQuote key={`${claimIndex}:${group.page}:${index}`} citation={citation} />
+            )),
         ),
       )}
       {/* 확인한 것은 '인용이 원문에 있다'까지다 — 그 인용이 문장을 뒷받침하는지는 직접 대조해 보게 한다 */}
