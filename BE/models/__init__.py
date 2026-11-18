@@ -3,7 +3,8 @@ from models.paper import Paper
 from models.analysis import AnalysisResult
 from models.app_setting import AppSetting
 from models.paper_document import PaperDocument
+from models.qa_message import QaMessage
 from models.search_history import SearchHistory
 from models.user import User
 
-__all__ = ["Base", "Paper", "AnalysisResult", "AppSetting", "PaperDocument", "SearchHistory", "User"]
+__all__ = ["Base", "Paper", "AnalysisResult", "AppSetting", "PaperDocument", "QaMessage", "SearchHistory", "User"]

@@ -4,6 +4,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.paper_document import mark_unreferenced_documents_for_purge
+from crud.qa_message import delete_for_analysis, delete_for_user
 from models.analysis import AnalysisResult
 
 
@@ -104,6 +105,8 @@ async def delete_analysis_result_by_id(db: AsyncSession, result_id: int, user_id
     obj.is_deleted = True
     # 소프트 삭제를 먼저 반영해야 아래 정리 쿼리가 이 기록을 '삭제됨'으로 본다
     await db.flush()
+    # 그 분석의 Q&A도 지운다 — 분석 행 UPDATE가 먼저라, 답을 기다리던 저장은 이 커밋 뒤 '삭제됨'을 보고 저장하지 않는다
+    await delete_for_analysis(db, result_id)
     # 이 기록이 문서를 가리키던 마지막 활성 기록이었다면 원문을 비우고 삭제 대기로 표시한다.
     # 벡터 색인 삭제와 행 제거는 커밋 뒤에 rag_service.purge_pending_documents가 한다.
     await mark_unreferenced_documents_for_purge(db, user_id)
@@ -120,6 +123,7 @@ async def delete_all_analysis_results(db: AsyncSession, user_id: int) -> int:
         )
         .values(is_deleted=True)
     )
+    await delete_for_user(db, user_id)  # 모든 분석이 지워졌으니 Q&A도 모두
     # 활성 기록이 없어졌으므로 사용자의 원문을 모두 비우고 삭제 대기로 표시한다
     await mark_unreferenced_documents_for_purge(db, user_id)
     return result.rowcount

@@ -1,14 +1,16 @@
 import logging
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, StringConstraints, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationInfo, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import get_current_user, get_db, require_ai_enabled
 from crud import analysis as crud_analysis
 from crud import paper_document as crud_paper_document
+from crud import qa_message as crud_qa_message
 from models.user import User
 from services import rag_service
 
@@ -18,6 +20,8 @@ router = APIRouter(tags=["qa"])
 
 HISTORY_QUESTION_MAX = 500
 HISTORY_ANSWER_MAX = 2000
+# 모델에 함께 보내는 직전 대화 수 (2026-11-18: 2 → 6, 사용자 결정). 매 질문의 입력이 이만큼 늘어난다 — 저장 개수와는 별개다
+HISTORY_TURNS = 6
 
 
 class HistoryTurn(BaseModel):
@@ -36,7 +40,7 @@ class AskRequest(BaseModel):
     # 앞뒤 공백을 뗀 뒤에 길이를 잰다 — 공백뿐인 질문이 임베딩 호출까지 가지 않게 한다
     question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=500)]
     # 직전 대화(최대 2개) — 후속 질문("수식 알려줘")이 무엇을 가리키는지 알게 한다. 서버에 저장하지 않는다
-    history: Annotated[list[HistoryTurn], Field(max_length=2)] = []
+    history: Annotated[list[HistoryTurn], Field(max_length=HISTORY_TURNS)] = []
 
 
 class CitationOut(BaseModel):
@@ -75,6 +79,16 @@ class AskResponse(BaseModel):
     dropped_claims: int     # 출처가 검증되지 않아 답변에서 뺀 문장 수 — 0보다 크면 답변이 모델이 쓴 것보다 짧다
     related_formulas: list[FormulaOut] = []  # 수식을 묻는 질문일 때 그 분석의 핵심 수식 — 원문 인용으로 확인한 것이 아니다
     web_answer: WebAnswerOut | None = None  # 논문에서 근거를 찾지 못했을 때만 — 웹 검색 일반 설명, 논문에서 확인한 내용이 아니다
+    saved: bool = False  # 이 질문과 답을 분석 기록에 저장했는지 — False면 마이페이지에서 다시 볼 수 없다
+
+
+class QaMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    question: str
+    response: dict  # 저장할 때의 AskResponse (saved 제외)
+    created_at: datetime
 
 
 @router.post(
@@ -109,7 +123,7 @@ async def ask_about_analyzed_paper(
     await db.commit()
 
     try:
-        return await rag_service.ask(document, body.question, [h.model_dump() for h in body.history], key_formulas)
+        result = await rag_service.ask(document, body.question, [h.model_dump() for h in body.history], key_formulas)
     except rag_service.IndexingInProgress:
         return JSONResponse(
             status_code=202,
@@ -122,3 +136,32 @@ async def ask_about_analyzed_paper(
     except Exception as e:
         logger.error(f"[QA] 질문 처리 실패 analysis={analysis_id}: {e}")
         raise HTTPException(status_code=502, detail="질문을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.")
+
+    # 응답 형식을 먼저 확인한 뒤 저장한다 — 화면에 못 내보낼 답을 저장하지 않게
+    response = AskResponse(**result)
+    try:
+        stored = await crud_qa_message.save_for_active_analysis(
+            db, analysis_id, current_user.id, body.question, response.model_dump(exclude={"saved"})
+        )
+        await db.commit()
+    except Exception as e:
+        # 저장이 실패해도 답은 보낸다 — 화면이 '저장되지 않았어요'를 보여준다
+        await db.rollback()
+        logger.error(f"[QA] 기록 저장 실패 analysis={analysis_id}: {e}")
+        return response
+    if not stored:
+        # 답을 만드는 동안 다른 탭에서 분석 기록을 지웠다 — 질문 전과 같은 404
+        raise HTTPException(status_code=404, detail="분석 기록을 찾을 수 없습니다.")
+    return response.model_copy(update={"saved": True})
+
+
+@router.get("/analyses/{analysis_id}/qa", response_model=list[QaMessageOut])
+async def list_qa_messages(
+    analysis_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """저장된 Q&A (최근 50개, 오래된 순). LLM을 부르지 않으므로 AI 스위치로 막지 않는다."""
+    if not await crud_analysis.user_has_active_analysis(db, analysis_id, current_user.id):
+        raise HTTPException(status_code=404, detail="분석 기록을 찾을 수 없습니다.")
+    return await crud_qa_message.list_recent(db, analysis_id, current_user.id)

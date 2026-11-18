@@ -65,7 +65,8 @@ class AskRequestTest(unittest.TestCase):
         ok = AskRequest(question="수식 알려줘", history=[{"question": "a", "answer": "b"}, {"question": "c"}])
         self.assertEqual(ok.history[1].answer, "")
         with self.assertRaises(ValidationError):
-            AskRequest(question="q?", history=[{"question": "a"}] * 3)
+            AskRequest(question="q?", history=[{"question": "a"}] * 7)
+        self.assertEqual(len(AskRequest(question="q?", history=[{"question": "a"}] * 6).history), 6)  # 2026-11-18: 2 → 6
         long = AskRequest(question="q?", history=[{"question": "a" * 900, "answer": "x" * 5000}])  # 거부하지 않고 자른다
         self.assertEqual((len(long.history[0].question), len(long.history[0].answer)), (500, 2000))
         self.assertEqual(AskRequest(question="q?", history=[{"question": " a ", "answer": None}]).history[0].answer, "")
