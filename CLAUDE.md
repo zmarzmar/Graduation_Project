@@ -22,7 +22,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 
 **`main`은 #79까지 머지·운영 배포 (2026-11-18~19).** 운영 확인 기록: `eval-results/2026-11-18-e2e-check/` (`CHECKLIST.txt` → `RESULTS.txt` → `FIXES.txt`).
 
-**전시 직전 체크 (사용자):** 사이트 새로고침 → 검색 1회 → 마이페이지 Q&A 1회로 데우기 (배포 직후 공개 `/health` 첫 요청 4~40초 관측, 이후 0.1초). 시연 기기는 **DEMO 계정**으로 로그인. 사람이 몰리면 `/admin` → "AI 끄기"(저장된 기록·Q&A 조회는 계속 됨). **전시가 끝날 때까지 `BE/**` 머지 금지.**
+**전시 직전 체크 (사용자):** 사이트 새로고침 → 검색 1회 → 마이페이지 Q&A 1회로 데우기 (배포 직후 공개 `/health` 첫 요청 4~40초 관측, 이후 0.1초). 시연 기기는 **DEMO 계정**으로 로그인. 사람이 몰리면 `/admin` → "AI 끄기"(저장된 기록·Q&A 조회는 계속 됨). 전시 중에도 수정·배포할 수 있다(사용자 결정 2026-11-19) — `BE/**`를 머지하면 배포가 끝난 뒤 다시 데운다.
 - DEMO 계정(`DEMO` / `DEMO@naver.com`, 비밀번호는 사용자가 앎 — 이 문서에 쓰지 않는다): 분석 기록 2개로 정리함 — Attention Is All You Need(Q&A "왜 attention 점수를 √dₖ로 나누나요?"), SSF-SET PDF(Q&A "CLS 토큰이 뭔데?"). 전시 뒤 계정 삭제 권장
 - admin 비밀번호는 2026-11-18에 두 번 교체(사용자가 직접 입력, Claude는 모름). 공개 git 기록의 옛 비밀번호는 401 확인
 - 시연 추천 질문: "왜 attention 점수를 √dₖ로 나누나요?", "Multi-head attention은 왜 쓰는 거야?" (로컬 측정 각 2~3/3 논문 인용 답)
