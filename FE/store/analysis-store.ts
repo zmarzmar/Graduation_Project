@@ -75,6 +75,8 @@ interface AnalysisStore {
   setSearchedPapers: (papers: ArxivPaper[]) => void
   setStreamState: (mode: StreamMode, patch: Partial<StreamSnapshot>) => void
   resetStream: (mode: StreamMode) => void
+  /** 모든 모드의 결과·진행 상태·검색 목록을 처음 상태로 — 로그아웃 때 이전 사용자의 결과가 남지 않게 */
+  resetAll: () => void
 }
 
 /** 검색창 기본값·초기화 값 — 그대로 검색하면 트랜스포머 원 논문이 결과에 나온다 (2026-11-18 전시, 제목 검색 3회 모두 1위·arXiv 전문) */
@@ -110,4 +112,13 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
         [mode]: { ...INITIAL_STREAM },
       },
     })),
+
+  resetAll: () =>
+    set({
+      query: DEFAULT_SEARCH_QUERY,
+      topic: 'large language model',
+      searchPipelineMode: 'search',
+      searchedPapers: [],
+      streams: { search: { ...INITIAL_STREAM }, pdf: { ...INITIAL_STREAM }, trend: { ...INITIAL_STREAM } },
+    }),
 }))

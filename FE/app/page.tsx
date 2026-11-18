@@ -10,6 +10,7 @@ import { DocumentStorageNotice } from '@/components/agent/DocumentStorageNotice'
 import { ResultsPanel } from '@/components/agent/ResultsPanel'
 import { useAgentStream } from '@/lib/hooks/useAgentStream'
 import { DEFAULT_SEARCH_QUERY, useAnalysisStore } from '@/store/analysis-store'
+import { useAuthStore } from '@/store/auth-store'
 import { runSearchAgent, runPdfAgent, runTrendAgent, runAnalyzeAgent, fetchDailyKeywords, type TrendTopics } from '@/lib/api'
 import type { AgentResult, ArxivPaper, AgentMode } from '@/lib/types/agent-run'
 
@@ -62,12 +63,28 @@ export default function HomePage() {
 
   // 논문 분석 결과 캐시 — 같은 논문 재클릭 시 스트림 없이 바로 표시
   const analyzeCacheRef = useRef<Map<string, AgentResult>>(new Map())
-  // 현재 분석 중인 논문 — 완료 시 캐시 키로 사용
+  // 현재 분석 중인 논문과 그 분석을 시작한 사용자 — 완료 시 캐시 키로 사용 (도중에 로그인해도 시작한 사용자의 결과로 둔다)
   const analyzingPaperRef = useRef<ArxivPaper | null>(null)
+  const analyzingUserRef = useRef<number | null>(null)
   // 분석 완료된 논문 키 집합 — 버튼 텍스트 분기에 사용
   const [analyzedPaperKeys, setAnalyzedPaperKeys] = useState<Set<string>>(new Set())
   // handleAnalyze 호출마다 증가 — ResultsPanel을 리마운트해서 탭 상태를 초기화한다
   const [analyzeKey, setAnalyzeKey] = useState(0)
+  // 분석을 시작하기 직전 화면 — 초록 대체 확인 창에서 '취소'하면 이 화면(검색 목록 등)으로 돌아간다
+  const beforeAnalyzeRef = useRef<{ result: AgentResult; pipelineMode: AgentMode } | null>(null)
+  // 초록 대체 '취소'로 돌아갈 때 결과 패널을 목록 탭으로 연다 (이전 분석이 있으면 기본은 분석 탭이라 목록이 가려졌다)
+  const [panelInitialTab, setPanelInitialTab] = useState<'papers' | undefined>(undefined)
+
+  // 사용자가 바뀌면(로그아웃·다른 계정) 이 화면에만 있는 이전 사용자의 흔적도 지운다 — 고른 PDF 파일명, '분석 완료' 표시.
+  // 결과·검색 목록은 로그아웃 때 store가 비우고(auth-store logout), 분석 캐시는 키에 사용자를 넣어 섞이지 않게 한다
+  const userId = useAuthStore((state) => state.user?.id ?? null)
+  const [stateUserId, setStateUserId] = useState(userId)
+  if (stateUserId !== userId) {
+    setStateUserId(userId)
+    setFile(null)
+    setAnalyzedPaperKeys(new Set())
+  }
+  const cacheKeyOf = (paper: ArxivPaper) => `${userId ?? 'guest'}:${paper.arxiv_id || paper.title}`
 
   // 모드별 독립 스트림 — 탭 전환 및 페이지 이탈 후에도 각자의 상태 유지
   const searchStream = useAgentStream('search')
@@ -90,7 +107,7 @@ export default function HomePage() {
     if (mode === 'search') {
       setSearchedPapers([])
       setSearchPipelineMode('search')
-      searchStream.startStream((signal) => runSearchAgent(query.trim(), signal))
+      searchStream.startStream((signal) => runSearchAgent(query.trim(), signal), { consumesGuestTrial: false })
     } else if (mode === 'pdf' && file) {
       pdfStream.startStream((signal) => runPdfAgent(file, signal))
     } else if (mode === 'trend') {
@@ -106,19 +123,22 @@ export default function HomePage() {
 
     // ResultsPanel 리마운트 → tabOverride 초기화 → 논문 분석 탭으로 자동 이동
     setAnalyzeKey((k) => k + 1)
+    setPanelInitialTab(undefined)  // 고른 논문은 분석 탭으로 연다 (취소로 돌아왔을 때의 목록 탭 설정을 지운다)
 
-    const cacheKey = paper.arxiv_id || paper.title
-    const cached = analyzeCacheRef.current.get(cacheKey)
+    const paperKey = paper.arxiv_id || paper.title
+    const cached = analyzeCacheRef.current.get(cacheKeyOf(paper))
     if (cached) {
       // 캐시 히트 — 스트림 없이 바로 결과 표시
       setSearchPipelineMode('analyze')
       searchStream.showCachedResult(cached)
-      setAnalyzedPaperKeys((prev) => new Set([...prev, cacheKey]))
+      setAnalyzedPaperKeys((prev) => new Set([...prev, paperKey]))
       return
     }
 
     // 캐시 미스 — 분석 시작, 완료 후 useEffect에서 캐시 저장
+    beforeAnalyzeRef.current = searchStream.result ? { result: searchStream.result, pipelineMode: searchPipelineMode } : null
     analyzingPaperRef.current = paper
+    analyzingUserRef.current = userId
     setSearchPipelineMode('analyze')
     searchStream.startStream((signal) => runAnalyzeAgent(paper, query.trim(), signal))
   }
@@ -131,17 +151,28 @@ export default function HomePage() {
     }
 
     setSearchPipelineMode('analyze')
-    searchStream.startStream((signal) =>
-      runAnalyzeAgent(paper, query.trim(), signal, {
-        allowAbstractFallback,
-        consumeGuestUsage: false,
-      }),
+    searchStream.startStream(
+      (signal) =>
+        runAnalyzeAgent(paper, query.trim(), signal, {
+          allowAbstractFallback,
+          consumeGuestUsage: false,
+        }),
+      // 체험은 처음 분석에서 이미 차감됐다 — 이 재시도가 503(AI 일시 중지)이면 결과를 못 받은 것이니 되돌린다 (Codex 리뷰)
+      { consumesGuestTrial: true },
     )
   }
 
   function handleAnalyzeCancel() {
     analyzingPaperRef.current = null
     setStreamState('search', { pdfFallbackRequest: null })
+    // 분석 시작 때 결과가 비워졌다 — 직전 화면(검색 목록)으로 돌려놓아 다른 논문을 바로 고를 수 있게 한다
+    const before = beforeAnalyzeRef.current
+    if (before) {
+      setSearchPipelineMode(before.pipelineMode)
+      searchStream.showCachedResult(before.result)
+      setPanelInitialTab('papers')
+      setAnalyzeKey((k) => k + 1)
+    }
   }
 
   // 분석 완료 시 결과를 캐시에 저장
@@ -153,12 +184,14 @@ export default function HomePage() {
       analyzingPaperRef.current !== null
     ) {
       const paper = analyzingPaperRef.current
-      const key = paper.arxiv_id || paper.title
-      analyzeCacheRef.current.set(key, searchStream.result)
-      setAnalyzedPaperKeys((prev) => new Set([...prev, key]))
+      // 시작한 사용자와 지금 사용자가 다르면(분석 도중 로그인·로그아웃) 캐시하지 않는다 — 남의 결과가 다시보기로 열리지 않게
+      if (analyzingUserRef.current === userId) {
+        analyzeCacheRef.current.set(`${userId ?? 'guest'}:${paper.arxiv_id || paper.title}`, searchStream.result)
+        setAnalyzedPaperKeys((prev) => new Set([...prev, paper.arxiv_id || paper.title]))
+      }
       analyzingPaperRef.current = null
     }
-  }, [searchStream.result, searchStream.isRunning, searchPipelineMode])
+  }, [searchStream.result, searchStream.isRunning, searchPipelineMode, userId])
 
   function handleReset() {
     activeStream.reset()
@@ -275,6 +308,7 @@ export default function HomePage() {
         {mode === 'pdf' && (
           <div className="space-y-2">
             <input
+              key={userId ?? 'guest'}
               ref={fileInputRef}
               type="file"
               accept=".pdf"
@@ -438,6 +472,7 @@ export default function HomePage() {
         <ResultsPanel
           key={mode === 'search' ? analyzeKey : undefined}
           result={activeStream.result}
+          initialTab={mode === 'search' ? panelInitialTab : undefined}
           searchedPapers={mode === 'search' ? searchedPapers : undefined}
           onAnalyze={mode === 'search' && !searchStream.isRunning ? handleAnalyze : undefined}
           analyzedPaperKeys={mode === 'search' ? analyzedPaperKeys : undefined}
