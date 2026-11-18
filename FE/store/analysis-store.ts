@@ -116,6 +116,7 @@ export const useAnalysisStore = create<AnalysisStore>((set) => ({
   resetAll: () =>
     set({
       query: DEFAULT_SEARCH_QUERY,
+      topic: 'large language model',
       searchPipelineMode: 'search',
       searchedPapers: [],
       streams: { search: { ...INITIAL_STREAM }, pdf: { ...INITIAL_STREAM }, trend: { ...INITIAL_STREAM } },

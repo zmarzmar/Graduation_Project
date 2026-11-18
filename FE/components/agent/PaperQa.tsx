@@ -167,17 +167,19 @@ function AnswerView({ result }: { result: QaAnswer }) {
       {droppedNotice}
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs text-gray-400">출처</span>
-        {result.citations.map((citation, index) => (
+        {groupByPage(result.citations).map((group) => (
           <CitationChip
-            key={index}
-            page={citation.page}
-            open={openCitation === String(index)}
-            onToggle={() => toggle(String(index))}
+            key={group.page}
+            page={group.page}
+            open={openCitation === String(group.page)}
+            onToggle={() => toggle(String(group.page))}
           />
         ))}
       </div>
-      {result.citations.map(
-        (citation, index) => openCitation === String(index) && <CitationQuote key={index} citation={citation} />,
+      {groupByPage(result.citations).map(
+        (group) =>
+          openCitation === String(group.page) &&
+          group.quotes.map((citation, index) => <CitationQuote key={`${group.page}:${index}`} citation={citation} />),
       )}
     </div>
   )

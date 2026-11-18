@@ -41,7 +41,7 @@ class WebFallbackTest(unittest.IsolatedAsyncioTestCase):
         result, web = await self._ask(rag_service.no_evidence(), history=[{"question": "멀티브랜치가 뭔데?", "answer": "…"}])
         self.assertEqual(result["web_answer"], WEB)
         self.assertFalse(result["answerable"])  # 논문 답변은 그대로 '근거 없음'
-        web.assert_awaited_once_with("CLS 토큰이 뭔데?", "멀티브랜치가 뭔데?")  # 제목(파일명)은 보내지 않는다
+        web.assert_awaited_once_with("CLS 토큰이 뭔데?", "멀티브랜치가 뭔데?", "…")  # 제목(파일명)은 보내지 않는다
 
     async def test_answered_from_paper_does_not_search_the_web(self):
         result, web = await self._ask({"answerable": True, "answer": "a", "claims": [], "citations": [],
@@ -95,6 +95,13 @@ class AnswerFromWebTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("주가", kwargs["instructions"])
         self.assertEqual(kwargs["tools"], [{"type": "web_search"}])
 
+    async def test_previous_answer_is_sent_as_reference(self):
+        # Codex 리뷰: 직전 웹 답변에만 나온 용어("두 번째 방법")를 후속 질문이 가리킬 수 있다
+        create = AsyncMock(return_value=_response("OFF_TOPIC", []))
+        with patch.object(web_answer._client.responses, "create", create):
+            await web_answer.answer_from_web("두 번째 방법의 단점은?", "정규화 방법 알려줘", "LayerNorm과 BatchNorm이 있다")
+        self.assertIn("LayerNorm과 BatchNorm이 있다", create.await_args.kwargs["input"])
+
     async def test_off_topic_question_gives_none(self):
         # 주가·날씨 같은 질문에 모델이 OFF_TOPIC이라고만 답하면 (출처가 붙어 있어도) 웹 답변을 붙이지 않는다
         self.assertIsNone(await self._call(_response("OFF_TOPIC", [_cite("https://news.example.com")])))
@@ -132,6 +139,24 @@ class RetryWhenEveryClaimFailsTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result["answerable"])
         self.assertEqual(result["dropped_claims"], 1)
 
+    async def test_retry_failure_keeps_the_first_result(self):
+        # Codex 리뷰: 재시도 호출만 실패하면 502가 아니라 첫 결과('근거 없음' + 떨어진 수)를 돌려준다
+        calls = {"n": 0}
+        bad = self.BAD
+
+        class _LLM:
+            async def ainvoke(self, messages):
+                calls["n"] += 1
+                if calls["n"] == 2:
+                    raise TimeoutError()
+                return bad
+
+        with patch.object(qa, "_llm", _LLM()):
+            result = await qa.answer_question("왜 √dₖ로 나누나요?", self.PASSAGES)
+        self.assertEqual(calls["n"], 2)
+        self.assertFalse(result["answerable"])
+        self.assertEqual(result["dropped_claims"], 1)
+
     async def test_no_retry_when_answered_or_refused(self):
         self.assertEqual((await self._run(self.GOOD))[1], 1)
         self.assertEqual((await self._run(QaDraft(answerable=False)))[1], 1)
@@ -142,6 +167,7 @@ class SourceTitleTest(unittest.TestCase):
         self.assertEqual(web_answer._title("Provided proper attribution is provided, Google hereby grants",
                                            "https://arxiv.org/pdf/1706.03762"), "arXiv 1706.03762")
         self.assertEqual(web_answer._title("BERT", "https://arxiv.org/abs/1810.04805v2"), "arXiv 1810.04805")
+        self.assertEqual(web_answer._title("license", "https://arxiv.org/pdf/quant-ph/9508027"), "arXiv quant-ph/9508027")
         self.assertEqual(len(web_answer._title("x" * 300, "https://example.com")), 100)
         self.assertEqual(web_answer._title("  LayerNorm \n docs ", "https://pytorch.org"), "LayerNorm docs")
 

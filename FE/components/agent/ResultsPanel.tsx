@@ -19,6 +19,7 @@ import { CodeSkipNotice } from '@/components/agent/CodeSkipNotice'
 interface ResultsPanelProps {
   result: AgentResult
   searchedPapers?: ArxivPaper[]  // 검색 모드에서 수집된 전체 논문 목록 (분석 후에도 유지)
+  initialTab?: 'papers'  // 처음 열 탭 — 초록 대체 '취소'로 돌아올 때 목록을 보여준다
   onAnalyze?: (paper: ArxivPaper) => void
   analyzedPaperKeys?: Set<string>  // 이미 분석 완료된 논문 키 집합
 }
@@ -147,7 +148,7 @@ function TrendAnalysisPanel({ analysis }: { analysis: TrendAnalysis }) {
   )
 }
 
-export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperKeys }: ResultsPanelProps) {
+export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperKeys, initialTab }: ResultsPanelProps) {
   const isTrend = result.mode === 'trend'
   const hasCoding = !!result.generated_code
   const codeSkipReason = result.code_skip_reason
@@ -191,7 +192,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
   }
 
   // 수동 탭 전환 오버라이드 — null이면 데이터 기반 기본값 사용
-  const [tabOverride, setTabOverride] = useState<TabId | null>(null)
+  const [tabOverride, setTabOverride] = useState<TabId | null>(initialTab ?? null)
   const activeTab: TabId = tabOverride ?? (hasAnalysis ? 'analysis' : 'papers')
   type SortKey = 'newest' | 'oldest' | 'citations'
   // 키워드 검색은 유명한 논문이 먼저 보이게 인용수 순, 트렌드는 최신순

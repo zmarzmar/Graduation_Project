@@ -25,7 +25,7 @@ export function useAgentStream(mode: StreamMode) {
   }, [mode])
 
   const processStream = useCallback(
-    async (response: Response) => {
+    async (response: Response, consumesGuestTrial: boolean) => {
       if (!response.ok) {
         const text = await response.text()
         // FastAPI 오류는 {"detail": "..."} 형식 — 사용자에게는 메시지만 보여준다
@@ -37,8 +37,9 @@ export function useAgentStream(mode: StreamMode) {
           // JSON이 아니면 원문 그대로 표시
         }
         // 503은 사용자에게 보여줄 안내(관리자가 AI 기능을 껐다 등)라 상태 코드 없이 그대로 보여준다
-        // 체험 1회는 요청 전에 차감된다 — 파이프라인이 시작조차 안 된 503이면 되돌려 다시 켜졌을 때 쓸 수 있게 한다
-        if (response.status === 503) refundGuestUsage()
+        // 체험 1회는 요청 전에 차감된다 — 파이프라인이 시작조차 안 된 503이면 되돌려 다시 켜졌을 때 쓸 수 있게 한다.
+        // 체험을 쓰지 않는 요청(키워드 검색·초록 대체 재시도)의 503은 되돌리지 않는다 — 이미 쓴 분석 체험이 살아나지 않게 (Codex 리뷰)
+        if (response.status === 503 && consumesGuestTrial) refundGuestUsage()
         // 내부 영어 오류("Failed to open stream")가 그대로 보이던 PDF 추출 실패는 사람이 읽을 수 있는 안내로 바꾼다
         const error =
           response.status === 503
@@ -114,6 +115,8 @@ export function useAgentStream(mode: StreamMode) {
           }
         }
       } catch (e) {
+        // 로그아웃(abortAllStreams)으로 핸들이 사라진 스트림은 화면을 다시 쓰지 않는다 — 다음 사람 화면에 남지 않게
+        if (!controllers.has(mode)) return
         if (e instanceof Error && e.name === 'AbortError') {
           // 취소 시 running 상태인 노드를 pending으로 되돌림
           const cur = useAnalysisStore.getState().streams[mode].nodeStatuses
@@ -134,7 +137,10 @@ export function useAgentStream(mode: StreamMode) {
   )
 
   const startStream = useCallback(
-    async (fetchFn: (signal: AbortSignal) => Promise<Response>) => {
+    async (
+      fetchFn: (signal: AbortSignal) => Promise<Response>,
+      { consumesGuestTrial = true }: { consumesGuestTrial?: boolean } = {},
+    ) => {
       // 같은 모드가 이미 실행 중이면 시작하지 않는다 — 덮어쓰면 기존 요청의 취소 핸들을 잃는다.
       if (controllers.has(mode)) return
 
@@ -146,8 +152,10 @@ export function useAgentStream(mode: StreamMode) {
 
       try {
         const response = await fetchFn(controller.signal)
-        await processStream(response)
+        await processStream(response, consumesGuestTrial)
       } catch (e) {
+        // 로그아웃(abortAllStreams)으로 핸들을 잃은 요청은 화면을 다시 쓰지 않는다 — 다음 사람 화면에 '취소됨'이 남지 않게
+        if (controllers.get(mode) !== controller) return
         if (e instanceof Error && e.name === 'AbortError') {
           setStreamState(mode, { cancelled: true, isRunning: false })
         } else if (isGuestUsageLimitError(e)) {

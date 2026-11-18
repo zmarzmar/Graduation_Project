@@ -1,5 +1,7 @@
 """논문 Q&A — 검색된 구절만 근거로 답하고, 출처를 서버에서 검증한다."""
 
+import logging
+
 import re
 import unicodedata
 from typing import Protocol
@@ -10,6 +12,8 @@ from pydantic import BaseModel, Field
 
 from agents.token_budget import ensure_request_fits
 from core.config import settings
+
+logger = logging.getLogger(__name__)
 
 QA_OUTPUT_BUDGET = 4_000  # 추론 토큰도 출력 예산에서 쓴다 (gpt-5.4-mini)
 NO_EVIDENCE_MESSAGE = "논문에서 이 질문에 답할 근거를 확인하지 못했습니다."
@@ -144,6 +148,23 @@ def _history_block(history: list[dict]) -> str:
             "위 history는 이전 대화다. 지금 질문이 무엇을 가리키는지 이해하는 데만 쓰고, 근거로 인용하지 마라.\n\n")
 
 
+def _keep_verified(draft: QaDraft, passages: list[_Passage]) -> tuple[list[dict], list[dict], int]:
+    """문장 단위로 거른다: 출처가 없거나 하나라도 검증에서 떨어진 문장은 답변에서 뺀다.
+    떨어진 출처가 받치던 내용이 '검증된 답변'처럼 남지 않게 하기 위해서다.
+    남은 문장도 '인용문이 실재한다'까지만 확인된 것이다 — 인용문이 그 문장을 뒷받침한다는 보장은 아니다.
+    남긴 문장과 그 문장의 출처를 묶어서 돌려준다 — 화면이 어느 구절을 어느 문장과 대조할지 보여줄 수 있게 한다."""
+    kept: list[dict] = []
+    citations: list[dict] = []
+    dropped_citations = 0
+    for claim in draft.claims:
+        valid, dropped = validate_citations(claim.citations, passages)
+        dropped_citations += dropped
+        if valid and not dropped and claim.text.strip():
+            kept.append({"text": claim.text.strip(), "citations": valid})
+            citations.extend(citation for citation in valid if citation not in citations)
+    return kept, citations, dropped_citations
+
+
 async def answer_question(question: str, passages: list[_Passage], history: list[dict] | None = None) -> dict:
     """검색된 구절로 질문에 답한다. 출처가 모두 검증된 문장만 답변에 남긴다.
     history(이전 대화, 최대 6개)는 질문이 무엇을 가리키는지 이해하는 데만 쓴다 — 인용은 passage에서만 검증한다."""
@@ -159,27 +180,23 @@ async def answer_question(question: str, passages: list[_Passage], history: list
         HumanMessage(content=f"{material}\n\n{_history_block(history or [])}질문: {question}"),
     ]
     ensure_request_fits(settings.qa_model, messages, QA_OUTPUT_BUDGET)
-    # 모델이 답했는데 문장이 모두 인용 검증에서 떨어지면 한 번만 다시 묻는다 — 인용문을 살짝 바꿔 옮기는 실수가 매번
-    # 같지는 않다 (2026-11-18 운영: Attention √dₖ 질문 4회 중 1회 전부 탈락, 나머지 3회 정상). 그 경우만 비용이 2배
-    for attempt in range(2):
-        draft: QaDraft = await _llm.ainvoke(messages)
-        if not draft.answerable or not draft.claims:
-            return no_evidence()
-        # 문장 단위로 거른다: 출처가 없거나 하나라도 검증에서 떨어진 문장은 답변에서 뺀다.
-        # 떨어진 출처가 받치던 내용이 '검증된 답변'처럼 남지 않게 하기 위해서다.
-        # 남은 문장도 '인용문이 실재한다'까지만 확인된 것이다 — 인용문이 그 문장을 뒷받침한다는 보장은 아니다.
-        # 남긴 문장과 그 문장의 출처를 묶어서 보낸다 — 화면이 어느 구절을 어느 문장과 대조할지 보여줄 수 있게 한다
-        kept: list[dict] = []
-        citations: list[dict] = []
-        dropped_citations = 0
-        for claim in draft.claims:
-            valid, dropped = validate_citations(claim.citations, passages)
-            dropped_citations += dropped
-            if valid and not dropped and claim.text.strip():
-                kept.append({"text": claim.text.strip(), "citations": valid})
-                citations.extend(citation for citation in valid if citation not in citations)
-        if kept:
-            break
+    draft: QaDraft = await _llm.ainvoke(messages)
+    if not draft.answerable or not draft.claims:
+        return no_evidence()
+    kept, citations, dropped_citations = _keep_verified(draft, passages)
+    if not kept:
+        # 모델이 답했는데 문장이 모두 인용 검증에서 떨어졌다 — 한 번만 다시 묻는다. 인용문을 살짝 바꿔 옮기는 실수가 매번
+        # 같지는 않다 (2026-11-18 운영: Attention √dₖ 질문 4회 중 1회 전부 탈락, 나머지 3회 정상). 이 경우만 비용이 2배.
+        # 재시도가 실패·거부하면 첫 결과('근거 없음' + 떨어진 수)를 그대로 쓴다 — 재시도 때문에 502가 되지 않게 (Codex 리뷰)
+        try:
+            retry: QaDraft = await _llm.ainvoke(messages)
+        except Exception as e:
+            logger.warning(f"[QA] 인용 재시도 호출 실패 — 첫 결과 사용: {type(e).__name__}")
+        else:
+            if retry.answerable and retry.claims:
+                retry_kept, retry_citations, retry_dropped = _keep_verified(retry, passages)
+                if retry_kept:
+                    draft, kept, citations, dropped_citations = retry, retry_kept, retry_citations, retry_dropped
     dropped = {"dropped_citations": dropped_citations, "dropped_claims": len(draft.claims) - len(kept)}
     if not kept:
         # 모델은 답했지만 검증을 통과한 문장이 없다 — 제거된 수를 남겨 '모델의 거부'와 구분할 수 있게 한다

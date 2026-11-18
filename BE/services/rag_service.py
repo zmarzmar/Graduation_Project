@@ -323,7 +323,8 @@ async def ask(document: PaperDocument, question: str, history: list[dict] | None
     result["web_answer"] = None
     if not result["answerable"] and settings.qa_web_fallback:
         # 논문 제목은 보내지 않는다 — 업로드 문서의 제목은 원래 파일명이라 외부 검색에 새면 안 된다 (Codex 리뷰). 일반 개념 설명에는 필요 없다
-        result["web_answer"] = await answer_from_web(question, history[-1]["question"] if history else "")
+        last = history[-1] if history else {}
+        result["web_answer"] = await answer_from_web(question, last.get("question", ""), last.get("answer", ""))
     return result
 
 
