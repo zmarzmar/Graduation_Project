@@ -30,6 +30,7 @@ _SYSTEM_PROMPT = """당신은 논문 한 편에 대한 질문에 답하는 조�
 - claim마다 그 문장의 근거가 된 citation을 하나 이상 다세요: passage 번호와, 그 passage에서 '한 글자도 바꾸지 않고 그대로 복사한' 한두 문장(quote). 대소문자도 바꾸지 마세요.
 - citation이 검증되지 않은 claim은 답변에서 빠집니다. 근거를 댈 수 없는 문장은 쓰지 마세요.
 - 자료는 PDF에서 추출한 것이라 수식이 깨져 보일 수 있습니다(분수선·첨자 누락 등). quote에서는 이를 고치지 말고 보이는 그대로 복사하세요. 가능하면 수식이 없는 문장을 인용하세요. 기호를 바꾼 인용문은 검증에서 버려집니다.
+- claim 문장(text)에는 깨진 수식을 옮겨 적지 마세요 (예: "d−0.5 model", "Pdk i=1 qiki"). 수식은 말로 풀어 설명하고, 기호가 필요하면 √d_k, QKᵀ, x² 처럼 일반 문자로 쓰세요. LaTeX(백슬래시 명령)는 쓰지 마세요.
 - 답변은 질문과 같은 언어로 쓰세요."""
 
 
@@ -158,23 +159,27 @@ async def answer_question(question: str, passages: list[_Passage], history: list
         HumanMessage(content=f"{material}\n\n{_history_block(history or [])}질문: {question}"),
     ]
     ensure_request_fits(settings.qa_model, messages, QA_OUTPUT_BUDGET)
-    draft: QaDraft = await _llm.ainvoke(messages)
-
-    if not draft.answerable or not draft.claims:
-        return no_evidence()
-    # 문장 단위로 거른다: 출처가 없거나 하나라도 검증에서 떨어진 문장은 답변에서 뺀다.
-    # 떨어진 출처가 받치던 내용이 '검증된 답변'처럼 남지 않게 하기 위해서다.
-    # 남은 문장도 '인용문이 실재한다'까지만 확인된 것이다 — 인용문이 그 문장을 뒷받침한다는 보장은 아니다.
-    # 남긴 문장과 그 문장의 출처를 묶어서 보낸다 — 화면이 어느 구절을 어느 문장과 대조할지 보여줄 수 있게 한다
-    kept: list[dict] = []
-    citations: list[dict] = []
-    dropped_citations = 0
-    for claim in draft.claims:
-        valid, dropped = validate_citations(claim.citations, passages)
-        dropped_citations += dropped
-        if valid and not dropped and claim.text.strip():
-            kept.append({"text": claim.text.strip(), "citations": valid})
-            citations.extend(citation for citation in valid if citation not in citations)
+    # 모델이 답했는데 문장이 모두 인용 검증에서 떨어지면 한 번만 다시 묻는다 — 인용문을 살짝 바꿔 옮기는 실수가 매번
+    # 같지는 않다 (2026-11-18 운영: Attention √dₖ 질문 4회 중 1회 전부 탈락, 나머지 3회 정상). 그 경우만 비용이 2배
+    for attempt in range(2):
+        draft: QaDraft = await _llm.ainvoke(messages)
+        if not draft.answerable or not draft.claims:
+            return no_evidence()
+        # 문장 단위로 거른다: 출처가 없거나 하나라도 검증에서 떨어진 문장은 답변에서 뺀다.
+        # 떨어진 출처가 받치던 내용이 '검증된 답변'처럼 남지 않게 하기 위해서다.
+        # 남은 문장도 '인용문이 실재한다'까지만 확인된 것이다 — 인용문이 그 문장을 뒷받침한다는 보장은 아니다.
+        # 남긴 문장과 그 문장의 출처를 묶어서 보낸다 — 화면이 어느 구절을 어느 문장과 대조할지 보여줄 수 있게 한다
+        kept: list[dict] = []
+        citations: list[dict] = []
+        dropped_citations = 0
+        for claim in draft.claims:
+            valid, dropped = validate_citations(claim.citations, passages)
+            dropped_citations += dropped
+            if valid and not dropped and claim.text.strip():
+                kept.append({"text": claim.text.strip(), "citations": valid})
+                citations.extend(citation for citation in valid if citation not in citations)
+        if kept:
+            break
     dropped = {"dropped_citations": dropped_citations, "dropped_claims": len(draft.claims) - len(kept)}
     if not kept:
         # 모델은 답했지만 검증을 통과한 문장이 없다 — 제거된 수를 남겨 '모델의 거부'와 구분할 수 있게 한다

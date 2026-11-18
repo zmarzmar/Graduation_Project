@@ -41,6 +41,17 @@ def _clean(text: str) -> str:
     return _INLINE_LINK.sub("", text).replace("**", "").strip()
 
 
+_ARXIV = re.compile(r"^https?://(?:www\.|export\.)?arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})")
+
+
+def _title(title: str, url: str) -> str:
+    """출처 제목. arXiv PDF는 첫 줄(라이선스 문구 등)이 제목으로 잡혀 'arXiv 번호'로 쓴다 (2026-11-18 운영 확인)."""
+    if match := _ARXIV.match(url):
+        return f"arXiv {match.group(1)}"
+    title = " ".join(title.split()) or url
+    return title if len(title) <= 100 else title[:99] + "…"
+
+
 def _sources(response: object) -> list[dict]:
     """모델이 단 출처(url_citation) — http(s)만, 중복 없이 최대 5개."""
     sources: list[dict] = []
@@ -54,7 +65,7 @@ def _sources(response: object) -> list[dict]:
                     continue
                 if not url.startswith(("https://", "http://")) or any(s["url"] == url for s in sources):
                     continue
-                sources.append({"title": str(getattr(ann, "title", "") or url), "url": url})
+                sources.append({"title": _title(str(getattr(ann, "title", "") or ""), url), "url": url})
     return sources[:_MAX_SOURCES]
 
 
