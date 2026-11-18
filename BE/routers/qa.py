@@ -39,7 +39,7 @@ class HistoryTurn(BaseModel):
 class AskRequest(BaseModel):
     # 앞뒤 공백을 뗀 뒤에 길이를 잰다 — 공백뿐인 질문이 임베딩 호출까지 가지 않게 한다
     question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=500)]
-    # 직전 대화(최대 2개) — 후속 질문("수식 알려줘")이 무엇을 가리키는지 알게 한다. 서버에 저장하지 않는다
+    # 직전 대화(최대 HISTORY_TURNS개) — 후속 질문("수식 알려줘")이 무엇을 가리키는지 알게 한다. 이 history 자체는 저장하지 않는다 (이번 질문과 답만 qa_messages에)
     history: Annotated[list[HistoryTurn], Field(max_length=HISTORY_TURNS)] = []
 
 
@@ -147,7 +147,8 @@ async def ask_about_analyzed_paper(
     except Exception as e:
         # 저장이 실패해도 답은 보낸다 — 화면이 '저장되지 않았어요'를 보여준다
         await db.rollback()
-        logger.error(f"[QA] 기록 저장 실패 analysis={analysis_id}: {e}")
+        # 예외 문자열에는 INSERT 값(질문·답·인용문)이 들어갈 수 있다 — 종류만 남긴다 (Codex 리뷰)
+        logger.error(f"[QA] 기록 저장 실패 analysis={analysis_id}: {type(e).__name__}")
         return response
     if not stored:
         # 답을 만드는 동안 다른 탭에서 분석 기록을 지웠다 — 질문 전과 같은 404

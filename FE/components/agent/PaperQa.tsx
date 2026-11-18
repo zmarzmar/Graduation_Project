@@ -191,9 +191,10 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
   const [blocked, setBlocked] = useState<'no_document' | 'not_found' | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   const nextIdRef = useRef(1)
-  // 저장된 Q&A 불러오기 — 끝나기 전에는 질문을 막는다 (불러온 기록이 이어서 이해하기 문맥에 들어가야 하고, 늦게 온 기록이
-  // 새 질문을 덮지 않게). 실패하면 질문은 열어 두고 안내만 한다
+  // 저장된 Q&A 불러오기 — 끝나야 질문할 수 있다 (불러온 기록이 이어서 이해하기 문맥에 들어가야 하고, 늦게 온 기록이
+  // 새 질문을 덮지 않게). 실패하면 다시 불러오기를 누르게 한다
   const [loadState, setLoadState] = useState<'loading' | 'ok' | 'error'>('loading')
+  const [loadAttempt, setLoadAttempt] = useState(0)
 
   // 화면 이탈·분석 변경·로그아웃(언마운트) 시 요청과 대기 타이머를 취소한다
   useEffect(() => () => controllerRef.current?.abort(), [])
@@ -219,11 +220,11 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
         if (!controller.signal.aborted) setLoadState('error')
       })
     return () => controller.abort()
-  }, [analysisId, logout])
+  }, [analysisId, logout, loadAttempt])
 
   const question = input.trim()
   const canAsk =
-    !busy && loadState !== 'loading' && question.length >= QA_QUESTION_MIN_LENGTH && question.length <= QA_QUESTION_MAX_LENGTH
+    !busy && loadState === 'ok' && question.length >= QA_QUESTION_MIN_LENGTH && question.length <= QA_QUESTION_MAX_LENGTH
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -308,7 +309,19 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
         </p>
       )}
       {loadState === 'error' && (
-        <p className="text-xs text-yellow-700">이전 질문을 불러오지 못했어요. 새 질문은 할 수 있지만, 이전 대화는 이어서 이해하지 못해요.</p>
+        <p className="flex items-center gap-2 text-xs text-yellow-700">
+          이전 질문을 불러오지 못했어요.
+          <button
+            type="button"
+            className="underline underline-offset-2"
+            onClick={() => {
+              setLoadState('loading')
+              setLoadAttempt((n) => n + 1)
+            }}
+          >
+            다시 불러오기
+          </button>
+        </p>
       )}
 
       {entries.length > 0 && (

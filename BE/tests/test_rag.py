@@ -36,6 +36,7 @@ from crud import analysis as crud_analysis
 from crud.paper_document import claim_index_job, finish_index_job, get_document_for_analysis, get_or_create_document
 from models.analysis import AnalysisResult
 from models.qa_message import QaMessage
+from crud.qa_message import save_for_active_analysis
 from models.paper_document import PaperDocument
 from models.user import User
 from services import rag_service
@@ -859,7 +860,7 @@ class AskApiTest(_DbCase):
         self.assertEqual((await self._stored(first), await self._stored(second)), (0, 0))
 
     async def test_record_deleted_while_answering_is_not_saved(self):
-        # Codex 계획 검토: 답을 기다리는 동안 다른 탭에서 분석을 지우면, 삭제 커밋 뒤에 Q&A가 저장돼 되살아나면 안 된다
+        # 답을 기다리는 동안 다른 탭에서 분석을 지우면, 삭제 커밋 뒤에 Q&A가 저장돼 되살아나면 안 된다
         analysis_id, _ = await self._analyzed_document()
         started, release = asyncio.Event(), asyncio.Event()
 
@@ -878,6 +879,49 @@ class AskApiTest(_DbCase):
             response = await asking
         self.assertEqual(response.status_code, 404)
         self.assertEqual(await self._stored(analysis_id), 0)
+
+    async def test_delete_waits_for_a_save_in_progress(self):
+        # Codex 리뷰: 저장이 분석 행을 확인한 직후 삭제가 시작되는 순서. FOR UPDATE가 없으면 삭제가 기다리지 않고
+        # 아직 커밋되지 않은 Q&A를 못 본 채 끝나, 저장이 커밋되면 삭제된 분석 아래 Q&A가 남는다
+        analysis_id, _ = await self._analyzed_document()
+        async with self.sessions() as saving:
+            self.assertTrue(await save_for_active_analysis(saving, analysis_id, self.user_id, "q", {"answerable": True}))
+            deleting = asyncio.create_task(self._delete_record(analysis_id))
+            await asyncio.sleep(0.5)
+            self.assertFalse(deleting.done())  # 저장 트랜잭션이 끝날 때까지 기다린다
+            await saving.commit()
+        await deleting
+        self.assertEqual(await self._stored(analysis_id), 0)
+
+    async def test_delete_all_keeps_questions_of_a_record_created_meanwhile(self):
+        # Codex 리뷰: 전체 삭제가 잠금을 기다리는 사이 다른 탭이 새 분석과 Q&A를 만들면, 그 Q&A는 남아야 한다
+        old_id, _ = await self._analyzed_document()
+        async with self.sessions() as holder:
+            await holder.execute(select(AnalysisResult.id).where(AnalysisResult.id == old_id).with_for_update())
+
+            async def delete_all() -> None:
+                async with self.sessions() as db:
+                    await crud_analysis.delete_all_analysis_results(db, self.user_id)
+                    await db.commit()
+
+            deleting = asyncio.create_task(delete_all())
+            await asyncio.sleep(0.5)  # 전체 삭제의 UPDATE가 old 행 잠금을 기다리는 중
+            new_id, _ = await self._analyzed_document(pages=["We evaluate on GLUE with RoBERTa in a new paper."])
+            async with self.sessions() as db:
+                await save_for_active_analysis(db, new_id, self.user_id, "new q", {"answerable": True})
+                await db.commit()
+            await holder.commit()
+        await deleting
+        self.assertEqual(await self._stored(new_id), 1)
+
+    async def test_history_list_returns_the_latest_fifty_oldest_first(self):
+        analysis_id, _ = await self._analyzed_document()
+        async with self.sessions() as db:
+            for n in range(1, 52):
+                await save_for_active_analysis(db, analysis_id, self.user_id, f"q{n}", {"answerable": True})
+            await db.commit()
+        listed = (await self.client.get(f"/api/v1/analyses/{analysis_id}/qa")).json()
+        self.assertEqual([m["question"] for m in listed], [f"q{n}" for n in range(2, 52)])
 
 
 # ── 실제 HTTP 연결 종료 ───────────────────────────────────────────────────

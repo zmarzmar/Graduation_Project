@@ -41,5 +41,6 @@ async def delete_for_analysis(db: AsyncSession, analysis_id: int) -> None:
     await db.execute(delete(QaMessage).where(QaMessage.analysis_id == analysis_id))
 
 
-async def delete_for_user(db: AsyncSession, user_id: int) -> None:
-    await db.execute(delete(QaMessage).where(QaMessage.user_id == user_id))
+async def delete_for_analyses(db: AsyncSession, analysis_ids: list[int]) -> None:
+    if analysis_ids:
+        await db.execute(delete(QaMessage).where(QaMessage.analysis_id.in_(analysis_ids)))

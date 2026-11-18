@@ -4,7 +4,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.paper_document import mark_unreferenced_documents_for_purge
-from crud.qa_message import delete_for_analysis, delete_for_user
+from crud.qa_message import delete_for_analyses, delete_for_analysis
 from models.analysis import AnalysisResult
 
 
@@ -122,11 +122,14 @@ async def delete_all_analysis_results(db: AsyncSession, user_id: int) -> int:
             AnalysisResult.is_deleted == False,  # noqa: E712
         )
         .values(is_deleted=True)
+        .returning(AnalysisResult.id)
     )
-    await delete_for_user(db, user_id)  # 모든 분석이 지워졌으니 Q&A도 모두
+    deleted_ids = list(result.scalars().all())
+    # 이번에 지운 분석의 Q&A만 — 사용자 전체로 지우면 다른 탭에서 그사이 새로 만든 분석의 Q&A까지 지운다 (Codex 리뷰)
+    await delete_for_analyses(db, deleted_ids)
     # 활성 기록이 없어졌으므로 사용자의 원문을 모두 비우고 삭제 대기로 표시한다
     await mark_unreferenced_documents_for_purge(db, user_id)
-    return result.rowcount
+    return len(deleted_ids)
 
 
 async def count_created_since(db: AsyncSession, since: datetime) -> int:
