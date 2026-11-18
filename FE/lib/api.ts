@@ -1,5 +1,5 @@
 // BE API 호출 전용 파일 — 컴포넌트에서 직접 fetch 금지
-import type { ArxivPaper, KeyFormula } from './types/agent-run'
+import type { ArxivPaper, KeyFormula, SummaryClaim } from './types/agent-run'
 
 // NEXT_PUBLIC_API_URL은 백엔드 origin 기준으로 설정한다. 기존 /api/v1 포함 값도 호환한다.
 const API_VERSION_PATH = '/api/v1'
@@ -265,6 +265,8 @@ export async function getAnalysisHistory(): Promise<AnalysisHistoryItem[]> {
 
 export interface AnalysisDetail extends AnalysisHistoryItem {
   paper_summary: string
+  /** 요약 문장별 원문 인용 — 이 기능 전의 기록·초록 기반 분석은 빈 목록 */
+  summary_claims?: SummaryClaim[]
   paper_review: { strengths?: string[]; limitations?: string[]; significance?: string }
   key_formulas: { name: string; latex: string; description: string }[]
   generated_code: string

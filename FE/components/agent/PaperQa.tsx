@@ -7,9 +7,11 @@ import { FormulaBlock } from '@/components/ui/formula-block'
 import { Input } from '@/components/ui/input'
 import { MathText } from '@/components/ui/math-text'
 import { askPaper, QA_QUESTION_MAX_LENGTH, QA_QUESTION_MIN_LENGTH } from '@/lib/api'
-import type { QaAnswer, QaCitation, QaHistoryTurn } from '@/lib/api'
+import type { QaAnswer, QaHistoryTurn } from '@/lib/api'
 import type { KeyFormula, QaUnavailableReason } from '@/lib/types/agent-run'
 import { useAuthStore } from '@/store/auth-store'
+import { CitationChip } from './CitationChip'
+import { CitationQuote } from './CitationQuote'
 
 // 색인 중(202) 자동 재시도 상한 — BE의 색인 시간 제한(60초)을 3초 간격으로 덮는 횟수
 const MAX_INDEXING_RETRIES = 20
@@ -59,30 +61,6 @@ function Notice({ children }: { children: React.ReactNode }) {
       <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden />
       <div>{children}</div>
     </div>
-  )
-}
-
-function CitationChip({ page, open, onToggle }: { page: number; open: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={onToggle}
-      className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
-        open ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-      }`}
-    >
-      p.{page}
-    </button>
-  )
-}
-
-function CitationQuote({ citation }: { citation: QaCitation }) {
-  return (
-    <blockquote className="rounded-lg border-l-2 border-blue-300 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-gray-700">
-      <p className="mb-1 font-medium text-blue-600">{citation.page}쪽에서 인용</p>
-      <p className="whitespace-pre-wrap break-words">{citation.quote}</p>
-    </blockquote>
   )
 }
 

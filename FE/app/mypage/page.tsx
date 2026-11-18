@@ -14,6 +14,7 @@ import type { SearchHistoryItem, AnalysisHistoryItem, AnalysisDetail, UserInfo, 
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
+import { CitedSummary } from '@/components/agent/CitedSummary'
 import { ExecCheckStatus } from '@/components/agent/ExecCheckStatus'
 import { execStatusLabel, isReviewSkipped } from '@/lib/exec-check'
 import { CodeDraftNotice } from '@/components/agent/CodeDraftNotice'
@@ -216,9 +217,7 @@ function AnalysisAccordion({ item, onDelete }: { item: AnalysisHistoryItem; onDe
               {detail.paper_summary && (
                 <div>
                   <p className="mb-1 text-xs font-semibold text-gray-600">📄 논문 요약</p>
-                  <p className="rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-700">
-                    <MathText text={detail.paper_summary} />
-                  </p>
+                  <CitedSummary summary={detail.paper_summary} claims={detail.summary_claims} className="text-xs" />
                 </div>
               )}
               {(detail.paper_review?.strengths?.length ?? 0) > 0 && (

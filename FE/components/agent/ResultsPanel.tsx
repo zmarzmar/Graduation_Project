@@ -10,6 +10,7 @@ import type { AgentResult, ArxivPaper, TrendAnalysis } from '@/lib/types/agent-r
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { MathText } from '@/components/ui/math-text'
 import { PaperQa } from '@/components/agent/PaperQa'
+import { CitedSummary } from '@/components/agent/CitedSummary'
 import { CodeDraftNotice } from '@/components/agent/CodeDraftNotice'
 import { ExecCheckStatus } from '@/components/agent/ExecCheckStatus'
 import { isReviewSkipped } from '@/lib/exec-check'
@@ -302,9 +303,7 @@ export function ResultsPanel({ result, searchedPapers, onAnalyze, analyzedPaperK
             {result.paper_summary && (
               <div>
                 <h4 className="mb-2 text-sm font-semibold text-gray-700">📄 논문 요약</h4>
-                <p className="rounded-lg bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">
-                  <MathText text={result.paper_summary} />
-                </p>
+                <CitedSummary summary={result.paper_summary} claims={result.summary_claims} />
               </div>
             )}
 
