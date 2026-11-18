@@ -480,6 +480,32 @@ export async function getAdminSystemSummary(): Promise<AdminSystemSummary> {
   return res.json()
 }
 
+/** AI 사용 중지 스위치 상태와 오늘(한국 시간) 저장된 분석·검색 기록 수 */
+export interface AiSwitchStatus {
+  enabled: boolean
+  updated_at: string | null
+  today_analyses: number
+  today_searches: number
+}
+
+/** AI 사용 중지 스위치 조회 (관리자) */
+export async function getAiSwitch(): Promise<AiSwitchStatus> {
+  const res = await authFetch(`${API_BASE}/admin/ai-switch`)
+  if (!res.ok) throw new Error('AI 스위치 상태 조회 실패')
+  return res.json()
+}
+
+/** AI 기능 켜기/끄기 (관리자). 끄면 검색·분석·PDF·트렌드·Q&A 요청이 503이 된다 */
+export async function setAiSwitch(enabled: boolean): Promise<AiSwitchStatus> {
+  const res = await authFetch(`${API_BASE}/admin/ai-switch`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  })
+  if (!res.ok) throw new Error('AI 스위치 변경 실패')
+  return res.json()
+}
+
 /** 서버 헬스 체크 */
 export async function healthCheck(): Promise<{ status: string; version: string }> {
   const res = await fetch(`${API_ORIGIN}/health`)

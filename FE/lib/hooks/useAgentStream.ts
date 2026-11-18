@@ -36,7 +36,9 @@ export function useAgentStream(mode: StreamMode) {
         } catch {
           // JSON이 아니면 원문 그대로 표시
         }
-        setStreamState(mode, { error: `요청 실패 (${response.status}): ${detail}`, isRunning: false })
+        // 503은 사용자에게 보여줄 안내(관리자가 AI 기능을 껐다 등)라 상태 코드 없이 그대로 보여준다
+        const error = response.status === 503 ? detail : `요청 실패 (${response.status}): ${detail}`
+        setStreamState(mode, { error, isRunning: false })
         return
       }
 

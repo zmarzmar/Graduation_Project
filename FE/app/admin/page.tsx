@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Activity, Database, FileText, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AiSwitchCard } from '@/components/admin/AiSwitchCard';
 import { getAdminSystemSummary, type AdminSystemSummary } from '@/lib/api';
 
 const sections = [
@@ -58,6 +59,8 @@ export default function AdminPage() {
           관리자 권한이 있는 계정만 접근할 수 있습니다.
         </p>
       </div>
+
+      <AiSwitchCard />
 
       <Card>
         <CardHeader>
