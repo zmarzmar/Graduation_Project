@@ -178,10 +178,18 @@ class TokenBudgetTest(unittest.IsolatedAsyncioTestCase):
                 token_budget.ensure_request_fits("gpt-5.4-mini", messages, token_budget.REASONING_OUTPUT_BUDGET)
 
     async def test_coder_does_not_call_the_model_when_previous_code_and_feedback_overflow(self):
+        # 출력 예산 + 1만 토큰 — 처음 생성(작은 입력)은 들어가고, 이전 코드·피드백(~1.5만 토큰)을 더하면 넘친다.
+        # 예산을 바꿔도 의미가 유지되게 예산 기준으로 잡는다 (Codex 리뷰: 고정 4만은 예산 6.4만만으로도 넘쳐 아무것도 검사하지 못했다)
+        window = {"gpt-5.4-mini": token_budget.REASONING_OUTPUT_BUDGET + 10_000}
+        small = _FakeLLM("```python\nx\n```")
+        with patch.object(coder, "_llm", small), patch.dict(token_budget.CONTEXT_WINDOW, window):
+            await coder.coder_node({"pdf_text": "paper", "papers": [], "iteration_count": 0})
+        self.assertNotEqual(small.user_message, "")  # 작은 입력은 호출한다
+
         llm = _FakeLLM("```python\nx\n```")
         state = {"pdf_text": "paper", "papers": [], "iteration_count": 1,
                  "generated_code": "x = 1\n" * 3000, "review_feedback": "fix " * 3000}
-        with patch.object(coder, "_llm", llm), patch.dict(token_budget.CONTEXT_WINDOW, {"gpt-5.4-mini": 40_000}):
+        with patch.object(coder, "_llm", llm), patch.dict(token_budget.CONTEXT_WINDOW, window):
             result = await coder.coder_node(state)
         self.assertEqual(llm.user_message, "")  # 호출하지 않았다
         self.assertIn("입력이 너무 깁니다", result["error"])
