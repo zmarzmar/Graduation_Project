@@ -253,8 +253,10 @@ async def _term_passages(document: PaperDocument, job_id: str, vector: list[floa
     정작 그 약어를 정의한 청크를 상위에 올리지 못했다 (2026-11-18 SSF-SET: 52개 중 11~16위, top-6 밖)."""
     extra: list[Passage] = []
     for term in _key_terms(question):
+        # 이미 고른 청크와 겹칠 수 있다 — 겹친 만큼 더 받아 중복을 뺀 뒤 최대 2개를 고른다 (Codex 리뷰: 약어를 언급만 하는
+        # 청크 둘이 이미 상위에 있으면 정의 청크가 빠졌다)
         found = await _chroma(
-            "query", query_embeddings=[vector], n_results=_MAX_TERM_PASSAGES,
+            "query", query_embeddings=[vector], n_results=len(seen) + _MAX_TERM_PASSAGES,
             where=_job_filter(document.id, job_id), where_document={"$contains": term},
             include=["documents", "metadatas", "distances"],
         )
@@ -320,9 +322,8 @@ async def ask(document: PaperDocument, question: str, history: list[dict] | None
     # 논문에서 근거를 찾지 못했으면 웹 검색 일반 설명을 따로 붙인다 — 인용 확인을 거친 논문 답변과 섞지 않는다
     result["web_answer"] = None
     if not result["answerable"] and settings.qa_web_fallback:
-        result["web_answer"] = await answer_from_web(
-            question, document.title or "", history[-1]["question"] if history else ""
-        )
+        # 논문 제목은 보내지 않는다 — 업로드 문서의 제목은 원래 파일명이라 외부 검색에 새면 안 된다 (Codex 리뷰). 일반 개념 설명에는 필요 없다
+        result["web_answer"] = await answer_from_web(question, history[-1]["question"] if history else "")
     return result
 
 

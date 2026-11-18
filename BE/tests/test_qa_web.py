@@ -40,7 +40,7 @@ class WebFallbackTest(unittest.IsolatedAsyncioTestCase):
         result, web = await self._ask(rag_service.no_evidence(), history=[{"question": "멀티브랜치가 뭔데?", "answer": "…"}])
         self.assertEqual(result["web_answer"], WEB)
         self.assertFalse(result["answerable"])  # 논문 답변은 그대로 '근거 없음'
-        web.assert_awaited_once_with("CLS 토큰이 뭔데?", "SSF-SET", "멀티브랜치가 뭔데?")
+        web.assert_awaited_once_with("CLS 토큰이 뭔데?", "멀티브랜치가 뭔데?")  # 제목(파일명)은 보내지 않는다
 
     async def test_answered_from_paper_does_not_search_the_web(self):
         result, web = await self._ask({"answerable": True, "answer": "a", "claims": [], "citations": [],
@@ -68,7 +68,7 @@ class AnswerFromWebTest(unittest.IsolatedAsyncioTestCase):
     async def _call(self, response=None, error: Exception | None = None) -> dict | None:
         create = AsyncMock(return_value=response, side_effect=error)
         with patch.object(web_answer._client.responses, "create", create):
-            return await web_answer.answer_from_web("CLS?", "SSF-SET")
+            return await web_answer.answer_from_web("CLS?")
 
     async def test_strips_inline_links_and_keeps_http_sources(self):
         text = "CLS는 **대표 토큰**이다. ([huggingface.co](https://huggingface.co/x?utm_source=openai))  \n분류에 쓴다."

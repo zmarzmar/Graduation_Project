@@ -52,12 +52,11 @@ def _sources(response: object) -> list[dict]:
     return sources[:_MAX_SOURCES]
 
 
-async def answer_from_web(question: str, paper_title: str = "", previous_question: str = "") -> dict | None:
+async def answer_from_web(question: str, previous_question: str = "") -> dict | None:
     """웹 검색 일반 설명 {"text", "sources"}. 실패·잘림·출처 없음이면 None.
-    previous_question: "그게 뭐야?" 같은 후속 질문이 무엇을 가리키는지 알게 하는 직전 질문 (참고용)."""
-    context = f"논문 제목: {paper_title}\n" if paper_title else ""
-    if previous_question:
-        context += f"직전 질문(참고용): {previous_question}\n"
+    previous_question: "그게 뭐야?" 같은 후속 질문이 무엇을 가리키는지 알게 하는 직전 질문 (참고용).
+    논문 제목·본문은 보내지 않는다 — 업로드 문서의 제목은 사용자의 원래 파일명이다."""
+    context = f"직전 질문(참고용): {previous_question}\n" if previous_question else ""
     try:
         response = await _client.responses.create(
             model=settings.qa_model,

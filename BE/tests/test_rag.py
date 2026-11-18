@@ -1008,6 +1008,18 @@ class ChromaIntegrationTest(_DbCase):
             await asyncio.to_thread(client.delete_collection, self.collection_name)
         await super().asyncTearDown()
 
+    async def test_definition_chunk_is_added_when_mentions_are_already_retrieved(self):
+        # Codex 리뷰: 약어를 언급만 하는 청크 둘이 이미 의미 검색에 있어도, 그다음 약어 청크(정의)가 보충돼야 한다
+        pages = ["Bananas CLS mention one. Bananas are yellow and rich in potassium.",
+                 "Bananas CLS mention two. Bananas grow in warm places.",
+                 "A learnable class token (CLS) is prepended to capture global epoch-level context."]
+        _, doc_id = await self._analyzed_document(pages=pages)
+        job = await rag_service.ensure_indexed(await self._document(doc_id))
+        with patch.object(rag_service.settings, "qa_top_k", 2):
+            passages = await rag_service.retrieve(await self._document(doc_id), job, "bananas yellow potassium CLS")
+        self.assertEqual(sorted(p.page for p in passages[:2]), [1, 2])
+        self.assertEqual([p.page for p in passages[2:]], [3])
+
     async def test_acronym_chunk_is_added_by_the_real_server(self):
         # where_document={"$contains": ...}가 실제 Chroma(1.5.5)에서 동작하는지 — 의미 검색 1위가 아니어도 약어 청크가 붙는다
         pages = ["Bananas are rich in potassium and bananas are yellow fruit grown in warm places.",
