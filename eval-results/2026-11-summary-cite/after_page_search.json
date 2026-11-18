@@ -1,0 +1,603 @@
+[
+  {
+    "paper": "attention",
+    "model": "gpt-5.4-mini-low",
+    "run": 1,
+    "seconds": 9.3,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 순환이나 합성곱을 완전히 쓰지 않고, 오직 어텐션 메커니즘만으로 동작하는 새로운 시퀀스 변환 아키텍처인 Transformer를 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "Transformer는 입력과 출력 사이의 전역 의존성을 더 잘 병렬화된 방식으로 계산할 수 있어, 기존 recurrent/convolutional 계열보다 학습이 훨씬 빠르다.",
+        "citations": [
+          {
+            "page": 2,
+            "quote": "The Transformer allows for significantly more parallelization and can reach a new state of the art in translation quality after being trained for as little as twelve hours on eight P100 GPUs."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "기계번역 실험에서 이 모델은 WMT 2014 English-to-German과 English-to-French 모두에서 기존 최고 성능을 능가하며, 더 적은 학습 비용으로 새로운 state-of-the-art BLEU를 달성했다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-\nto-German translation task, improving over the existing best results, including\nensembles, by over 2 BLEU."
+          },
+          {
+            "page": 1,
+            "quote": "On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after\ntraining for 3.5 days on eight GPUs, a small fraction of the training costs of the\nbest models from the literature."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "또한 Transformer는 영어 구문 분석에서도 잘 일반화되어, 제한된 데이터와 준지도 설정 모두에서 이전에 보고된 여러 모델과 경쟁하거나 능가하는 성능을 보였다.",
+        "citations": [
+          {
+            "page": 10,
+            "quote": "Our results in Table 4 show that despite the lack of task-specific tuning our model performs sur-\nprisingly well, yielding better results than all previously reported models with the exception of the\nRecurrent Neural Network Grammar [8]."
+          },
+          {
+            "page": 10,
+            "quote": "In contrast to RNN sequence-to-sequence models [37], the Transformer outperforms the Berkeley-\nParser [29] even when training only on the WSJ training set of 40K sentences."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 4,
+    "total": 4,
+    "paper_review": {
+      "strengths": [
+        "어텐션만으로 시퀀스 변환을 수행하는 단순하고 강력한 설계를 제시했다.",
+        "번역과 구문 분석 등 여러 과제에서 성능과 효율성을 실험적으로 입증했다.",
+        "멀티헤드 어텐션, positional encoding, scaling 등 핵심 구성요소의 역할을 체계적으로 분석했다."
+      ],
+      "limitations": [
+        "긴 시퀀스에서 self-attention의 계산량이 O(n^2)라서 매우 긴 입력에는 비효율적일 수 있다.",
+        "주요 실험이 기계번역과 구문 분석 중심이어서 다른 도메인이나 대규모 생성 과제에 대한 검증은 제한적이다."
+      ],
+      "significance": "이 논문은 이후 NLP와 딥러닝 전반의 표준 아키텍처를 바꾼 기념비적 연구로, RNN 중심의 순차적 처리 패러다임을 대체할 수 있음을 보여주었다. 병렬화가 쉬워 학습 효율을 크게 높였고, 번역 성능도 향상시켜 실용성과 학문적 영향력을 동시에 확보했다."
+    },
+    "key_formulas": [
+      {
+        "name": "Scaled Dot-Product Attention",
+        "latex": "\\text{Attention}(Q, K, V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V",
+        "description": "쿼리와 키의 유사도를 기반으로 각 값에 가중치를 주어 출력 표현을 계산하는 핵심 어텐션 수식이다. 스케일링 항 \\(\\sqrt{d_k}\\)는 내적 값이 너무 커져 softmax가 포화되는 문제를 완화한다."
+      },
+      {
+        "name": "Multi-Head Attention",
+        "latex": "\\text{MultiHead}(Q, K, V) = \\text{Concat}(\\text{head}_1, \\ldots, \\text{head}_h)W^O, \\quad \\text{head}_i = \\text{Attention}(QW_i^Q, KW_i^K, VW_i^V)",
+        "description": "서로 다른 선형 투영 공간에서 여러 개의 어텐션을 병렬로 수행해 다양한 관계를 동시에 포착한다. 단일 헤드의 평균화 한계를 줄이고 서로 다른 표현 서브스페이스를 함께 학습하게 한다."
+      },
+      {
+        "name": "Position-wise Feed-Forward Network",
+        "latex": "\\text{FFN}(x) = \\max(0, xW_1 + b_1)W_2 + b_2",
+        "description": "각 위치에 독립적으로 적용되는 두 층의 완전연결 네트워크로, 어텐션이 만든 표현을 비선형적으로 변환한다. 위치 간 상호작용은 하지 않지만 각 토큰 표현의 차원을 확장·축소하며 표현력을 높인다."
+      }
+    ]
+  },
+  {
+    "paper": "attention",
+    "model": "gpt-5.4-mini-low",
+    "run": 2,
+    "seconds": 8.4,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 순환이나 합성곱을 완전히 쓰지 않고, attention만으로 동작하는 새로운 sequence transduction 아키텍처인 Transformer를 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "Transformer는 encoder-decoder 구조 위에 stacked self-attention과 point-wise feed-forward layer를 사용하며, residual connection과 layer normalization으로 각 서브레이어를 안정적으로 결합한다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "The Transformer follows this overall architecture using stacked self-attention and point-wise, fully connected layers for both the encoder and decoder, shown in the left and right halves of Figure 1, respectively."
+          },
+          {
+            "page": 3,
+            "quote": "We employ a residual connection [11] around each of the two sub-layers, followed by layer normalization [1]."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "논문은 scaled dot-product attention, multi-head attention, 그리고 sinusoidal positional encoding을 도입해 병렬성을 높이고 긴 거리 의존성을 더 잘 학습하도록 설계했다.",
+        "citations": [
+          {
+            "page": 4,
+            "quote": "We compute the dot products of the query with all keys, divide each by √dk, and apply a softmax function to obtain the weights on the values."
+          },
+          {
+            "page": 5,
+            "quote": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions."
+          },
+          {
+            "page": 6,
+            "quote": "In this work, we use sine and cosine functions of different frequencies:"
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "실험에서 Transformer는 WMT 2014 영어-독일어와 영어-프랑스어 번역에서 기존 최고 성능을 능가했고, 영어 구문 분석에서도 다른 태스크로의 일반화 가능성을 보였다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles, by over 2 BLEU."
+          },
+          {
+            "page": 1,
+            "quote": "On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature."
+          },
+          {
+            "page": 1,
+            "quote": "We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 4,
+    "total": 4,
+    "paper_review": {
+      "strengths": [
+        "순환 구조를 제거하고 attention만으로 시퀀스 모델링을 수행하는 단순하면서도 강력한 설계를 제시했다.",
+        "번역과 구문 분석 등 여러 과제에서 성능과 학습 효율을 함께 개선했음을 실험으로 보여준다.",
+        "각 구성요소의 역할을 체계적으로 분석하는 ablation과 복잡도 비교가 포함되어 설계 타당성이 잘 설명된다."
+      ],
+      "limitations": [
+        "주요 실험이 번역과 구문 분석에 집중되어 있어 다른 도메인이나 매우 긴 시퀀스에서의 일반화는 제한적으로만 검증되었다.",
+        "self-attention의 계산 복잡도는 sequence length에 대해 O(n^2)라서 긴 입력에서는 비용이 커질 수 있다."
+      ],
+      "significance": "이 논문은 Transformer를 통해 현대 NLP의 표준 아키텍처 전환을 촉발한 핵심 연구로 평가된다. 병렬화와 성능을 동시에 크게 개선해 대규모 sequence modeling의 학습 효율을 높였고, 이후 BERT, GPT, T5 등 수많은 후속 모델의 기반이 되었다."
+    },
+    "key_formulas": [
+      {
+        "name": "Scaled Dot-Product Attention",
+        "latex": "\\text{Attention}(Q, K, V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V",
+        "description": "query, key, value로부터 attention 가중치를 계산해 출력 벡터를 만드는 핵심 수식이다. 스케일링 항 \\(\\sqrt{d_k}\\)는 큰 차원에서 softmax의 gradient가 너무 작아지는 문제를 완화한다."
+      },
+      {
+        "name": "Multi-Head Attention",
+        "latex": "\\text{MultiHead}(Q, K, V) = \\text{Concat}(head_1, \\ldots, head_h)W^O, \\quad head_i = \\text{Attention}(QW_i^Q, KW_i^K, VW_i^V)",
+        "description": "여러 개의 attention head를 병렬로 계산한 뒤 결합하는 구조이다. 서로 다른 representation subspace와 위치 정보를 동시에 포착하게 해 단일 head보다 더 풍부한 표현을 학습한다."
+      },
+      {
+        "name": "Position-wise Feed-Forward Network",
+        "latex": "\\text{FFN}(x) = \\max(0, xW_1 + b_1)W_2 + b_2",
+        "description": "각 위치에 독립적으로 적용되는 두 층의 비선형 변환이다. attention이 모은 정보를 위치별로 추가 변환하여 표현력을 높인다."
+      }
+    ]
+  },
+  {
+    "paper": "lora",
+    "model": "gpt-5.4-mini-low",
+    "run": 1,
+    "seconds": 11.3,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 거대한 언어모델의 전체 파라미터를 다시 학습하는 대신, 각 층의 가중치 변화만 저랭크 행렬로 표현해 적은 수의 파라미터만 학습하는 LoRA를 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose Low-Rank Adaptation, or LoRA, which freezes the pre-"
+          },
+          {
+            "page": 2,
+            "quote": "We hypothesize that the\nchange in weights during model adaptation also has a low “intrinsic rank”, leading to our proposed\nLow-Rank Adaptation (LoRA) approach."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "LoRA는 프리트레인된 가중치는 고정하고, Transformer의 각 층에 학습 가능한 저랭크 분해 행렬을 주입하여 다운스트림 작업을 적응시킨다.",
+        "citations": [
+          {
+            "page": 2,
+            "quote": "LoRA allows us to train some dense layers in a neural\nnetwork indirectly by optimizing rank decomposition matrices of the dense layers’ change during\nadaptation instead, while keeping the pre-trained weights frozen, as shown in Figure 1."
+          },
+          {
+            "page": 4,
+            "quote": "During training, W0 is frozen and does not receive gradient updates, while A and B contain trainable\nparameters."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "실험 결과 LoRA는 RoBERTa, DeBERTa, GPT-2, GPT-3에서 적은 학습 파라미터와 더 높은 효율성을 유지하면서도, 미세조정과 동등하거나 더 나은 성능을 보였다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "LoRA performs on-par or better than ﬁne-\ntuning in model quality on RoBERTa, DeBERTa, GPT-2, and GPT-3, despite hav-\ning fewer trainable parameters, a higher training throughput, and, unlike adapters,\nno additional inference latency."
+          },
+          {
+            "page": 8,
+            "quote": "As shown in Table 4, LoRA matches or exceeds the ﬁne-tuning baseline on all three datasets."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "이 방법은 특히 추론 지연을 추가하지 않고, 학습·저장·전환 비용을 크게 줄인다는 점에서 기존 adapter나 prompt 기반 방법보다 실용적이다.",
+        "citations": [
+          {
+            "page": 2,
+            "quote": "Our simple linear design allows us to merge the trainable matrices with the frozen weights when deployed, introducing no inference latency compared to a fully ﬁne-tuned model, by construction."
+          },
+          {
+            "page": 3,
+            "quote": "One of the main drawbacks for full ﬁne-tuning is that for each downstream task, we learn a different\nset of parameters ∆Φ whose dimension |∆Φ| equals |Φ0|."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "저자들은 업데이트 행렬 ΔW가 실제로 매우 낮은 내재 랭크를 가지며, 학습된 업데이트가 프리트레인 가중치 W의 중요한 방향을 증폭한다는 분석을 통해 LoRA의 작동 원리를 뒷받침한다.",
+        "citations": [
+          {
+            "page": 10,
+            "quote": "Table 6 shows that, surprisingly, LoRA already performs competitively with a very small r (more so for {Wq, Wv} than just Wq)."
+          },
+          {
+            "page": 12,
+            "quote": "This suggests that the low-rank adaptation matrix potentially ampliﬁes the important features for speciﬁc downstream tasks that were learned but not emphasized in the general pre-training model."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 5,
+    "total": 5,
+    "paper_review": {
+      "strengths": [
+        "학습 가능한 파라미터와 옵티마이저 상태를 크게 줄여 대규모 모델 적응의 저장·메모리 부담을 실질적으로 완화했다.",
+        "추론 시 가중치를 병합할 수 있어 adapter 계열과 달리 추가 지연이 없다는 점이 강력한 장점이다.",
+        "GLUE, E2E, WikiSQL, SAMSum 등 다양한 NLU/NLG 과제와 GPT-3 규모까지 폭넓게 검증해 일반성을 설득력 있게 보여준다."
+      ],
+      "limitations": [
+        "주요 적용 대상이 Transformer의 일부 가중치에 집중되어 있어, 어떤 모듈에 LoRA를 적용하는 것이 최적인지는 여전히 휴리스틱에 의존한다.",
+        "저랭크 가정이 모든 태스크와 도메인에서 항상 유효한 것은 아니며, 논문도 rank 선택이 데이터와 모델에 따라 달라질 수 있음을 인정한다."
+      ],
+      "significance": "이 논문은 초대형 언어모델의 파인튜닝을 현실적인 배포 문제로 확장해, 파라미터 효율적 적응이라는 중요한 연구 축을 대표적으로 정립했다. 특히 추가 추론 지연 없이 여러 태스크 모델을 빠르게 교체할 수 있게 해, 산업 환경에서의 대규모 모델 운영 비용을 낮추는 데 큰 의미가 있다."
+    },
+    "key_formulas": [
+      {
+        "name": "Full Fine-tuning Objective",
+        "latex": "\\max_{\\Phi} \\sum_{(x,y)\\in Z} \\sum_{t=1}^{|y|} \\log P_{\\Phi}(y_t \\mid x, y_{<t})",
+        "description": "전체 파라미터를 갱신하는 표준 미세조정 목표식이다. 다운스트림 데이터에 대해 조건부 언어모델의 로그우도를 최대화한다."
+      },
+      {
+        "name": "LoRA Reparameterization",
+        "latex": "W_0 + \\Delta W = W_0 + BA, \\quad B \\in \\mathbb{R}^{d\\times r},\\ A \\in \\mathbb{R}^{r\\times k}",
+        "description": "프리트레인 가중치에 더해지는 업데이트를 저랭크 행렬의 곱으로 표현한다. 이 식이 LoRA의 핵심으로, 학습 파라미터 수를 크게 줄인다."
+      },
+      {
+        "name": "LoRA Forward Pass",
+        "latex": "h = W_0 x + \\Delta W x = W_0 x + BAx",
+        "description": "고정된 원래 가중치 출력과 저랭크 업데이트 출력을 더하는 forward 계산이다. 이 구조 덕분에 배포 시 가중치를 병합하면 추가 지연 없이 추론할 수 있다."
+      }
+    ]
+  },
+  {
+    "paper": "lora",
+    "model": "gpt-5.4-mini-low",
+    "run": 2,
+    "seconds": 10.5,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 대규모 언어모델을 하위 작업에 적응시킬 때 전체 파라미터를 재학습하는 대신, 사전학습 가중치를 고정하고 저랭크 행렬만 학습하는 LoRA를 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose Low-Rank Adaptation, or LoRA, which freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer architecture, greatly reducing the number of trainable parameters for downstream tasks."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "LoRA는 GPT-3 175B 기준으로 학습 파라미터 수를 최대 10,000배 줄이고 GPU 메모리 요구량도 크게 낮추면서, RoBERTa, DeBERTa, GPT-2, GPT-3에서 전체 미세조정과 동등하거나 더 나은 성능을 보인다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Compared to GPT-3 175B fine-tuned with Adam, LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times."
+          },
+          {
+            "page": 1,
+            "quote": "LoRA performs on-par or better than fine-tuning in model quality on RoBERTa, DeBERTa, GPT-2, and GPT-3, despite having fewer trainable parameters, a higher training throughput, and, unlike adapters, no additional inference latency."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "핵심 아이디어는 가중치 변화 ΔW가 낮은 'intrinsic rank'를 가진다고 보고, ΔW를 BA 형태의 저랭크 분해로 표현해 W0 + BA를 학습하는 것이다.",
+        "citations": [
+          {
+            "page": 4,
+            "quote": "For a pre-trained weight matrix W0 ∈Rd×k, we constrain its update by representing the latter with a low-rank de-composition W0 + ∆W = W0 + BA, where B ∈Rd×r, A ∈Rr×k, and the rank r ≪min(d, k)."
+          }
+        ],
+        "verified": false
+      },
+      {
+        "text": "실험적으로 LoRA는 어텐션 가중치에 대해 매우 작은 rank로도 잘 동작하며, 특히 Wq와 Wv를 함께 적응시키는 구성이 가장 좋은 성능을 보였다.",
+        "citations": [
+          {
+            "page": 10,
+            "quote": "Table 6 shows that, surprisingly, LoRA already performs competitively with a very small r (more so for {Wq, Wv} than just Wq)."
+          },
+          {
+            "page": 10,
+            "quote": "This suggests that even a rank of four captures enough information in ∆W such that it is preferable to adapt more weight matrices than adapting a single type of weights with a larger rank."
+          },
+          {
+            "page": 10,
+            "quote": "Adapting both Wq and Wv gives the best performance overall."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "저자들은 ΔW가 사전학습 가중치 W의 상위 singular direction을 단순히 반복하는 것이 아니라, 작업 특이적인 방향을 증폭하며 이는 LoRA의 해석 가능성을 높인다고 주장한다.",
+        "citations": [
+          {
+            "page": 12,
+            "quote": "This suggests that the low-rank adaptation matrix potentially amplifies the important features for specific downstream tasks that were learned but not emphasized in the general pre-training model."
+          }
+        ],
+        "verified": false
+      }
+    ],
+    "verified": 3,
+    "total": 5,
+    "paper_review": {
+      "strengths": [
+        "파라미터 효율, 저장 효율, 학습 속도, 추론 지연 측면의 장점을 명확히 제시한다.",
+        "RoBERTa, DeBERTa, GPT-2, GPT-3 등 여러 모델과 NLU/NLG 과제에서 폭넓은 실험을 수행했다.",
+        "rank와 subspace 분석을 통해 LoRA가 왜 잘 작동하는지에 대한 해석적 근거를 제공한다."
+      ],
+      "limitations": [
+        "주로 Transformer의 attention 가중치에 초점을 맞추며, MLP·LayerNorm·bias 적응에 대한 포괄적 탐구는 제한적이다.",
+        "어떤 작업에서 어떤 가중치에 LoRA를 적용해야 최적인지에 대한 원칙적 기준은 아직 충분히 제시되지 않았다."
+      ],
+      "significance": "이 논문은 대규모 언어모델의 미세조정을 현실적으로 가능하게 만드는 대표적 방법론을 제시했다는 점에서 매우 중요하다. 특히 추론 지연을 늘리지 않으면서도 적은 저장공간과 계산량으로 작업별 적응을 가능하게 해, 대규모 모델의 실서비스 배포와 다중 작업 운영에 큰 영향을 주었다."
+    },
+    "key_formulas": [
+      {
+        "name": "Full Fine-tuning Objective",
+        "latex": "\\max_{\\Phi} \\sum_{(x,y)\\in Z} \\sum_{t=1}^{|y|} \\log\\big(P_{\\Phi}(y_t\\mid x, y_{<t})\\big)",
+        "description": "전체 파라미터 \\(\\Phi\\)를 직접 최적화하는 일반적인 미세조정 목표를 나타낸다. LoRA는 이 목적함수를 유지하되, 학습 가능한 파라미터의 표현만 저랭크로 바꾼다."
+      },
+      {
+        "name": "LoRA Reparameterization",
+        "latex": "W_0 + \\Delta W = W_0 + BA,\\quad B\\in\\mathbb{R}^{d\\times r},\\ A\\in\\mathbb{R}^{r\\times k}",
+        "description": "사전학습 가중치 \\(W_0\\)는 고정하고, 변화량 \\(\\Delta W\\)를 두 개의 작은 행렬 곱 \\(BA\\)로 표현한다. 이 구조가 LoRA의 핵심이며, trainable parameter 수를 크게 줄인다."
+      },
+      {
+        "name": "Subspace Similarity",
+        "latex": "\\phi(A,B,i,j)=\\frac{\\lVert U_A^{i\\top}U_B^j\\rVert_F^2}{\\min(i,j)}",
+        "description": "두 저랭크 업데이트가 span하는 부분공간의 겹침 정도를 측정한다. 저자들은 이를 이용해 rank가 작아도 중요한 방향이 잘 보존됨을 분석한다."
+      }
+    ]
+  },
+  {
+    "paper": "avq_attention",
+    "model": "gpt-5.4-mini-low",
+    "run": 1,
+    "seconds": 10.3,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 Transformer의 주된 병목인 O(N^2) attention 계산을 완화하기 위해, key를 코드워드로 양자화하는 VQ-attention을 확장한 적응형 방식 AVQ-Attention을 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "The O(N 2) complexity of attention over N tokens remains a computational bottleneck in transformer models."
+          },
+          {
+            "page": 1,
+            "quote": "Vector-Quantized (VQ) attention reduces this to O(MN) by representing keys with M codewords, but applies uniform codebook capacity regardless of where attention mass concentrates: high-attention regions of key space may be coarsely approximated while low-attention regions waste representational capacity."
+          },
+          {
+            "page": 1,
+            "quote": "We propose Adaptive Vector-Quantized (AVQ) Attention, which adaptively allocates codebook capacity based on attention importance."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "AVQ-Attention은 forward pass에서 attention mass를 이용해 codeword importance를 계산한 뒤, 중요한 parent codeword만 pre-learned child codeword로 세분화하여 높은 attention 영역에 더 정밀한 근사를 제공한다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "Concretely, we start from a set of parent codewords and compute VQ-Attention while extracting per-codeword importance scores."
+          },
+          {
+            "page": 3,
+            "quote": "The top-P most important parents are then refined with their pre-learned child codewords, creating finer quantization in high-attention regions of key space while leaving low-attention regions at the coarser parent level."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "이 방법은 Flash Attention의 tiled computation과 호환되도록 설계되었으며, parent-child constraint와 online softmax를 활용해 parent contribution을 재계산하지 않고 child logits만으로 보정할 수 있다.",
+        "citations": [
+          {
+            "page": 11,
+            "quote": "Since children are stored contiguously in the codebook, the sum in Eq. (8) reduces over adjacent entries in a register tile and adds negligible cost."
+          },
+          {
+            "page": 11,
+            "quote": "This requires only a single dot product per parent tile."
+          }
+        ],
+        "verified": false
+      },
+      {
+        "text": "실험에서는 ImageNet, ADE20K, Stable Diffusion 환경에서 AVQ가 고정 codebook VQ-attention보다 더 나은 accuracy-efficiency trade-off를 보였고, 일부 설정에서는 긴 시퀀스에서 큰 wall-clock speedup도 확인되었다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "We demonstrate improved accuracy-efficiency trade-offs over fixed-codebook VQ-attention and competitiveness with a range of existing efficient-attention methods."
+          },
+          {
+            "page": 13,
+            "quote": "At N=65,536, our fused AVQ-attention configurations are 81–127× faster than Flash Attention."
+          }
+        ],
+        "verified": false
+      },
+      {
+        "text": "저자들은 AVQ-Attention이 사전학습된 Transformer에 후처리적으로 적용되어 소수 epoch의 fine-tuning만으로도 동작하는 일반적인 attention 대체재라고 주장한다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "Moreover, we show that (A)VQ-attention can be applied post-hoc to pretrained transformers and fine-tuned in a small number of epochs, analogous to quantization-aware training for model compression."
+          },
+          {
+            "page": 15,
+            "quote": "The experiments validate AVQ-attention as a general-purpose attention mechanism rather than targeting benchmark-specific performance: we take pretrained transformers, replace their attention layers, and fine-tune for only a few epochs."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 3,
+    "total": 5,
+    "paper_review": {
+      "strengths": [
+        "importance 기반으로 codebook 용량을 동적으로 배분하는 아이디어가 명확하고, fixed VQ의 약점을 직접 겨냥한다.",
+        "Flash Attention 스타일의 tiled kernel과 결합한 구현이 구체적이며, 알고리즘과 시스템 최적화가 함께 제시된다.",
+        "분류, 분할, 생성 등 서로 다른 태스크에서 실험해 범용성과 효율성을 함께 검증했다."
+      ],
+      "limitations": [
+        "성능이 향상되지만, 일부 설정에서는 여전히 exact Flash Attention 대비 정확도 손실이 남는다.",
+        "코드북 크기, P, C 등의 하이퍼파라미터 선택과 layer별 최적화 가능성이 충분히 탐색되지는 않았다."
+      ],
+      "significance": "이 논문은 attention의 계산량을 줄이는 기존 VQ-attention을 한 단계 발전시켜, 입력별로 중요한 key-space에 계산 자원을 더 배분하는 새로운 효율적 attention 설계를 제시한다. 특히 알고리즘적 아이디어뿐 아니라 Triton 기반 구현과 실제 GPU 성능까지 제시해, long-context vision and diffusion model에서 실용적인 대안이 될 가능성을 보여준다."
+    },
+    "key_formulas": [
+      {
+        "name": "Standard Scaled Dot-Product Attention",
+        "latex": "Y_i = \\frac{\\sum_{j=1}^{N} \\exp(Q_i K_j^{\\top}) V_j}{\\sum_{l=1}^{N} \\exp(Q_i K_l^{\\top})}",
+        "description": "일반적인 self-attention의 출력 계산식이다. query와 모든 key의 유사도를 통해 value를 가중합하며, 논문은 이 계산의 O(N^2) 비용을 줄이는 것이 핵심 문제라고 본다."
+      },
+      {
+        "name": "Hierarchical Parent Constraint",
+        "latex": "C_p = \\frac{1}{\\mathcal{C}}\\sum_{c=1}^{\\mathcal{C}} C_{p,c}",
+        "description": "parent codeword가 child codeword들의 평균이 되도록 강제하는 제약식이다. 이 구조 덕분에 parent logit을 child logits로 복원할 수 있어, refinement 과정에서 parent를 다시 계산하지 않아도 된다."
+      },
+      {
+        "name": "AVQ Child Correction",
+        "latex": "\\Delta A_{ic} = \\exp(S_{ic}) - \\exp(S_{ip})",
+        "description": "parent attention을 child attention으로 교체하기 위한 보정 항이다. parent의 기여를 제거하고 child의 기여를 더하는 방식으로, incremental softmax 누적값을 효율적으로 갱신한다."
+      }
+    ]
+  },
+  {
+    "paper": "avq_attention",
+    "model": "gpt-5.4-mini-low",
+    "run": 2,
+    "seconds": 10.4,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 기존 VQ-attention의 고정 코드बुक이 주의가 집중되는 영역과 그렇지 않은 영역에 같은 정밀도를 배분하는 문제를 지적하고, attention mass에 따라 코드북 용량을 동적으로 재배분하는 AVQ-Attention을 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Vector-Quantized (VQ) attention reduces this to O(MN) by representing keys with M codewords, but applies uniform codebook capacity regardless of where attention mass concentrates: high-attention regions of key space may be coarsely approximated while low-attention regions waste representational capacity."
+          },
+          {
+            "page": 1,
+            "quote": "We propose Adaptive Vector-Quantized (AVQ) Attention, which adaptively allocates codebook capacity based on attention importance."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "방법적으로는 부모-자식 구조의 계층적 코드북을 학습하고, forward pass에서 중요한 부모 코드워드를 선택해 사전학습된 자식 코드워드로 정밀화를 수행함으로써, 중요한 영역에는 세밀한 양자화를 적용하고 덜 중요한 영역에는 거친 양자화를 유지한다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "Concretely, we start from a set of parent codewords and compute VQ-Attention while extracting per-codeword importance scores."
+          },
+          {
+            "page": 3,
+            "quote": "The top-P most important parents are then refined with their pre-learned child codewords, creating finer quantization in high-attention regions of key space while leaving low-attention regions at the coarser parent level."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "구현 측면에서 이 방법은 Flash Attention의 타일링 구조와 호환되도록 Triton 커널을 사용해 양자화, 중요도 계산, 부모 기여 교정, 자식 attention을 한 흐름으로 융합하며, 이로써 O(MN) 복잡도를 유지한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We develop an implementation using custom Triton kernels that enables the full adaptive refinement process, including importance scoring, child codeword insertion, and parent contribution replacement, to be carried out within the tiled computation paradigm of Flash Attention with minimal overhead."
+          },
+          {
+            "page": 1,
+            "quote": "Our approach maintains O(MN) complexity while achieving improved accuracy-efficiency trade-offs compared to fixed-codebook VQ-attention."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "실험적으로 AVQ-Attention은 ImageNet-1k, ADE20K, Stable Diffusion에서 고정 코드북 VQ-attention보다 더 나은 정확도-효율 균형을 보였고, 기존 효율적 attention 방법들과도 경쟁력 있는 성능을 보였다.",
+        "citations": [],
+        "verified": false
+      }
+    ],
+    "verified": 3,
+    "total": 4,
+    "paper_review": {
+      "strengths": [
+        "적응적 코드북 배분이라는 명확한 아이디어가 있고, attention mass를 중요도 신호로 직접 활용해 설계가 자연스럽다.",
+        "Flash Attention 스타일의 타일드 계산과 잘 결합되도록 알고리즘과 커널 구현을 구체적으로 제시해, 이론과 시스템 측면을 함께 다뤘다.",
+        "이미지 분류, 세그멘테이션, 확산모델까지 다양한 작업에서 검증하여 범용성을 보여줬다."
+      ],
+      "limitations": [
+        "성능 향상이 항상 큰 것은 아니며, 일부 설정에서는 정확도 저하를 감수하고 효율을 얻는 트레이드오프가 나타난다.",
+        "코드북 크기, 부모 수 P, 자식 수 C 같은 하이퍼파라미터와 계층 구조 설계에 대한 추가 탐색이 필요하다."
+      ],
+      "significance": "이 논문은 효율적 attention을 단순히 토큰 수를 줄이거나 희소화하는 대신, 중요한 key 영역에 계산을 더 많이 배분하는 새로운 축을 제시한다. 특히 기존 VQ-attention의 고정 코드북 한계를 계층적이고 입력 적응적인 방식으로 완화했다는 점에서 학문적 의미가 크다. 실용적으로는 긴 시퀀스와 고해상도 생성 모델에서 attention 비용을 줄이면서도 품질을 유지할 수 있는 대안이 된다."
+    },
+    "key_formulas": [
+      {
+        "name": "Standard Scaled Dot-Product Attention",
+        "latex": "Y_i = \\frac{\\sum_{j=1}^{N} \\exp(Q_i K_j^{\\top}) V_j}{\\sum_{l=1}^{N} \\exp(Q_i K_l^{\\top})}",
+        "description": "일반적인 self-attention의 출력 정의이다. 쿼리와 모든 키의 유사도를 가중치로 사용해 값 벡터의 가중합을 계산한다."
+      },
+      {
+        "name": "VQ Attention Aggregation",
+        "latex": "Y_i \\approx \\frac{\\sum_{a=1}^{M} \\exp(Q_i C_a^{\\top}) \\bar{V}_a}{\\sum_{a=1}^{M} \\exp(Q_i C_a^{\\top}) n_a}",
+        "description": "키를 코드워드로 묶은 뒤 attention을 코드워드 단위로 계산하는 핵심 근사식이다. 값 합계와 할당 개수를 함께 사용해 계산량을 O(MN)으로 줄인다."
+      },
+      {
+        "name": "Parent-Child Constraint",
+        "latex": "C_p = \\frac{1}{\\mathcal{C}}\\sum_{c=1}^{\\mathcal{C}} C_{p,c}",
+        "description": "부모 코드워드가 자식 코드워드들의 평균이 되도록 강제하는 제약식이다. 이 구조 덕분에 추론 시 부모 logits를 자식 logits에서 복원할 수 있다."
+      }
+    ]
+  }
+]

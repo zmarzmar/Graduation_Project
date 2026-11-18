@@ -1,0 +1,647 @@
+[
+  {
+    "paper": "attention",
+    "model": "gpt-4o-mini",
+    "run": 1,
+    "seconds": 23.7,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 복잡한 순환 및 합성곱 신경망 대신 순수한 주의 메커니즘에 기반한 Transformer 아키텍처를 제안한다. 이 모델은 병렬 처리에 최적화되어 있으며, 기존의 최선 모델보다 월등한 번역 품질을 달성하였다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "Transformer 모델은 WMT 2014 영어-독일어 번역 작업에서 28.4의 BLEU 점수를 달성하여 기존 결과보다 2 BLEU 포인트 이상 개선되었다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles, by over 2 BLEU."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "이 연구는 POS 및 기계 번역을 포함한 다양한 작업에서 Transformer가 잘 일반화됨을 보여준다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 3,
+    "total": 3
+  },
+  {
+    "paper": "attention",
+    "model": "gpt-4o-mini",
+    "run": 2,
+    "seconds": 10.7,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문에서는 복잡한 순환 신경망이나 합성곱 신경망 대신 오로지 주의 메커니즘만을 사용하는 새로운 네트워크 구조인 Transformer를 제안한다.",
+        "citations": [
+          {
+            "page": 2,
+            "quote": "In this work we propose the Transformer, a model architecture eschewing recurrence and instead relying entirely on an attention mechanism to draw global dependencies between input and output."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "Transformer 모델은 두 개의 기계 번역 과제에서 실험한 결과, 더 높은 품질을 제공하면서도 더 많은 병렬화를 가능하게 하고 훈련 시간도 현저히 줄어드는 것을 보여준다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "모델은 WMT 2014 영어-독일어 번역 작업에서 28.4 BLEU 점수를 달성하며, 기존의 최고 결과를 2 BLEU 이상 개선하였고, 영어-프랑스어 번역 작업에서는 41.8의 새로운 단일 모델 state-of-the-art BLEU 점수를 기록했다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles, by over 2 BLEU."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "Transformer 모델은 다른 작업에 대해서도 잘 일반화된다는 것을 보여주며, 특히 영어 구성 요소 구문 분석에 성공적으로 적용되었다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 4,
+    "total": 4
+  },
+  {
+    "paper": "attention",
+    "model": "gpt-5.4-mini-low",
+    "run": 1,
+    "seconds": 9.4,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 순환이나 합성곱을 전혀 쓰지 않고 오직 attention만으로 동작하는 새로운 시퀀스 변환 모델인 Transformer를 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "Transformer는 번역 태스크에서 더 높은 품질을 내면서도 병렬화가 잘 되어 학습 시간이 크게 줄어든다는 점을 보인다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train."
+          },
+          {
+            "page": 2,
+            "quote": "The Transformer allows for significantly more parallelization and can reach a new state of the art in translation quality after being trained for as little as twelve hours on eight P100 GPUs."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "실험 결과, WMT 2014 English-to-German 번역에서 Transformer (big)은 28.4 BLEU를 달성해 기존 최고 성능을 2 BLEU 이상 능가했다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-\nto-German translation task, improving over the existing best results, including\nensembles, by over 2 BLEU."
+          },
+          {
+            "page": 8,
+            "quote": "On the WMT 2014 English-to-German translation task, the big transformer model (Transformer (big)\nin Table 2) outperforms the best previously reported models (including ensembles) by more than 2.0\nBLEU, establishing a new state-of-the-art BLEU score of 28.4."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "WMT 2014 English-to-French 번역에서도 Transformer는 단일 모델 기준 새로운 최고 BLEU 41.8을 달성했으며, 파라미터와 학습 비용 측면에서도 효율적이다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after\ntraining for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature."
+          },
+          {
+            "page": 8,
+            "quote": "On the WMT 2014 English-to-French translation task, our big model achieves a BLEU score of 41.0,\noutperforming all of the previously published single models, at less than 1/4 the training cost of the\nprevious state-of-the-art model."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "저자들은 Transformer가 기계번역을 넘어 영어 구문 분석에도 잘 일반화되며, 제한된 데이터와 준지도 설정에서도 강한 성능을 보인다고 보고한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We show that the Transformer generalizes well to\nother tasks by applying it successfully to English constituency parsing both with\nlarge and limited training data."
+          },
+          {
+            "page": 10,
+            "quote": "Our results in Table 4 show that despite the lack of task-specific tuning our model performs sur-\nprisingly well, yielding better results than all previously reported models with the exception of the\nRecurrent Neural Network Grammar [8]."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 5,
+    "total": 5
+  },
+  {
+    "paper": "attention",
+    "model": "gpt-5.4-mini-low",
+    "run": 2,
+    "seconds": 8.0,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 순환이나 합성곱 없이 어텐션 메커니즘만으로 구성된 새로운 시퀀스 변환 모델 Transformer를 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions\nentirely."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "Transformer는 병렬화가 더 잘 되고 학습 시간이 크게 줄어들면서도, 기계번역에서 기존 최고 성능을 능가한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Experiments on two machine translation tasks show these models to\nbe superior in quality while being more parallelizable and requiring significantly\nless time to train."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "WMT 2014 영어-독일어 번역에서 big Transformer는 28.4 BLEU를 달성해 기존 최고 결과보다 2 BLEU 이상 향상되었다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Our model achieves 28.4 BLEU on the WMT 2014 English-\nto-German translation task, improving over the existing best results, including\nensembles, by over 2 BLEU."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "WMT 2014 영어-프랑스어 번역에서는 단일 모델 기준 41.8 BLEU를 달성해 새로운 최고 성능을 기록했고, 8 GPU에서 3.5일만에 학습되었다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "On the WMT 2014 English-to-French translation task,\nour model establishes a new single-model state-of-the-art BLEU score of 41.8 after\ntraining for 3.5 days on eight GPUs, a small fraction of the training costs of the\nbest models from the literature."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "이 모델은 영어 구문 분석에도 잘 일반화되며, 대규모와 제한된 학습 데이터 모두에서 성공적으로 적용되었다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We show that the Transformer generalizes well to\nother tasks by applying it successfully to English constituency parsing both with\nlarge and limited training data."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 5,
+    "total": 5
+  },
+  {
+    "paper": "lora",
+    "model": "gpt-4o-mini",
+    "run": 1,
+    "seconds": 27.5,
+    "error": null,
+    "claims": [
+      {
+        "text": "LoRA(저랭크 적응)은 대규모 사전 훈련된 언어 모델의 파라미터 수를 대폭 줄이면서도 유사한 또는 더 나은 품질의 성능을 달성할 수 있는 효율적인 방법을 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose Low-Rank Adaptation, or LoRA, which freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer architecture, greatly reducing the number of trainable parameters for downstream tasks."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "LoRA는 GPT-3 모델을 포함한 여러 사전 훈련된 모델에 대한 경량화된 적응법을 제공하여, 10,000배 더 적은 학습 가능한 파라미터와 3배 더 적은 GPU 메모리로 작업을 수행할 수 있음을 보여준다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Compared to GPT-3 175B fine-tuned with Adam, LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "이 연구는 모델이 다양한 다운스트림 작업에 적응하는데 있어 최적의 파라미터 수를 책정하는 방법을 논의하며, 이를 통해 효율적인 훈련과 저장 소요를 달성한다.",
+        "citations": [],
+        "verified": false
+      }
+    ],
+    "verified": 2,
+    "total": 3
+  },
+  {
+    "paper": "lora",
+    "model": "gpt-4o-mini",
+    "run": 2,
+    "seconds": 15.2,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 대규모 언어 모델의 파라미터 효율적인 적응 방법인 Low-Rank Adaptation(LoRA)를 제안하며, 이는 모든 모델 파라미터를 재학습하지 않고도 하위 작업을 위한 효과적인 적응을 가능하게 한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose Low-Rank Adaptation, or LoRA, which freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer architecture, greatly reducing the number of trainable parameters for downstream tasks."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "LoRA는 GPU 메모리 요구량을 3배 줄이고, 파라미터 수를 10,000배로 줄이며, 훈련 효율성을 높이면서도 모델 품질을 유지하는 등의 이점을 제공한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "LoRA의 성능은 RoBERTa, DeBERTa, GPT-2 및 GPT-3와 같은 여러 모델에서 전통적인 미세 조정 방식보다 우수하거나 동등하다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "LoRA performs on-par or better than fine-tuning in model quality on RoBERTa, DeBERTa, GPT-2, and GPT-3."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "LoRA는 가중치 매트릭스의 변경이 낮은 내재적 차원에서 이루어진다고 가정하며, 이를 통해 더 효율적인 적응을 가능하게 한다.",
+        "citations": [],
+        "verified": false
+      }
+    ],
+    "verified": 3,
+    "total": 4
+  },
+  {
+    "paper": "lora",
+    "model": "gpt-5.4-mini-low",
+    "run": 1,
+    "seconds": 9.2,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 거대한 사전학습 언어모델을 다운스트림 작업에 적응시키기 위해, 원래 가중치는 고정하고 각 층에 저랭크 업데이트 행렬만 학습하는 LoRA를 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose Low-Rank Adaptation, or LoRA, which freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer architecture, greatly reducing the number of trainable parameters for downstream tasks."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "LoRA는 GPT-3 175B 기준으로 학습 가능한 파라미터 수를 10,000배 줄이고 GPU 메모리 요구량도 3배 줄일 수 있으며, 품질은 미세조정과 대등하거나 더 좋다고 보고한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Compared to GPT-3 175B fine-tuned with Adam, LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times."
+          },
+          {
+            "page": 1,
+            "quote": "LoRA performs on-par or better than fine-tuning in model quality on RoBERTa, DeBERTa, GPT-2, and GPT-3, despite having fewer trainable parameters, a higher training throughput, and, unlike adapters, no additional inference latency."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "저자들은 다운스트림 적응에서 가중치 변화의 'intrinsic rank'가 매우 낮다고 가정하고, 실제로 GPT-3에서는 매우 작은 rank로도 충분함을 실험적으로 보인다.",
+        "citations": [
+          {
+            "page": 2,
+            "quote": "We hypothesize that the change in weights during model adaptation also has a low “intrinsic rank”, leading to our proposed Low-Rank Adaptation (LoRA) approach."
+          },
+          {
+            "page": 2,
+            "quote": "Using GPT-3 175B as an example, we show that a very low rank (i.e., r in Figure 1 can be one or two) suffices even when the full rank (i.e., d) is as high as 12,288, making LoRA both storage- and compute-efficient."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "실험 결과 LoRA는 RoBERTa, DeBERTa, GPT-2, GPT-3 전반에서 강력한 성능을 보였고, 특히 어댑터나 프롬프트 기반 방법보다 더 나은 확장성과 작업 성능을 보였다.",
+        "citations": [
+          {
+            "page": 6,
+            "quote": "LoRA adds trainable pairs of rank decomposition matrices in parallel to existing weight matrices."
+          },
+          {
+            "page": 8,
+            "quote": "As shown in Table 4, LoRA matches or exceeds the fine-tuning baseline on all three datasets."
+          },
+          {
+            "page": 8,
+            "quote": "LoRA exhibits better scalability and task performance."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 4,
+    "total": 4
+  },
+  {
+    "paper": "lora",
+    "model": "gpt-5.4-mini-low",
+    "run": 2,
+    "seconds": 9.7,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 거대 언어모델을 전체 미세조정하는 대신, 사전학습 가중치는 고정하고 각 층에 저랭크 행렬을 주입해 적은 수의 파라미터만 학습하는 LoRA를 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose Low-Rank Adaptation, or LoRA, which freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer architecture, greatly reducing the number of trainable parameters for downstream tasks."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "LoRA는 학습 가능한 파라미터 수를 최대 10,000배 줄이고 GPU 메모리 요구량도 3배 감소시키면서, RoBERTa, DeBERTa, GPT-2, GPT-3에서 전체 미세조정과 동등하거나 더 나은 품질을 달성한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "Compared to GPT-3 175B ﬁne-tuned with Adam, LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times."
+          },
+          {
+            "page": 1,
+            "quote": "LoRA performs on-par or better than ﬁne-tuning in model quality on RoBERTa, DeBERTa, GPT-2, and GPT-3, despite having fewer trainable parameters, a higher training throughput, and, unlike adapters, no additional inference latency."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "저자들은 적응 과정에서의 가중치 변화가 본질적으로 저랭크 구조를 가진다는 가설을 세우고, 이를 통해 매우 작은 rank r만으로도 충분한 경우가 많음을 보인다.",
+        "citations": [
+          {
+            "page": 2,
+            "quote": "We hypothesize that the change in weights during model adaptation also has a low “intrinsic rank”, leading to our proposed Low-Rank Adaptation (LoRA) approach."
+          }
+        ],
+        "verified": false
+      },
+      {
+        "text": "실험적으로는 LoRA가 어댑터나 프롬프트 기반 방법보다 더 나은 확장성과 성능을 보이며, 특히 GPT-3 175B에서는 WikiSQL, MultiNLI, SAMSum에서 기존 방법과 전체 미세조정을 능가하거나 최소한 동등한 결과를 낸다.",
+        "citations": [
+          {
+            "page": 8,
+            "quote": "As shown in Table 4, LoRA matches or exceeds the ﬁne-tuning baseline on all three datasets."
+          },
+          {
+            "page": 8,
+            "quote": "LoRA exhibits better scalability and task performance."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 3,
+    "total": 4
+  },
+  {
+    "paper": "avq_attention",
+    "model": "gpt-4o-mini",
+    "run": 1,
+    "seconds": 14.9,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문에서는 Adaptive Vector-Quantized (AVQ) Attention을 제안하여 고정 코드북 VQ-attention의 한계를 극복하고, 즉각적인 중요도에 기반하여 코드북 용량을 적응적으로 할당함으로써 성능을 향상시킨다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose Adaptive Vector-Quantized (AVQ) Attention, which adaptively allocates codebook capacity based on attention importance."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "AVQ Attention은 긴 시퀀스를 처리할 때 계산 복잡도를 O(N^2)에서 O(MN)으로 줄이는데 기여하며, 코드북을 부모와 자식 구조로 계층화하여 중요한 특성에 더 많은 자원을 할당한다.",
+        "citations": [],
+        "verified": false
+      },
+      {
+        "text": "논문의 실험 결과 AVQ-attention이 ImageNet-1k 및 ADE20K 데이터셋에서 기존의 고정 코드북 VQ-attention보다 더 우수한 정확도-효율성 균형을 보여줌을 검증하였다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "We demonstrate improved accuracy-efficiency trade-offs over fixed-codebook VQ-attention."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "본 연구는 Flash Attention의 타일 방식에 AVQ Attention을 성공적으로 통합하여 수행하며, 코드북의 적응적 할당을 통해 메모리 요구 사항을 최소화했다.",
+        "citations": [],
+        "verified": false
+      },
+      {
+        "text": "AVQ Attention은 사전 훈련된 변환기 모델에 후속적으로 적용할 수 있으며, 소수의 에포크 내에서 미세 조정이 가능하다.",
+        "citations": [],
+        "verified": false
+      }
+    ],
+    "verified": 2,
+    "total": 5
+  },
+  {
+    "paper": "avq_attention",
+    "model": "gpt-4o-mini",
+    "run": 2,
+    "seconds": 9.6,
+    "error": null,
+    "claims": [
+      {
+        "text": "AVQ-Attention은 attention의 O(N²) 복잡도를 O(MN)으로 줄이기 위한 Adaptive Vector-Quantized Attention 메커니즘을 제안합니다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "We propose Adaptive Vector-Quantized (AVQ) Attention, which adaptively allocates codebook capacity based on attention importance."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "이 방법은 코드북 크기를 조정하고 attention mass에 기반하여 중요한 코드워드에 더 많은 자원을 할당함으로써, 정밀한 양자화를 수행할 수 있습니다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "The top-P most important parents are then refined with their pre-learned child codewords, creating finer quantization in high-attention regions..."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "실험 결과, AVQ-Attention은 이미지 분류, 의미적 분할 및 고해상도 이미지 생성에서 기존 VQ-attention 보다 우수한 정확도-효율성 균형을 달성했습니다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "We demonstrate improved accuracy-efficiency trade-offs over fixed-codebook VQ-attention ..."
+          }
+        ],
+        "verified": true
+      }
+    ],
+    "verified": 3,
+    "total": 3
+  },
+  {
+    "paper": "avq_attention",
+    "model": "gpt-5.4-mini-low",
+    "run": 1,
+    "seconds": 9.8,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 긴 시퀀스에서 self-attention의 O(N^2) 계산 병목을 줄이기 위해, 키를 코드워드로 양자화하는 VQ-attention을 한 단계 확장한 Adaptive Vector-Quantized(AVQ) Attention을 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "The O(N 2) complexity of attention over N tokens remains a computational bottleneck in transformer models."
+          },
+          {
+            "page": 1,
+            "quote": "Vector-Quantized (VQ) attention reduces this to O(MN) by representing keys with M codewords, but applies uniform codebook capacity regardless of where attention mass concentrates:"
+          },
+          {
+            "page": 1,
+            "quote": "We propose Adaptive Vector-Quantized (AVQ) Attention, which adaptively allocates codebook capacity based on attention importance."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "AVQ는 먼저 부모 코드워드로 거친 양자화를 수행한 뒤, 각 query tile에서 attention mass가 큰 상위 부모만 선택해 미리 학습된 자식 코드워드로 세밀하게 재분해하여, 중요한 key-space 영역에 더 높은 해상도를 배분한다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "Concretely, we start from a set of parent codewords and compute VQ-Attention while extracting per-codeword importance scores."
+          },
+          {
+            "page": 3,
+            "quote": "The top-P most important parents are then refined with their pre-learned child codewords, creating finer quantization in high-attention regions of key space while leaving low-attention regions at the coarser parent level."
+          },
+          {
+            "page": 3,
+            "quote": "This refinement adapts dynamically to each input, concentrating codebook capacity based on where that specific input’s attention mass falls (see Fig. 1)."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "이 방법은 FlashAttention의 타일 기반 온라인 softmax 구조와 결합되도록 설계되었으며, 부모-자식 제약 Cp = (1/C)∑c Cp,c를 이용해 부모 로그잇을 자식 로그잇의 평균으로 복원함으로써 추가적인 재계산 없이 보정된 attention을 수행한다.",
+        "citations": [
+          {
+            "page": 11,
+            "quote": "Since children are stored contiguously in the codebook, the sum in Eq. (8) reduces over adjacent entries in a register tile and adds negligible cost."
+          }
+        ],
+        "verified": false
+      },
+      {
+        "text": "실험적으로 AVQ는 ImageNet-1k 분류, ADE20K 분할, Stable Diffusion 기반 고해상도 생성에서 고정 코드북 VQ-attention보다 더 나은 정확도-효율 절충을 보였고, P를 조절해 추론 시 속도와 성능을 유연하게 바꿀 수 있음을 보였다.",
+        "citations": [
+          {
+            "page": 13,
+            "quote": "Since P can be changed at inference time without retraining, a single model can trade speed for accuracy."
+          },
+          {
+            "page": 15,
+            "quote": "AVQ (ours)\nM32P8C8\n12.50\n0.319\n39.09\n35.39\n0.297\n133.48"
+          }
+        ],
+        "verified": false
+      }
+    ],
+    "verified": 2,
+    "total": 4
+  },
+  {
+    "paper": "avq_attention",
+    "model": "gpt-5.4-mini-low",
+    "run": 2,
+    "seconds": 8.4,
+    "error": null,
+    "claims": [
+      {
+        "text": "이 논문은 트랜스포머의 attention이 가진 O(N^2) 계산 비용을 완화하기 위해, key를 코드워드로 양자화하는 VQ-attention을 확장한 Adaptive Vector-Quantized (AVQ) Attention을 제안한다.",
+        "citations": [
+          {
+            "page": 1,
+            "quote": "The O(N 2) complexity of attention over N tokens remains a computational bottleneck in transformer models."
+          },
+          {
+            "page": 1,
+            "quote": "We propose Adaptive Vector-Quantized (AVQ) Attention, which adaptively allocates codebook capacity based on attention importance."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "AVQ는 먼저 작은 parent codeword 집합으로 attention을 계산한 뒤, attention mass가 큰 parent만 top-P로 선택해 미리 학습된 child codeword로 세분화함으로써 중요한 영역에 더 정밀한 양자화를 적용한다.",
+        "citations": [
+          {
+            "page": 3,
+            "quote": "Concretely, we start from a set of parent codewords and compute VQ-Attention while extracting per-codeword importance scores."
+          },
+          {
+            "page": 3,
+            "quote": "The top-P most important parents are then refined with their pre-learned child codewords, creating finer quantization in high-attention regions of key space while leaving low-attention regions at the coarser parent level."
+          }
+        ],
+        "verified": true
+      },
+      {
+        "text": "저자들은 Flash Attention의 tiled computation에 맞춘 Triton 커널을 구현해, 중요도 산출·child 삽입·parent 기여 보정을 한 번의 효율적인 forward pass 안에서 처리하도록 만들었고, 이로써 AVQ가 표준 VQ-attention과 같은 O(MN) 복잡도를 유지한다고 주장한다.",
+        "citations": [],
+        "verified": false
+      },
+      {
+        "text": "실험에서는 ImageNet-1k, ADE20K, Stable Diffusion에서 pretrained transformer의 attention을 AVQ로 치환해 미세조정했으며, 고정 코드북 VQ-attention보다 더 나은 accuracy-efficiency trade-off를 보였고 여러 efficient-attention 방법과도 경쟁력을 보였다.",
+        "citations": [],
+        "verified": false
+      }
+    ],
+    "verified": 2,
+    "total": 4
+  }
+]
