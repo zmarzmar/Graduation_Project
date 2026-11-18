@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { FormulaBlock } from '@/components/ui/formula-block'
 import { Input } from '@/components/ui/input'
 import { MathText } from '@/components/ui/math-text'
-import { askPaper, QA_QUESTION_MAX_LENGTH, QA_QUESTION_MIN_LENGTH } from '@/lib/api'
+import { askPaper, getQaMessages, QA_HISTORY_TURNS, QA_QUESTION_MAX_LENGTH, QA_QUESTION_MIN_LENGTH } from '@/lib/api'
 import type { QaAnswer, QaHistoryTurn } from '@/lib/api'
 import type { KeyFormula, QaUnavailableReason } from '@/lib/types/agent-run'
 import { useAuthStore } from '@/store/auth-store'
@@ -191,12 +191,39 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
   const [blocked, setBlocked] = useState<'no_document' | 'not_found' | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   const nextIdRef = useRef(1)
+  // 저장된 Q&A 불러오기 — 끝나기 전에는 질문을 막는다 (불러온 기록이 이어서 이해하기 문맥에 들어가야 하고, 늦게 온 기록이
+  // 새 질문을 덮지 않게). 실패하면 질문은 열어 두고 안내만 한다
+  const [loadState, setLoadState] = useState<'loading' | 'ok' | 'error'>('loading')
 
   // 화면 이탈·분석 변경·로그아웃(언마운트) 시 요청과 대기 타이머를 취소한다
   useEffect(() => () => controllerRef.current?.abort(), [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    getQaMessages(analysisId, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return
+        if (result.status === 'unauthorized') {
+          logout()
+          return
+        }
+        if (result.status === 'not_found') {
+          setBlocked('not_found')
+          return
+        }
+        // 저장된 행은 음수 id — 이 화면에서 새로 묻는 항목(양수)과 key가 겹치지 않게
+        setEntries(result.messages.map((m) => ({ id: -m.id, question: m.question, status: 'done', result: m.response })))
+        setLoadState('ok')
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLoadState('error')
+      })
+    return () => controller.abort()
+  }, [analysisId, logout])
+
   const question = input.trim()
-  const canAsk = !busy && question.length >= QA_QUESTION_MIN_LENGTH && question.length <= QA_QUESTION_MAX_LENGTH
+  const canAsk =
+    !busy && loadState !== 'loading' && question.length >= QA_QUESTION_MIN_LENGTH && question.length <= QA_QUESTION_MAX_LENGTH
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -208,10 +235,10 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
     const update = (patch: Partial<QaEntry>) =>
       setEntries((prev) => prev.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)))
 
-    // 직전 대화(답을 받은 것만, 최대 2개)를 함께 보낸다 — "수식 알려줘" 같은 후속 질문이 같은 주제를 찾게 한다
+    // 직전 대화(답을 받은 것만, 불러온 기록 포함, 최대 6개)를 함께 보낸다 — "수식 알려줘" 같은 후속 질문이 같은 주제를 찾게 한다
     const history: QaHistoryTurn[] = entries
       .filter((entry) => entry.status === 'done' && entry.result)
-      .slice(-2)
+      .slice(-QA_HISTORY_TURNS)
       // BE도 자르지만 보낼 때부터 맞춘다 (BE HistoryTurn: 질문 500자, 답변 2,000자)
       .map((entry) => ({
         question: entry.question.slice(0, QA_QUESTION_MAX_LENGTH),
@@ -268,10 +295,21 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
   return (
     <div className="space-y-4">
       <p className="text-xs text-gray-500">
-        직전 질문 두 개까지 이어서 이해해요 (예: &ldquo;수식 알려줘&rdquo;). 수식을 물으면 분석 결과의 핵심 수식도 함께 보여 줘요.
+        질문과 답은 이 분석 기록에 저장돼 마이페이지에서 다시 볼 수 있고, 기록을 삭제하면 함께 지워져요. 직전 질문 여섯 개까지 이어서
+        이해해요 (예: &ldquo;수식 알려줘&rdquo;). 수식을 물으면 분석 결과의 핵심 수식도 함께 보여 줘요.
         답변은 논문에서 인용 구절을 확인한 문장만 보여 줍니다 — 구절이 그 문장을 뒷받침하는지는 문장 옆의 출처를 펼쳐 직접 확인해 주세요.
         논문에서 근거를 찾지 못하면 웹 검색 설명을 따로 구분해 보여 줘요.
       </p>
+
+      {loadState === 'loading' && (
+        <p className="flex items-center gap-2 text-xs text-gray-500">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          이전 질문을 불러오는 중이에요...
+        </p>
+      )}
+      {loadState === 'error' && (
+        <p className="text-xs text-yellow-700">이전 질문을 불러오지 못했어요. 새 질문은 할 수 있지만, 이전 대화는 이어서 이해하지 못해요.</p>
+      )}
 
       {entries.length > 0 && (
         <ul className="space-y-4" aria-live="polite">
@@ -289,6 +327,9 @@ function QaThread({ analysisId, noDocumentMessage }: { analysisId: number; noDoc
               {entry.status === 'done' && entry.result && <AnswerView result={entry.result} />}
               {entry.status === 'done' && entry.result?.related_formulas && entry.result.related_formulas.length > 0 && (
                 <RelatedFormulas formulas={entry.result.related_formulas} />
+              )}
+              {entry.status === 'done' && entry.result?.saved === false && (
+                <p className="text-xs text-yellow-700">이 답변은 저장되지 않았어요 — 이 화면을 떠나면 다시 볼 수 없어요.</p>
               )}
               {entry.status === 'error' && <p className="text-sm text-red-600">{entry.error}</p>}
             </li>
