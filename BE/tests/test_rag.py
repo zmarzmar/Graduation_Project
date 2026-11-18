@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, patch
 import chromadb
 import httpx
 import uvicorn
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -859,6 +859,18 @@ class AskApiTest(_DbCase):
             await db.commit()
         self.assertEqual((await self._stored(first), await self._stored(second)), (0, 0))
 
+    async def _wait_for_lock_wait(self) -> None:
+        """다른 연결이 행 잠금을 기다리는 상태가 될 때까지 기다린다 — 고정 지연은 느린 CI에서 순서를 보장하지 못한다 (Codex 리뷰)."""
+        for _ in range(100):
+            async with self.sessions() as db:
+                waiting = await db.scalar(text(
+                    "select count(*) from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'"
+                ))
+            if waiting:
+                return
+            await asyncio.sleep(0.05)
+        self.fail("다른 연결이 잠금을 기다리는 상태가 되지 않았다")
+
     async def test_record_deleted_while_answering_is_not_saved(self):
         # 답을 기다리는 동안 다른 탭에서 분석을 지우면, 삭제 커밋 뒤에 Q&A가 저장돼 되살아나면 안 된다
         analysis_id, _ = await self._analyzed_document()
@@ -887,8 +899,8 @@ class AskApiTest(_DbCase):
         async with self.sessions() as saving:
             self.assertTrue(await save_for_active_analysis(saving, analysis_id, self.user_id, "q", {"answerable": True}))
             deleting = asyncio.create_task(self._delete_record(analysis_id))
-            await asyncio.sleep(0.5)
-            self.assertFalse(deleting.done())  # 저장 트랜잭션이 끝날 때까지 기다린다
+            await self._wait_for_lock_wait()  # 삭제가 저장의 행 잠금을 실제로 기다리는 중
+            self.assertFalse(deleting.done())
             await saving.commit()
         await deleting
         self.assertEqual(await self._stored(analysis_id), 0)
@@ -905,7 +917,7 @@ class AskApiTest(_DbCase):
                     await db.commit()
 
             deleting = asyncio.create_task(delete_all())
-            await asyncio.sleep(0.5)  # 전체 삭제의 UPDATE가 old 행 잠금을 기다리는 중
+            await self._wait_for_lock_wait()  # 전체 삭제의 UPDATE가 old 행 잠금을 기다리는 중
             new_id, _ = await self._analyzed_document(pages=["We evaluate on GLUE with RoBERTa in a new paper."])
             async with self.sessions() as db:
                 await save_for_active_analysis(db, new_id, self.user_id, "new q", {"answerable": True})
