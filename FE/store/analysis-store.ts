@@ -77,7 +77,7 @@ interface AnalysisStore {
   resetStream: (mode: StreamMode) => void
 }
 
-/** 검색창 기본값·초기화 값 — 처음 온 사람이 바로 누르면 트랜스포머 원 논문으로 간다 (2026-11-18 전시, 제목 검색 3회 모두 1위·arXiv 전문) */
+/** 검색창 기본값·초기화 값 — 그대로 검색하면 트랜스포머 원 논문이 결과에 나온다 (2026-11-18 전시, 제목 검색 3회 모두 1위·arXiv 전문) */
 export const DEFAULT_SEARCH_QUERY = 'Attention Is All You Need'
 
 export const useAnalysisStore = create<AnalysisStore>((set) => ({

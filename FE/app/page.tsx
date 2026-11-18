@@ -245,7 +245,7 @@ export default function HomePage() {
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         {mode === 'search' && (
           <div className="space-y-2">
-            <p className="text-xs text-gray-500">처음이신가요? 트랜스포머를 제안한 논문으로 시작해 보세요 — {DEFAULT_SEARCH_QUERY}</p>
+            <p className="text-xs text-gray-500">처음이신가요? 트랜스포머를 제안한 논문으로 시작해 보세요.</p>
             <Input
               placeholder="키워드를 입력하세요"
               value={query}
