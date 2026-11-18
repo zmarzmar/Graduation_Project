@@ -114,6 +114,10 @@ function AnswerView({ result }: { result: QaAnswer }) {
   const toggle = (key: string) => setOpenCitation(openCitation === key ? null : key)
 
   if (!result.answerable) {
+    // 수식 질문이라 분석 결과의 핵심 수식이 함께 오면, '근거 없음'을 크게 띄우지 않고 수식으로 안내한다
+    if (result.related_formulas && result.related_formulas.length > 0) {
+      return <p className="text-xs text-gray-500">논문 원문에서 인용으로 확인한 문장 답변은 없어요. 아래 분석 결과의 핵심 수식을 참고해 주세요.</p>
+    }
     // 근거 부족은 오류가 아니라 정상 결과다
     return (
       <Notice>
@@ -135,29 +139,32 @@ function AnswerView({ result }: { result: QaAnswer }) {
   if (result.claims && result.claims.length > 0) {
     return (
       <div className="space-y-2">
-        <ul className="space-y-2">
+        {/* 한 문단으로 이어 읽히게 — 문장마다 끝에 그 문장의 출처 칩을 붙인다 */}
+        <p className="text-sm leading-7 text-gray-800">
           {result.claims.map((claim, claimIndex) => (
-            <li key={claimIndex} className="space-y-1.5">
-              <p className="text-sm leading-relaxed text-gray-800">
-                <span className="whitespace-pre-wrap">{claim.text}</span>{' '}
-                <span className="inline-flex flex-wrap items-center gap-1 align-middle">
-                  {claim.citations.map((citation, index) => (
-                    <CitationChip
-                      key={index}
-                      page={citation.page}
-                      open={openCitation === `${claimIndex}:${index}`}
-                      onToggle={() => toggle(`${claimIndex}:${index}`)}
-                    />
-                  ))}
+            <span key={claimIndex}>
+              {/* 답변 안의 인라인 수식(\(...\), $...$)을 KaTeX로 그린다 — 출처 검증은 문장 단위 그대로 */}
+              <MathText text={claim.text} className="whitespace-pre-wrap" />{' '}
+              {claim.citations.map((citation, index) => (
+                <span key={index} className="mr-1 inline-block align-middle">
+                  <CitationChip
+                    page={citation.page}
+                    open={openCitation === `${claimIndex}:${index}`}
+                    onToggle={() => toggle(`${claimIndex}:${index}`)}
+                  />
                 </span>
-              </p>
-              {claim.citations.map(
-                (citation, index) =>
-                  openCitation === `${claimIndex}:${index}` && <CitationQuote key={index} citation={citation} />,
-              )}
-            </li>
+              ))}{' '}
+            </span>
           ))}
-        </ul>
+        </p>
+        {result.claims.map((claim, claimIndex) =>
+          claim.citations.map(
+            (citation, index) =>
+              openCitation === `${claimIndex}:${index}` && (
+                <CitationQuote key={`${claimIndex}:${index}`} citation={citation} />
+              ),
+          ),
+        )}
         {droppedNotice}
       </div>
     )

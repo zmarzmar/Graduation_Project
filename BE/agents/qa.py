@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from agents.token_budget import ensure_request_fits
 from core.config import settings
 
-QA_OUTPUT_BUDGET = 2_000
+QA_OUTPUT_BUDGET = 4_000  # 추론 토큰도 출력 예산에서 쓴다 (gpt-5.4-mini)
 NO_EVIDENCE_MESSAGE = "논문에서 이 질문에 답할 근거를 확인하지 못했습니다."
 # 너무 짧은 인용문은 어느 구절에나 들어 있어서 근거가 되지 못한다
 _MIN_QUOTE_CHARS = 12
@@ -24,6 +24,8 @@ _SYSTEM_PROMPT = """당신은 논문 한 편에 대한 질문에 답하는 조�
 규칙:
 - 자료에 근거가 있을 때만 답하세요. 자료로 답할 수 없으면 answerable=false로 하고 claims는 비워 두세요.
 - 자료에 없는 내용을 당신의 지식으로 보충하지 마세요.
+- 한 줄로 끝내지 말고 질문에 충분히 답하세요. 관련 구절이 말하는 내용(무엇인지, 어떻게 동작하는지, 왜 그런지)을 빠짐없이 다루면 보통 claim 3~6개가 됩니다.
+- 자세함은 claim 하나를 길게 늘이는 대신 근거 있는 claim을 더 쓰는 것으로 만드세요. claim 하나에는 자기 quote가 말하는 내용만 담고, quote에 없는 설명·평가·일반 상식을 덧붙이지 마세요.
 - 답을 claim 여러 개로 나누어 쓰세요. claim 하나는 앞뒤 claim 없이도 뜻이 통하는 한 문장입니다 ("그러나", "또한", "이것은"으로 시작하지 마세요).
 - claim마다 그 문장의 근거가 된 citation을 하나 이상 다세요: passage 번호와, 그 passage에서 '한 글자도 바꾸지 않고 그대로 복사한' 한두 문장(quote). 대소문자도 바꾸지 마세요.
 - citation이 검증되지 않은 claim은 답변에서 빠집니다. 근거를 댈 수 없는 문장은 쓰지 마세요.
@@ -58,7 +60,7 @@ _llm = ChatOpenAI(
     timeout=settings.llm_timeout_short_seconds,
     max_retries=settings.llm_max_retries,
     max_tokens=QA_OUTPUT_BUDGET,
-    temperature=0,
+    reasoning_effort=settings.qa_reasoning_effort,  # 추론 모델은 temperature를 받지 않는다
 ).with_structured_output(QaDraft)
 
 
