@@ -145,7 +145,7 @@ def _history_block(history: list[dict]) -> str:
 
 async def answer_question(question: str, passages: list[_Passage], history: list[dict] | None = None) -> dict:
     """검색된 구절로 질문에 답한다. 출처가 모두 검증된 문장만 답변에 남긴다.
-    history(이전 대화, 최대 2개)는 질문이 무엇을 가리키는지 이해하는 데만 쓴다 — 인용은 passage에서만 검증한다."""
+    history(이전 대화, 최대 6개)는 질문이 무엇을 가리키는지 이해하는 데만 쓴다 — 인용은 passage에서만 검증한다."""
     if not passages:
         return no_evidence()
 

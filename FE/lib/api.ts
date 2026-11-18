@@ -318,6 +318,8 @@ export interface QaAnswer {
   related_formulas?: KeyFormula[]
   /** 논문에서 근거를 찾지 못했을 때만 오는 웹 검색 일반 설명 — 서버가 내용을 확인하지 않았다. 이전 BE 응답에는 없다 */
   web_answer?: QaWebAnswer | null
+  /** 이 질문과 답을 분석 기록에 저장했는지 — false면 마이페이지에서 다시 볼 수 없다. 이전 BE 응답·저장된 기록에는 없다 */
+  saved?: boolean
 }
 
 export interface QaWebAnswer {
@@ -325,7 +327,10 @@ export interface QaWebAnswer {
   sources: { title: string; url: string }[]
 }
 
-/** 직전 대화 — 후속 질문("수식 알려줘")이 무엇을 가리키는지 서버가 알게 한다 (최대 2개, 서버에 저장하지 않는다) */
+/** 질문마다 함께 보내는 직전 대화 수 (BE routers/qa.py의 HISTORY_TURNS와 같다) — 저장된 기록 수와는 별개다 */
+export const QA_HISTORY_TURNS = 6
+
+/** 직전 대화 — 후속 질문("수식 알려줘")이 무엇을 가리키는지 서버가 알게 한다 (최대 QA_HISTORY_TURNS개) */
 export interface QaHistoryTurn {
   question: string
   answer: string
@@ -338,7 +343,7 @@ export type AskPaperResult =
   | { status: 'unauthorized' } // 401
   | { status: 'not_found' } // 404 — 삭제됐거나 본인 기록이 아니다
 
-/** 분석한 논문 한 편에 질문한다. history(직전 대화 최대 2개)는 질문이 무엇을 가리키는지 알리는 데만 쓰인다 */
+/** 분석한 논문 한 편에 질문한다. history(직전 대화 최대 6개)는 질문이 무엇을 가리키는지 알리는 데만 쓰인다 */
 export async function askPaper(
   analysisId: number,
   question: string,
@@ -348,7 +353,7 @@ export async function askPaper(
   const res = await authFetch(`${API_BASE}/analyses/${analysisId}/ask`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, history: history.slice(-2) }),
+    body: JSON.stringify({ question, history: history.slice(-QA_HISTORY_TURNS) }),
     signal,
   })
   if (res.status === 401) return { status: 'unauthorized' }
@@ -366,6 +371,28 @@ export async function askPaper(
     throw new Error(typeof data.detail === 'string' ? data.detail : '질문을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.')
   }
   return { status: 'answered', data: data as QaAnswer }
+}
+
+/** 저장된 Q&A 한 건 (BE QaMessageOut) */
+export interface QaMessage {
+  id: number
+  question: string
+  response: QaAnswer
+  created_at: string
+}
+
+export type QaMessagesResult =
+  | { status: 'ok'; messages: QaMessage[] }
+  | { status: 'unauthorized' } // 401
+  | { status: 'not_found' } // 404 — 삭제됐거나 본인 기록이 아니다
+
+/** 그 분석의 저장된 Q&A (최근 50개, 오래된 순) */
+export async function getQaMessages(analysisId: number, signal?: AbortSignal): Promise<QaMessagesResult> {
+  const res = await authFetch(`${API_BASE}/analyses/${analysisId}/qa`, { signal })
+  if (res.status === 401) return { status: 'unauthorized' }
+  if (res.status === 404) return { status: 'not_found' }
+  if (!res.ok) throw new Error('이전 질문을 불러오지 못했습니다.')
+  return { status: 'ok', messages: await res.json() }
 }
 
 /** 검색 기록 개별 삭제 */

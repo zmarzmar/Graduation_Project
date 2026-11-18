@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, patch
 import chromadb
 import httpx
 import uvicorn
-from sqlalchemy import delete, func, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -30,10 +30,13 @@ from agents import qa
 from agents.qa import Citation, Claim, QaDraft, answer_question, validate_citations
 from agents.token_budget import count_tokens
 from core.config import settings
+import routers.qa as qa_router
 from core.dependencies import get_current_user, get_db, require_ai_enabled
 from crud import analysis as crud_analysis
 from crud.paper_document import claim_index_job, finish_index_job, get_document_for_analysis, get_or_create_document
 from models.analysis import AnalysisResult
+from models.qa_message import QaMessage
+from crud.qa_message import save_for_active_analysis
 from models.paper_document import PaperDocument
 from models.user import User
 from services import rag_service
@@ -800,6 +803,137 @@ class AskApiTest(_DbCase):
     async def test_question_length_is_limited(self):
         analysis_id, _ = await self._analyzed_document()
         self.assertEqual((await self._ask(analysis_id, "x" * 501)).status_code, 422)
+
+    # ── Q&A 기록 저장 (2026-11-18) ──────────────────────────────────────
+
+    async def _stored(self, analysis_id: int) -> int:
+        async with self.sessions() as db:
+            return await db.scalar(select(func.count()).select_from(QaMessage).where(QaMessage.analysis_id == analysis_id))
+
+    async def test_answered_question_is_saved_and_listed(self):
+        analysis_id, _ = await self._analyzed_document()
+        response = await self._ask(analysis_id)
+        self.assertTrue(response.json()["saved"])
+        listed = (await self.client.get(f"/api/v1/analyses/{analysis_id}/qa")).json()
+        self.assertEqual([m["question"] for m in listed], ["glue roberta accuracy benchmark"])
+        self.assertNotIn("saved", listed[0]["response"])
+        self.assertEqual(listed[0]["response"]["claims"], response.json()["claims"])  # 화면이 같은 모양으로 다시 그린다
+
+    async def test_unanswered_requests_are_not_saved(self):
+        analysis_id, doc_id = await self._analyzed_document()
+        self.assertEqual((await self._ask(analysis_id, "x" * 501)).status_code, 422)
+        async with self.sessions() as db:
+            await claim_index_job(db, doc_id, stale_after_seconds=90)
+            await db.commit()
+        self.assertEqual((await self._ask(analysis_id)).status_code, 202)
+        self.assertEqual(await self._stored(analysis_id), 0)
+
+    async def test_save_failure_still_answers_and_says_so(self):
+        analysis_id, _ = await self._analyzed_document()
+        with patch.object(qa_router.crud_qa_message, "save_for_active_analysis", side_effect=RuntimeError("db down")):
+            response = await self._ask(analysis_id)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["answerable"])
+        self.assertFalse(response.json()["saved"])
+        self.assertEqual(await self._stored(analysis_id), 0)
+
+    async def test_history_list_is_owner_only_and_hidden_after_delete(self):
+        analysis_id, _ = await self._analyzed_document()
+        await self._ask(analysis_id)
+        other_user = await self._new_user()
+        self.user_ids.append(other_user)
+        self.current_user = other_user
+        self.assertEqual((await self.client.get(f"/api/v1/analyses/{analysis_id}/qa")).status_code, 404)
+        self.current_user = self.user_id
+        await self._delete_record(analysis_id)
+        self.assertEqual((await self.client.get(f"/api/v1/analyses/{analysis_id}/qa")).status_code, 404)
+        self.assertEqual(await self._stored(analysis_id), 0)  # 삭제하면 행도 지운다
+
+    async def test_delete_all_removes_every_saved_question(self):
+        first, _ = await self._analyzed_document()
+        second, _ = await self._analyzed_document(pages=["We evaluate on GLUE with RoBERTa again in another paper."])
+        await self._ask(first)
+        await self._ask(second)
+        async with self.sessions() as db:
+            await crud_analysis.delete_all_analysis_results(db, self.user_id)
+            await db.commit()
+        self.assertEqual((await self._stored(first), await self._stored(second)), (0, 0))
+
+    async def _wait_for_lock_wait(self) -> None:
+        """다른 연결이 행 잠금을 기다리는 상태가 될 때까지 기다린다 — 고정 지연은 느린 CI에서 순서를 보장하지 못한다 (Codex 리뷰)."""
+        for _ in range(100):
+            async with self.sessions() as db:
+                waiting = await db.scalar(text(
+                    "select count(*) from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'"
+                ))
+            if waiting:
+                return
+            await asyncio.sleep(0.05)
+        self.fail("다른 연결이 잠금을 기다리는 상태가 되지 않았다")
+
+    async def test_record_deleted_while_answering_is_not_saved(self):
+        # 답을 기다리는 동안 다른 탭에서 분석을 지우면, 삭제 커밋 뒤에 Q&A가 저장돼 되살아나면 안 된다
+        analysis_id, _ = await self._analyzed_document()
+        started, release = asyncio.Event(), asyncio.Event()
+
+        class _SlowLLM:
+            async def ainvoke(self, messages):
+                started.set()
+                await release.wait()
+                return QaDraft(answerable=True, claims=[Claim(
+                    text="GLUE로 평가했다.", citations=[Citation(passage=1, quote="We evaluate on GLUE with RoBERTa")])])
+
+        with patch.object(qa, "_llm", _SlowLLM()):
+            asking = asyncio.create_task(self._ask(analysis_id))
+            await started.wait()
+            await self._delete_record(analysis_id)  # 다른 세션에서 커밋
+            release.set()
+            response = await asking
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(await self._stored(analysis_id), 0)
+
+    async def test_delete_waits_for_a_save_in_progress(self):
+        # Codex 리뷰: 저장이 분석 행을 확인한 직후 삭제가 시작되는 순서. FOR UPDATE가 없으면 삭제가 기다리지 않고
+        # 아직 커밋되지 않은 Q&A를 못 본 채 끝나, 저장이 커밋되면 삭제된 분석 아래 Q&A가 남는다
+        analysis_id, _ = await self._analyzed_document()
+        async with self.sessions() as saving:
+            self.assertTrue(await save_for_active_analysis(saving, analysis_id, self.user_id, "q", {"answerable": True}))
+            deleting = asyncio.create_task(self._delete_record(analysis_id))
+            await self._wait_for_lock_wait()  # 삭제가 저장의 행 잠금을 실제로 기다리는 중
+            self.assertFalse(deleting.done())
+            await saving.commit()
+        await deleting
+        self.assertEqual(await self._stored(analysis_id), 0)
+
+    async def test_delete_all_keeps_questions_of_a_record_created_meanwhile(self):
+        # Codex 리뷰: 전체 삭제가 잠금을 기다리는 사이 다른 탭이 새 분석과 Q&A를 만들면, 그 Q&A는 남아야 한다
+        old_id, _ = await self._analyzed_document()
+        async with self.sessions() as holder:
+            await holder.execute(select(AnalysisResult.id).where(AnalysisResult.id == old_id).with_for_update())
+
+            async def delete_all() -> None:
+                async with self.sessions() as db:
+                    await crud_analysis.delete_all_analysis_results(db, self.user_id)
+                    await db.commit()
+
+            deleting = asyncio.create_task(delete_all())
+            await self._wait_for_lock_wait()  # 전체 삭제의 UPDATE가 old 행 잠금을 기다리는 중
+            new_id, _ = await self._analyzed_document(pages=["We evaluate on GLUE with RoBERTa in a new paper."])
+            async with self.sessions() as db:
+                await save_for_active_analysis(db, new_id, self.user_id, "new q", {"answerable": True})
+                await db.commit()
+            await holder.commit()
+        await deleting
+        self.assertEqual(await self._stored(new_id), 1)
+
+    async def test_history_list_returns_the_latest_fifty_oldest_first(self):
+        analysis_id, _ = await self._analyzed_document()
+        async with self.sessions() as db:
+            for n in range(1, 52):
+                await save_for_active_analysis(db, analysis_id, self.user_id, f"q{n}", {"answerable": True})
+            await db.commit()
+        listed = (await self.client.get(f"/api/v1/analyses/{analysis_id}/qa")).json()
+        self.assertEqual([m["question"] for m in listed], [f"q{n}" for n in range(2, 52)])
 
 
 # ── 실제 HTTP 연결 종료 ───────────────────────────────────────────────────
