@@ -10,7 +10,9 @@ CONTEXT_WINDOW = {"gpt-4o-mini": 128_000, "gpt-5.4-mini": 400_000}
 
 # 호출당 출력 예산 — ChatOpenAI(max_tokens=...)로 API에 강제한다.
 # gpt-5.4-mini(추론 강도 medium)는 보이는 답변 외에 추론 토큰도 이 예산에서 쓰므로 관측된 출력 길이(1.4k~5.6k)보다 넉넉히 잡는다.
-REASONING_OUTPUT_BUDGET = 32_000
+# 2026-11-18: 32k → 64k. 운영에서 SSF-SET 논문(13쪽, 2.2만 토큰)의 Coder가 32k를 넘겨 실패했다. 같은 논문 로컬 1회는
+# 출력 12,925(추론 4,485)로 끝났다 — 실행마다 길이가 크게 다르다. 잘리면 쓴 토큰을 버리므로 예산이 비용을 아끼지 못한다
+REASONING_OUTPUT_BUDGET = 64_000
 ANALYZER_OUTPUT_BUDGET = 16_384  # gpt-4o-mini 최대 출력
 
 # 채팅 형식 오버헤드 (메시지당 구분 토큰 + 응답 시작 토큰)

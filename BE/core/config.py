@@ -48,7 +48,8 @@ class Settings(BaseSettings):
 
     # LLM 호출 시간 제한 (요청당 초). 없으면 OpenAI SDK 기본값(600초, 재시도 2번)으로 응답 없는 연결 하나에 30분까지 매달린다
     # (2026-11-16 평가에서 Coder 요청 1,104초 관측). 측정 최대: Coder 130초, Reviewer 31초, Analyzer 36초 — 출력 예산을 다 쓰는 경우까지 여유를 둔다
-    llm_timeout_reasoning_seconds: float = 300  # Coder·Reviewer (gpt-5.4-mini, 출력 예산 32k)
+    # Coder·Reviewer (gpt-5.4-mini, 출력 예산 64k). 측정 속도 초당 약 170토큰(2026-11-18, 1회) → 64k면 약 6분
+    llm_timeout_reasoning_seconds: float = 480
     llm_timeout_analyzer_seconds: float = 180  # Analyzer (gpt-5.4-mini low, 출력 예산 16k)
     llm_timeout_short_seconds: float = 60  # Planner·TrendAnalyzer·Q&A·임베딩
     llm_max_retries: int = 1
